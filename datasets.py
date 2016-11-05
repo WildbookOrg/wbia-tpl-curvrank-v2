@@ -3,6 +3,17 @@ import sqlite3
 from os import listdir
 from os.path import join
 
+import os
+
+
+def load_dataset(name):
+    if name == 'nz':
+        return load_nz_dataset()
+    elif name == 'sdrp':
+        return load_sdrp_dataset()
+    else:
+        assert False, 'bad dataset name: %s' % (name)
+
 
 def load_nz_dataset():
     data_dir = '/media/hdd/hendrik/datasets/nz-dolphins'
