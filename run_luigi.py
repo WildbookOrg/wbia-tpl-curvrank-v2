@@ -1,3 +1,4 @@
+import cPickle as pickle
 import cv2
 import pandas as pd
 import luigi
@@ -34,14 +35,15 @@ class PrepareData(luigi.Task):
                 f.write('%s,%s,%s\n' % (img_fpath, indiv_name, enc_name))
 
 
-class LocalizationSegmentation(luigi.Task):
+class PreprocessImages(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    batch_size = luigi.IntParameter(default=32)
+    imsize = luigi.IntParameter(default=256)
+
     def requires(self):
         return [PrepareData(dataset=self.dataset)]
 
     def output(self):
-        csv_fpath = PrepareData(dataset=self.dataset).output().path
+        csv_fpath = self.requires()[0].output().path
         df = pd.read_csv(
             csv_fpath, header='infer',
             usecols=['impath', 'individual', 'encounter']
@@ -51,11 +53,51 @@ class LocalizationSegmentation(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in image_filepaths:
-            fname = '%s.png' % splitext(basename(fpath))[0]
-            #for dname in ('loc-lr', 'loc-hr', 'seg-lr', 'seg-hr'):
+            resz_fname = '%s.png' % splitext(basename(fpath))[0]
+            trns_fname = '%s.pickle' % splitext(basename(fpath))[0]
             outputs[fpath] = {
-                'loc-lr': luigi.LocalTarget(join(basedir, 'loc-lr', fname)),
-                'seg-lr': luigi.LocalTarget(join(basedir, 'seg-lr', fname)),
+                'resized': luigi.LocalTarget(
+                    join(basedir, 'resized', resz_fname)),
+                'transform': luigi.LocalTarget(
+                    join(basedir, 'transform', trns_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        image_filepaths = self.output().keys()
+        print('%d images to process' % (len(image_filepaths)))
+
+        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            img = cv2.imread(fpath)
+            resz, M = imutils.center_pad_with_transform(img, self.imsize)
+            _, resz_buf = cv2.imencode('.png', resz)
+
+            resz_path = self.output()[fpath]['resized']
+            trns_path = self.output()[fpath]['transform']
+            with resz_path.open('wb') as f1,\
+                    trns_path.open('wb') as f2:
+                f1.write(resz_buf)
+                pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
+
+
+class LocalizationSegmentation(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    def requires(self):
+        return [PreprocessImages(dataset=self.dataset, imsize=self.imsize)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            fname = '%s.png' % splitext(basename(fpath))[0]
+            outputs[fpath] = {
+                'loc-lr': luigi.LocalTarget(
+                    join(basedir, 'loc-lr', fname)),
+                'seg-lr': luigi.LocalTarget(
+                    join(basedir, 'seg-lr', fname)),
             }
 
         return outputs
@@ -65,9 +107,6 @@ class LocalizationSegmentation(luigi.Task):
         import segmentation
         import theano_funcs
         height, width = 256, 256
-
-        image_filepaths = self.output().keys()
-        print('%d images to process' % (len(image_filepaths)))
 
         print('building localization model')
         layers_localization = localization.build_model(
@@ -106,6 +145,11 @@ class LocalizationSegmentation(luigi.Task):
 
         print('compiling theano functions for localization and segmentation')
         loc_seg_func = theano_funcs.create_end_to_end_infer_func(layers)
+
+        input_entries = self.requires()[0].output()
+        image_filepaths = input_entries.keys()
+        print('%d images to process' % (len(image_filepaths)))
+
         num_batches = (
             len(image_filepaths) + self.batch_size - 1) / self.batch_size
         print('%d batches to process' % (num_batches))
@@ -115,8 +159,9 @@ class LocalizationSegmentation(luigi.Task):
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
             for i, idx in enumerate(idx_range):
-                img = cv2.imread(image_filepaths[idx])
-                img = imutils.center_pad(img, height)
+                impath = input_entries[image_filepaths[idx]]['resized'].path
+                img = cv2.imread(impath)
+                #img = imutils.center_pad(img, height)
                 X_batch[i] = img.transpose(2, 0, 1) / 255.
 
             M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
