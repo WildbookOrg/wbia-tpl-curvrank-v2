@@ -7,7 +7,7 @@ import model
 import numpy as np
 
 from tqdm import tqdm
-from os import mkdir
+#from os import mkdir
 from os.path import basename, join, splitext
 
 
@@ -19,7 +19,8 @@ class PrepareData(luigi.Task):
 
     def output(self):
         return luigi.LocalTarget(
-            join('data', self.dataset, '%s.csv' % self.dataset)
+            join('data', self.dataset, self.__class__.__name__,
+                 '%s.csv' % self.dataset)
         )
 
     def run(self):
@@ -40,36 +41,32 @@ class LocalizationSegmentation(luigi.Task):
         return [PrepareData(dataset=self.dataset)]
 
     def output(self):
-        return [
-            luigi.LocalTarget(
-                join('data', self.dataset, 'localizations-low')),
-            luigi.LocalTarget(
-                join('data', self.dataset, 'segmentations-low')),
-            luigi.LocalTarget(
-                join('data', self.dataset, 'localizations-high')),
-            luigi.LocalTarget(
-                join('data', self.dataset, 'segmentations-high')),
-        ]
+        csv_fpath = PrepareData(dataset=self.dataset).output().path
+        df = pd.read_csv(
+            csv_fpath, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+        image_filepaths = df['impath'].values
+
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in image_filepaths:
+            fname = '%s.png' % splitext(basename(fpath))[0]
+            #for dname in ('loc-lr', 'loc-hr', 'seg-lr', 'seg-hr'):
+            outputs[fpath] = {
+                'loc-lr': luigi.LocalTarget(join(basedir, 'loc-lr', fname)),
+                'seg-lr': luigi.LocalTarget(join(basedir, 'seg-lr', fname)),
+            }
+
+        return outputs
 
     def run(self):
         import localization
         import segmentation
         import theano_funcs
-        loc_low_dir = join('data', self.dataset, 'localizations-low')
-        loc_high_dir = join('data', self.dataset, 'localizations-high')
-        segm_low_dir = join('data', self.dataset, 'segmentations-low')
-        segm_high_dir = join('data', self.dataset, 'segmentations-high')
-        for d in (loc_low_dir, loc_high_dir, segm_low_dir, segm_high_dir):
-            mkdir(d)
         height, width = 256, 256
-        csv_fpath = join('data', self.dataset, '%s.csv' % (self.dataset))
-        print('parsing csv at %s' % (csv_fpath))
-        df = pd.read_csv(
-            csv_fpath, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
 
-        image_filepaths = df['impath'].values
+        image_filepaths = self.output().keys()
         print('%d images to process' % (len(image_filepaths)))
 
         print('building localization model')
@@ -124,15 +121,20 @@ class LocalizationSegmentation(luigi.Task):
 
             M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
             for i, idx in enumerate(idx_range):
-                impath = splitext(basename(image_filepaths[idx]))[0]
                 #Mloc = M_batch[i].reshape((2, 3))
                 img_loc = (255. * X_batch_loc[i]).astype(
                     np.uint8).transpose(1, 2, 0)
                 img_seg = (255. * X_batch_seg[i]).astype(
                     np.uint8).transpose(1, 2, 0)
 
-                cv2.imwrite(join(segm_low_dir, '%s.png' % impath), img_seg)
-                cv2.imwrite(join(loc_low_dir, '%s.png' % impath), img_loc)
+                _, loc_buf = cv2.imencode('.png', img_loc)
+                _, seg_buf = cv2.imencode('.png', img_seg)
+                loc_lr_path = self.output()[image_filepaths[idx]]['loc-lr']
+                with loc_lr_path.open('wb') as f:
+                    f.write(loc_buf)
+                seg_lr_path = self.output()[image_filepaths[idx]]['seg-lr']
+                with seg_lr_path.open('wb') as f:
+                    f.write(seg_buf)
 
 
 if __name__ == '__main__':
