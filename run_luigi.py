@@ -92,12 +92,15 @@ class LocalizationSegmentation(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
-            fname = '%s.png' % splitext(basename(fpath))[0]
+            img_fname = '%s.png' % splitext(basename(fpath))[0]
+            trns_fname = '%s.pickle' % splitext(basename(fpath))[0]
             outputs[fpath] = {
                 'loc-lr': luigi.LocalTarget(
-                    join(basedir, 'loc-lr', fname)),
+                    join(basedir, 'loc-lr', img_fname)),
                 'seg-lr': luigi.LocalTarget(
-                    join(basedir, 'seg-lr', fname)),
+                    join(basedir, 'seg-lr', img_fname)),
+                'transform': luigi.LocalTarget(
+                    join(basedir, 'transform', trns_fname)),
             }
 
         return outputs
@@ -161,12 +164,13 @@ class LocalizationSegmentation(luigi.Task):
             for i, idx in enumerate(idx_range):
                 impath = input_entries[image_filepaths[idx]]['resized'].path
                 img = cv2.imread(impath)
-                #img = imutils.center_pad(img, height)
                 X_batch[i] = img.transpose(2, 0, 1) / 255.
 
             M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
             for i, idx in enumerate(idx_range):
-                #Mloc = M_batch[i].reshape((2, 3))
+                Mloc = np.vstack(
+                    (M_batch[i].reshape((2, 3)), np.array([0, 0, 1]))
+                )
                 img_loc = (255. * X_batch_loc[i]).astype(
                     np.uint8).transpose(1, 2, 0)
                 img_seg = (255. * X_batch_seg[i]).astype(
@@ -175,11 +179,14 @@ class LocalizationSegmentation(luigi.Task):
                 _, loc_buf = cv2.imencode('.png', img_loc)
                 _, seg_buf = cv2.imencode('.png', img_seg)
                 loc_lr_path = self.output()[image_filepaths[idx]]['loc-lr']
-                with loc_lr_path.open('wb') as f:
-                    f.write(loc_buf)
                 seg_lr_path = self.output()[image_filepaths[idx]]['seg-lr']
-                with seg_lr_path.open('wb') as f:
-                    f.write(seg_buf)
+                trns_path = self.output()[image_filepaths[idx]]['transform']
+                with loc_lr_path.open('wb') as f1,\
+                        seg_lr_path.open('wb') as f2,\
+                        trns_path.open('wb') as f3:
+                    f1.write(loc_buf)
+                    f2.write(seg_buf)
+                    pickle.dump(Mloc, f3, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == '__main__':
