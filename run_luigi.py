@@ -146,7 +146,7 @@ class LocalizationSegmentation(luigi.Task):
         layers.pop('seg_in')
         layers['seg_conv1'].input_layer = layers['trans']
 
-        print('compiling theano functions for localization and segmentation')
+        print('compiling theano functions for loc. and seg.')
         loc_seg_func = theano_funcs.create_end_to_end_infer_func(layers)
 
         input_entries = self.requires()[0].output()
@@ -157,7 +157,8 @@ class LocalizationSegmentation(luigi.Task):
             len(image_filepaths) + self.batch_size - 1) / self.batch_size
         print('%d batches to process' % (num_batches))
         for i in tqdm(range(num_batches), total=num_batches):
-            idx_range = range(i * self.batch_size, (i + 1) * self.batch_size)
+            idx_range = range(i * self.batch_size,
+                              (i + 1) * self.batch_size)
             X_batch = np.empty(
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
@@ -178,9 +179,11 @@ class LocalizationSegmentation(luigi.Task):
 
                 _, loc_buf = cv2.imencode('.png', img_loc)
                 _, seg_buf = cv2.imencode('.png', img_seg)
-                loc_lr_path = self.output()[image_filepaths[idx]]['loc-lr']
-                seg_lr_path = self.output()[image_filepaths[idx]]['seg-lr']
-                trns_path = self.output()[image_filepaths[idx]]['transform']
+
+                impath_idx = image_filepaths[idx]
+                loc_lr_path = self.output()[impath_idx]['loc-lr']
+                seg_lr_path = self.output()[impath_idx]['seg-lr']
+                trns_path = self.output()[impath_idx]['transform']
                 with loc_lr_path.open('wb') as f1,\
                         seg_lr_path.open('wb') as f2,\
                         trns_path.open('wb') as f3:
@@ -188,6 +191,53 @@ class LocalizationSegmentation(luigi.Task):
                     f2.write(seg_buf)
                     pickle.dump(Mloc, f3, pickle.HIGHEST_PROTOCOL)
 
+
+class ExtractLowResolutionOutline(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+
+    def requires(self):
+        return [LocalizationSegmentation(dataset=self.dataset,
+                                         imsize=self.imsize,
+                                         batch_size=self.batch_size)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            img_fname = '%s.png' % splitext(basename(fpath))[0]
+            outline_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            outputs[fpath] = {
+                'outline-visual': luigi.LocalTarget(
+                    join(basedir, 'outline-visual', img_fname)),
+                'outline-coords': luigi.LocalTarget(
+                    join(basedir, 'outline-coords', outline_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        import dorsal_utils
+        input_entries = self.requires()[0].output()
+        image_filepaths = input_entries.keys()
+        print('%d images to process' % (len(image_filepaths)))
+        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            loc_fpath = input_entries[fpath]['loc-lr'].path
+            seg_fpath = input_entries[fpath]['seg-lr'].path
+            loc = cv2.imread(loc_fpath)
+            seg = cv2.imread(seg_fpath)
+            coords_path = self.output()[fpath]['outline-coords']
+            visual_path = self.output()[fpath]['outline-visual']
+
+            outline = dorsal_utils.extract_outline(seg[:, :, 0])
+
+            loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
+            _, visual_buf = cv2.imencode('.png', loc)
+            with coords_path.open('wb') as f1,\
+                    visual_path.open('wb') as f2:
+                pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
+                f2.write(visual_buf)
 
 if __name__ == '__main__':
     luigi.run()
