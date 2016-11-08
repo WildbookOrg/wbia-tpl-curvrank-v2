@@ -226,11 +226,11 @@ class ExtractLowResolutionOutline(luigi.Task):
             loc_fpath = input_entries[fpath]['loc-lr'].path
             seg_fpath = input_entries[fpath]['seg-lr'].path
             loc = cv2.imread(loc_fpath)
-            seg = cv2.imread(seg_fpath)
+            seg = cv2.imread(seg_fpath, cv2.IMREAD_GRAYSCALE)
             coords_path = self.output()[fpath]['outline-coords']
             visual_path = self.output()[fpath]['outline-visual']
 
-            outline = dorsal_utils.extract_outline(seg[:, :, 0])
+            outline = dorsal_utils.extract_outline(seg)
 
             if outline.shape[0] > 0:
                 loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
@@ -289,30 +289,116 @@ class RefinedLocalizationSegmentation(luigi.Task):
         print('%d images to process' % (len(image_filepaths_lr)))
 
         for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
-            # the preprocessing transform: constrained similarity
             Mpre_path = Mpre_dict[fpath]['transform'].path
-            # the localization transform: affine
             Mloc_path = loc_seg_Mloc_dict[fpath]['transform'].path
-            # the output of the localization network
-            loc_lr_path = loc_seg_Mloc_dict[fpath]['loc-lr'].path
-            # the output of the segmentation network
+            #loc_lr_path = loc_seg_Mloc_dict[fpath]['loc-lr'].path
             seg_lr_path = loc_seg_Mloc_dict[fpath]['seg-lr'].path
 
+            # the original image
             img = cv2.imread(fpath)
-            loc_lr = cv2.imread(loc_lr_path)
-            seg_lr = cv2.imread(seg_lr_path)
+            # the output of the localization network
+            #loc_lr = cv2.imread(loc_lr_path)
+            # the output of the segmentation network
+            seg_lr = cv2.imread(seg_lr_path, cv2.IMREAD_GRAYSCALE)
+
+            with open(Mpre_path, 'rb') as f1,\
+                    open(Mloc_path, 'rb') as f2:
+                # the preprocessing transform: constrained similarity
+                Mpre = pickle.load(f1)
+                # the localization transform: affine
+                Mloc = pickle.load(f2)
 
             loc_hr_path = self.output()[fpath]['loc-hr']
             seg_hr_path = self.output()[fpath]['seg-hr']
 
-            # TODO: implement this
-            loc_hr, seg_hr = loc_lr, seg_lr
+            loc_hr, seg_hr = imutils.refine_localization_segmentation(
+                img, seg_lr, Mpre, Mloc, self.scale, self.imsize
+            )
             _, loc_hr_buf = cv2.imencode('.png', loc_hr)
             _, seg_hr_buf = cv2.imencode('.png', seg_hr)
             with loc_hr_path.open('wb') as f1,\
                     seg_hr_path.open('wb') as f2:
                 f1.write(loc_hr_buf)
                 f2.write(seg_hr_buf)
+
+
+class ExtractHighResolutionOutline(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [
+            ExtractLowResolutionOutline(dataset=self.dataset,
+                                        imsize=self.imsize,
+                                        batch_size=self.batch_size),
+            RefinedLocalizationSegmentation(dataset=self.dataset,
+                                            imsize=self.imsize,
+                                            batch_size=self.batch_size,
+                                            scale=self.scale,)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[1].output().keys():
+            img_fname = '%s.png' % splitext(basename(fpath))[0]
+            outline_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            outputs[fpath] = {
+                'outline-visual': luigi.LocalTarget(
+                    join(basedir, 'outline-visual', img_fname)),
+                'outline-coords': luigi.LocalTarget(
+                    join(basedir, 'outline-coords', outline_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        import affine
+        import dorsal_utils
+        lr_coord_entries = self.requires()[0].output()
+        loc_seg_entries = self.requires()[1].output()
+        image_filepaths = loc_seg_entries.keys()
+        print('%d images to process' % (len(image_filepaths)))
+        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            lr_coord_fpath = lr_coord_entries[fpath]['outline-coords'].path
+            loc_fpath = loc_seg_entries[fpath]['loc-hr'].path
+            seg_fpath = loc_seg_entries[fpath]['seg-hr'].path
+
+            loc = cv2.imread(loc_fpath)
+            seg = cv2.imread(seg_fpath, cv2.IMREAD_GRAYSCALE)
+
+            with open(lr_coord_fpath, 'rb') as f:
+                lr_coords = pickle.load(f)
+
+            # NOTE: original contour is at 128x128
+            Mscale = affine.build_scale_matrix(2 * self.scale)
+            hr_coords = affine.transform_points(Mscale, lr_coords)
+
+            hr_coords_refined = dorsal_utils.extract_contour_refined(
+                loc, seg, hr_coords
+            )
+
+            coords_path = self.output()[fpath]['outline-coords']
+            visual_path = self.output()[fpath]['outline-visual']
+            if hr_coords_refined.shape[0] > 0:
+                # round, convert to int, and clip before plotting
+                hr_coords_refined_int = np.round(
+                    hr_coords_refined).astype(np.int32)
+                hr_coords_refined_int[:, 0] = np.clip(
+                    hr_coords_refined_int[:, 0], 0, loc.shape[1] - 1)
+                hr_coords_refined_int[:, 1] = np.clip(
+                    hr_coords_refined_int[:, 1], 0, loc.shape[0] - 1)
+                loc[
+                    hr_coords_refined_int[:, 1], hr_coords_refined_int[:, 0]
+                ] = (255, 0, 0)
+
+            _, visual_buf = cv2.imencode('.png', loc)
+            with coords_path.open('wb') as f1,\
+                    visual_path.open('wb') as f2:
+                pickle.dump(hr_coords_refined, f1, pickle.HIGHEST_PROTOCOL)
+                f2.write(visual_buf)
+
 
 if __name__ == '__main__':
     luigi.run()
