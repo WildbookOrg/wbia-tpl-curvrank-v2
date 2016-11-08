@@ -232,12 +232,87 @@ class ExtractLowResolutionOutline(luigi.Task):
 
             outline = dorsal_utils.extract_outline(seg[:, :, 0])
 
-            loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
+            if outline.shape[0] > 0:
+                loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
             _, visual_buf = cv2.imencode('.png', loc)
             with coords_path.open('wb') as f1,\
                     visual_path.open('wb') as f2:
                 pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
                 f2.write(visual_buf)
+
+
+class RefinedLocalizationSegmentation(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [
+            PrepareData(dataset=self.dataset),
+            PreprocessImages(dataset=self.dataset, imsize=self.imsize),
+            LocalizationSegmentation(dataset=self.dataset,
+                                     imsize=self.imsize,
+                                     batch_size=self.batch_size)
+        ]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[1].output().keys():
+            img_fname = '%s.png' % splitext(basename(fpath))[0]
+            outputs[fpath] = {
+                'loc-hr': luigi.LocalTarget(
+                    join(basedir, 'loc-hr', img_fname)),
+                'seg-hr': luigi.LocalTarget(
+                    join(basedir, 'seg-hr', img_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        csv_fpath = self.requires()[0].output().path
+        df = pd.read_csv(
+            csv_fpath, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+
+        # the paths to the original images
+        image_filepaths = df['impath'].values
+
+        # the dict containing the preprocessing transforms
+        Mpre_dict = self.requires()[1].output()
+
+        # the dict containing the localization, segmentation, and stn transform
+        loc_seg_Mloc_dict = self.requires()[2].output()
+        image_filepaths_lr = loc_seg_Mloc_dict.keys()
+        print('%d images to process' % (len(image_filepaths_lr)))
+
+        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            # the preprocessing transform: constrained similarity
+            Mpre_path = Mpre_dict[fpath]['transform'].path
+            # the localization transform: affine
+            Mloc_path = loc_seg_Mloc_dict[fpath]['transform'].path
+            # the output of the localization network
+            loc_lr_path = loc_seg_Mloc_dict[fpath]['loc-lr'].path
+            # the output of the segmentation network
+            seg_lr_path = loc_seg_Mloc_dict[fpath]['seg-lr'].path
+
+            img = cv2.imread(fpath)
+            loc_lr = cv2.imread(loc_lr_path)
+            seg_lr = cv2.imread(seg_lr_path)
+
+            loc_hr_path = self.output()[fpath]['loc-hr']
+            seg_hr_path = self.output()[fpath]['seg-hr']
+
+            # TODO: implement this
+            loc_hr, seg_hr = loc_lr, seg_lr
+            _, loc_hr_buf = cv2.imencode('.png', loc_hr)
+            _, seg_hr_buf = cv2.imencode('.png', seg_hr)
+            with loc_hr_path.open('wb') as f1,\
+                    seg_hr_path.open('wb') as f2:
+                f1.write(loc_hr_buf)
+                f2.write(seg_hr_buf)
 
 if __name__ == '__main__':
     luigi.run()
