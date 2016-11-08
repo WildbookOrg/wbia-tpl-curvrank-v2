@@ -151,3 +151,58 @@ def extract_contour_refined(localization, segmentation, coordinates):
 
     path = np.vstack(path)
     return path
+
+
+def separate_leading_trailing_edges(contour):
+    steps = contour.shape[0] / 2 + 1
+    norm = diff_of_gauss_norm(contour, steps, m=2, s=1)
+    maxima_idx, = argrelextrema(norm, np.greater, order=250)
+
+    if maxima_idx.shape[0] > 0:
+        keypt = steps // 2 + maxima_idx[norm[maxima_idx].argmax()]
+    else:
+        keypt = None
+
+    return keypt
+
+
+def diff_of_gauss_norm(contour, steps, m=1, s=1):
+    x, y = contour[:, 0], contour[:, 1]
+    g1 = gaussian(np.linspace(-2 * m * s, 2 * m * s, steps), m * s)
+    g2 = gaussian(np.linspace(-2 * m * s, 2 * m * s, steps), s)
+
+    g1x = np.convolve(x, g1, mode='valid')
+    g2x = np.convolve(x, g2, mode='valid')
+
+    g1y = np.convolve(y, g1, mode='valid')
+    g2y = np.convolve(y, g2, mode='valid')
+
+    diff_of_gauss = (g1x - g2x) ** 2 + (g1y - g2y) ** 2
+
+    return diff_of_gauss
+
+
+def gaussian(u, s):
+    return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
+
+
+def block_curvature(contour, scales):
+    curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
+    for j, s in enumerate(scales):
+        h = s * (contour[:, 1].max() - contour[:, 1].min())
+        w = s * (contour[:, 0].max() - contour[:, 0].min())
+        for i, (x, y) in enumerate(contour):
+            x0, x1 = x - w / 2., x + w / 2.
+            y0 = max(contour[:, 1].min(), y - h / 2.)
+            y1 = min(y + h / 2., contour[:, 1].max())
+
+            x0x1 = (contour[:, 0] >= x0)
+            y0y1 = (contour[:, 1] >= y0) & (contour[:, 1] <= y1)
+            curve = contour[x0x1 & y0y1]
+
+            curve[:, 0] = np.clip(curve[:, 0], x0, x1)
+            area = np.trapz(curve[:, 0] - x0, curve[:, 1], axis=0)
+
+            curvature[i, j] = area / ((x1 - x0) * (y1 - y0))
+
+    return curvature

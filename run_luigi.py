@@ -400,5 +400,53 @@ class ExtractHighResolutionOutline(luigi.Task):
                 f2.write(visual_buf)
 
 
+class ComputeBlockCurvature(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+    curvature_scales = (0.133, 0.207, 0.280, 0.353)
+
+    def requires(self):
+        return [
+            ExtractHighResolutionOutline(dataset=self.dataset,
+                                         imsize=self.imsize,
+                                         batch_size=self.batch_size,
+                                         scale=self.scale)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[1].output().keys():
+            curv_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            outputs[fpath] = {
+                'curvature': luigi.LocalTarget(
+                    join(basedir, 'curvature', curv_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        import dorsal_utils
+        outline_entries = self.requires()[0].output()
+        outline_filepaths = outline_entries.keys()
+
+        print('%d images to process' % (len(outline_filepaths)))
+        for fpath in tqdm(outline_filepaths, total=len(outline_filepaths)):
+            outline_fpath = outline_entries[fpath]['outline-coords'].path
+            with open(outline_fpath, 'rb') as f:
+                outline = pickle.load(f)
+            idx = dorsal_utils.separate_leading_trailing_edges(outline)
+            # TODO: how to deal with cases where we cannot find endpoints
+            if idx is None:
+                continue
+            te = outline[idx:]
+            curv = dorsal_utils.block_curvature(te, self.curvature_scales)
+
+            curv_path = self.output()[fpath]['curvature']
+            with curv_path.open('wb') as f1:
+                pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
+
+
 if __name__ == '__main__':
     luigi.run()
