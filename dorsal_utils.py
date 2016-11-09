@@ -1,7 +1,26 @@
 import cv2
 import networkx as nx
 import numpy as np
+from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
+
+
+# TODO: find a better way to structure these two functions
+def resample(x, length):
+    interp = np.linspace(0, length, num=x.shape[0], dtype=np.float32)
+    f_interp = interp1d(interp, x, kind='linear')
+
+    resamp = f_interp(np.arange(length))
+
+    return resamp
+
+
+def resampleNd(X, length):
+    Xr = np.zeros((length, X.shape[1]), dtype=np.float32)
+    for i in range(X.shape[1]):
+        Xr[:, i] = resample(X[:, i], 128)
+
+    return Xr
 
 
 def local_max2d(X):
