@@ -9,7 +9,7 @@ import numpy as np
 
 from tqdm import tqdm
 #from os import mkdir
-from os.path import basename, join, splitext
+from os.path import basename, exists, join, splitext
 
 
 class PrepareData(luigi.Task):
@@ -69,14 +69,18 @@ class PreprocessImages(luigi.Task):
         print('%d images to process' % (len(image_filepaths)))
 
         for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            resz_target = self.output()[fpath]['resized']
+            trns_target = self.output()[fpath]['transform']
+
+            if exists(resz_target) and exists(trns_target):
+                continue
+
             img = cv2.imread(fpath)
             resz, M = imutils.center_pad_with_transform(img, self.imsize)
             _, resz_buf = cv2.imencode('.png', resz)
 
-            resz_path = self.output()[fpath]['resized']
-            trns_path = self.output()[fpath]['transform']
-            with resz_path.open('wb') as f1,\
-                    trns_path.open('wb') as f2:
+            with resz_target.open('wb') as f1,\
+                    trns_target.open('wb') as f2:
                 f1.write(resz_buf)
                 pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
 
@@ -169,6 +173,16 @@ class LocalizationSegmentation(luigi.Task):
 
             M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
             for i, idx in enumerate(idx_range):
+                impath_idx = image_filepaths[idx]
+                loc_lr_target = self.output()[impath_idx]['loc-lr']
+                seg_lr_target = self.output()[impath_idx]['seg-lr']
+                trns_target = self.output()[impath_idx]['transform']
+
+                if exists(loc_lr_target.path) and\
+                        exists(seg_lr_target.path) and\
+                        exists(trns_target.path):
+                    continue
+
                 Mloc = np.vstack(
                     (M_batch[i].reshape((2, 3)), np.array([0, 0, 1]))
                 )
@@ -180,13 +194,9 @@ class LocalizationSegmentation(luigi.Task):
                 _, loc_buf = cv2.imencode('.png', img_loc)
                 _, seg_buf = cv2.imencode('.png', img_seg)
 
-                impath_idx = image_filepaths[idx]
-                loc_lr_path = self.output()[impath_idx]['loc-lr']
-                seg_lr_path = self.output()[impath_idx]['seg-lr']
-                trns_path = self.output()[impath_idx]['transform']
-                with loc_lr_path.open('wb') as f1,\
-                        seg_lr_path.open('wb') as f2,\
-                        trns_path.open('wb') as f3:
+                with loc_lr_target.open('wb') as f1,\
+                        seg_lr_target.open('wb') as f2,\
+                        trns_target.open('wb') as f3:
                     f1.write(loc_buf)
                     f2.write(seg_buf)
                     pickle.dump(Mloc, f3, pickle.HIGHEST_PROTOCOL)
@@ -223,20 +233,25 @@ class ExtractLowResolutionOutline(luigi.Task):
         image_filepaths = input_entries.keys()
         print('%d images to process' % (len(image_filepaths)))
         for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            coords_target = self.output()[fpath]['outline-coords']
+            visual_target = self.output()[fpath]['outline-visual']
+
+            if exists(coords_target) and exists(visual_target):
+                continue
+
             loc_fpath = input_entries[fpath]['loc-lr'].path
             seg_fpath = input_entries[fpath]['seg-lr'].path
             loc = cv2.imread(loc_fpath)
             seg = cv2.imread(seg_fpath, cv2.IMREAD_GRAYSCALE)
-            coords_path = self.output()[fpath]['outline-coords']
-            visual_path = self.output()[fpath]['outline-visual']
 
             outline = dorsal_utils.extract_outline(seg)
 
+            # TODO: what to write for failed extractions?
             if outline.shape[0] > 0:
                 loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
             _, visual_buf = cv2.imencode('.png', loc)
-            with coords_path.open('wb') as f1,\
-                    visual_path.open('wb') as f2:
+            with coords_target.open('wb') as f1,\
+                    visual_target.open('wb') as f2:
                 pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
                 f2.write(visual_buf)
 
@@ -289,6 +304,12 @@ class RefinedLocalizationSegmentation(luigi.Task):
         print('%d images to process' % (len(image_filepaths_lr)))
 
         for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            loc_hr_target = self.output()[fpath]['loc-hr']
+            seg_hr_target = self.output()[fpath]['seg-hr']
+
+            if exists(loc_hr_target) and exists(seg_hr_target):
+                continue
+
             Mpre_path = Mpre_dict[fpath]['transform'].path
             Mloc_path = loc_seg_Mloc_dict[fpath]['transform'].path
             #loc_lr_path = loc_seg_Mloc_dict[fpath]['loc-lr'].path
@@ -308,16 +329,13 @@ class RefinedLocalizationSegmentation(luigi.Task):
                 # the localization transform: affine
                 Mloc = pickle.load(f2)
 
-            loc_hr_path = self.output()[fpath]['loc-hr']
-            seg_hr_path = self.output()[fpath]['seg-hr']
-
             loc_hr, seg_hr = imutils.refine_localization_segmentation(
                 img, seg_lr, Mpre, Mloc, self.scale, self.imsize
             )
             _, loc_hr_buf = cv2.imencode('.png', loc_hr)
             _, seg_hr_buf = cv2.imencode('.png', seg_hr)
-            with loc_hr_path.open('wb') as f1,\
-                    seg_hr_path.open('wb') as f2:
+            with loc_hr_target.open('wb') as f1,\
+                    seg_hr_target.open('wb') as f2:
                 f1.write(loc_hr_buf)
                 f2.write(seg_hr_buf)
 
@@ -361,6 +379,12 @@ class ExtractHighResolutionOutline(luigi.Task):
         image_filepaths = loc_seg_entries.keys()
         print('%d images to process' % (len(image_filepaths)))
         for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            coords_target = self.output()[fpath]['outline-coords']
+            visual_target = self.output()[fpath]['outline-visual']
+
+            if exists(coords_target.path) and exists(visual_target.path):
+                continue
+
             lr_coord_fpath = lr_coord_entries[fpath]['outline-coords'].path
             loc_fpath = loc_seg_entries[fpath]['loc-hr'].path
             seg_fpath = loc_seg_entries[fpath]['seg-hr'].path
@@ -371,16 +395,18 @@ class ExtractHighResolutionOutline(luigi.Task):
             with open(lr_coord_fpath, 'rb') as f:
                 lr_coords = pickle.load(f)
 
-            # NOTE: original contour is at 128x128
-            Mscale = affine.build_scale_matrix(2 * self.scale)
-            hr_coords = affine.transform_points(Mscale, lr_coords)
+            if lr_coords.shape[0] > 0:
+                # NOTE: original contour is at 128x128
+                Mscale = affine.build_scale_matrix(2 * self.scale)
+                hr_coords = affine.transform_points(Mscale, lr_coords)
 
-            hr_coords_refined = dorsal_utils.extract_contour_refined(
-                loc, seg, hr_coords
-            )
+                hr_coords_refined = dorsal_utils.extract_contour_refined(
+                    loc, seg, hr_coords
+                )
+            # the lr outline extraction failed
+            else:
+                hr_coords_refined = np.array([])
 
-            coords_path = self.output()[fpath]['outline-coords']
-            visual_path = self.output()[fpath]['outline-visual']
             if hr_coords_refined.shape[0] > 0:
                 # round, convert to int, and clip before plotting
                 hr_coords_refined_int = np.round(
@@ -394,8 +420,8 @@ class ExtractHighResolutionOutline(luigi.Task):
                 ] = (255, 0, 0)
 
             _, visual_buf = cv2.imencode('.png', loc)
-            with coords_path.open('wb') as f1,\
-                    visual_path.open('wb') as f2:
+            with coords_target.open('wb') as f1,\
+                    visual_target.open('wb') as f2:
                 pickle.dump(hr_coords_refined, f1, pickle.HIGHEST_PROTOCOL)
                 f2.write(visual_buf)
 
@@ -417,7 +443,7 @@ class ComputeBlockCurvature(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
-        for fpath in self.requires()[1].output().keys():
+        for fpath in self.requires()[0].output().keys():
             curv_fname = '%s.pickle' % splitext(basename(fpath))[0]
             outputs[fpath] = {
                 'curvature': luigi.LocalTarget(
@@ -433,19 +459,116 @@ class ComputeBlockCurvature(luigi.Task):
 
         print('%d images to process' % (len(outline_filepaths)))
         for fpath in tqdm(outline_filepaths, total=len(outline_filepaths)):
+            curv_target = self.output()[fpath]['curvature']
+            if exists(curv_target.path):
+                continue
+
             outline_fpath = outline_entries[fpath]['outline-coords'].path
             with open(outline_fpath, 'rb') as f:
                 outline = pickle.load(f)
-            idx = dorsal_utils.separate_leading_trailing_edges(outline)
-            # TODO: how to deal with cases where we cannot find endpoints
-            if idx is None:
-                continue
-            te = outline[idx:]
-            curv = dorsal_utils.block_curvature(te, self.curvature_scales)
 
-            curv_path = self.output()[fpath]['curvature']
-            with curv_path.open('wb') as f1:
+            # no successful outline could be found
+            if outline.shape[0] > 0:
+                idx = dorsal_utils.separate_leading_trailing_edges(outline)
+                # could not separate leading/trailing edges
+                if idx is not None:
+                    te = outline[idx:]
+                    curv = dorsal_utils.block_curvature(
+                        te, self.curvature_scales)
+                else:
+                    curv = None
+            else:
+                curv = None
+
+            # write the failures too or it seems like the task did not complete
+            with curv_target.open('wb') as f1:
                 pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
+
+
+class EvaluateIdentification(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+    window = luigi.IntParameter(default=8)
+    curv_length = luigi.IntParameter(default=128)
+
+    def requires(self):
+        return [
+            PrepareData(dataset=self.dataset),
+            ComputeBlockCurvature(dataset=self.dataset,
+                                  imsize=self.imsize,
+                                  batch_size=self.batch_size,
+                                  scale=self.scale)]
+
+    def output(self):
+        return luigi.LocalTarget(
+            join('data', self.dataset, self.__class__.__name__,
+                 '%s.csv' % self.dataset)
+        )
+
+    def run(self):
+        import dorsal_utils
+        import functools
+        import ranking
+        df = pd.read_csv(
+            self.requires()[0].output().path, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+
+        fname_curv_dict = {}
+        curv_dict = self.requires()[1].output()
+        curv_filepaths = curv_dict.keys()
+        print('computing curvature vectors of dimension %d for %d images' % (
+            self.curv_length, len(curv_filepaths)))
+        for fpath in tqdm(curv_filepaths, total=len(curv_filepaths)):
+            curv_target = curv_dict[fpath]['curvature']
+            with open(curv_target.path, 'rb') as f:
+                curv = pickle.load(f)
+            # no trailing edge could be extracted for this image
+            if curv is None:
+                continue
+
+            fname = splitext(basename(fpath))[0]
+            fname_curv_dict[fname] = dorsal_utils.resampleNd(
+                curv, self.curv_length)
+
+        db_dict, qr_dict = datasets.separate_database_queries(
+            self.dataset, df['impath'].values,
+            df['individual'].values, df['encounter'].values,
+            fname_curv_dict
+        )
+
+        simfunc = functools.partial(
+            ranking.dtw_alignment_cost,
+            weights=np.ones(4, dtype=np.float32),
+            window=self.window
+        )
+
+        top1, top5, top10, total = 0, 0, 0, 0
+        qindivs = qr_dict.keys()
+        with self.output().open('w') as f:
+            print('running identification for %d individuals' % (len(qindivs)))
+            for qind in tqdm(qindivs, total=len(qindivs)):
+                qencs = qr_dict[qind].keys()
+                for qenc in qencs:
+                    rindivs, scores = ranking.rank_individuals(
+                        qr_dict[qind][qenc], db_dict, simfunc)
+                    # first the query, then the ranking
+                    f.write('%s,%s\n' % (
+                        qind, ','.join(['%s' % r for r in rindivs])))
+                    f.write(',%s\n' % (
+                        ','.join(['%.6f' % s for s in scores])))
+
+                    total += 1
+                    top1 += qind in rindivs[0:1]
+                    top5 += qind in rindivs[0:5]
+                    top10 += qind in rindivs[0:10]
+
+            print('accuracy scores:')
+            print('top1:  %.2f%%' % (100. * top1 / total))
+            print('top5:  %.2f%%' % (100. * top5 / total))
+            print('top10: %.2f%%' % (100. * top10 / total))
 
 
 if __name__ == '__main__':
