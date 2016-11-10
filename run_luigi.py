@@ -557,7 +557,7 @@ class EvaluateIdentification(luigi.Task):
                     # first the query, then the ranking
                     f.write('%s,%s\n' % (
                         qind, ','.join(['%s' % r for r in rindivs])))
-                    f.write(',%s\n' % (
+                    f.write('%s\n' % (
                         ','.join(['%.6f' % s for s in scores])))
 
                     total += 1
