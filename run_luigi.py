@@ -545,6 +545,7 @@ class EvaluateIdentification(luigi.Task):
             window=self.window
         )
 
+        mrr_list = []
         top1, top5, top10, total = 0, 0, 0, 0
         qindivs = qr_dict.keys()
         with self.output().open('w') as f:
@@ -554,6 +555,8 @@ class EvaluateIdentification(luigi.Task):
                 for qenc in qencs:
                     rindivs, scores = ranking.rank_individuals(
                         qr_dict[qind][qenc], db_dict, simfunc)
+
+                    mrr_list.append(1. / (1. + rindivs.index(qind)))
                     # first the query, then the ranking
                     f.write('%s,%s\n' % (
                         qind, ','.join(['%s' % r for r in rindivs])))
@@ -565,6 +568,7 @@ class EvaluateIdentification(luigi.Task):
                     top5 += qind in rindivs[0:5]
                     top10 += qind in rindivs[0:10]
 
+            print('mean reciprocal rank: %.6f' % (np.mean(mrr_list)))
             print('accuracy scores:')
             print('top1:  %.2f%%' % (100. * top1 / total))
             print('top5:  %.2f%%' % (100. * top5 / total))
