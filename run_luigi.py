@@ -42,6 +42,12 @@ class PreprocessImages(luigi.Task):
     def requires(self):
         return [PrepareData(dataset=self.dataset)]
 
+    def complete(self):
+        if not exists(self.requires()[0].output().path):
+            return False
+        else:
+            return all(map(lambda output: output.exists(), self.output()))
+
     def output(self):
         csv_fpath = self.requires()[0].output().path
         df = pd.read_csv(
@@ -65,15 +71,12 @@ class PreprocessImages(luigi.Task):
         return outputs
 
     def run(self):
-        image_filepaths = self.output().keys()
-        print('%d images to process' % (len(image_filepaths)))
-
-        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+        def worker(fpath):
             resz_target = self.output()[fpath]['resized']
             trns_target = self.output()[fpath]['transform']
 
-            if exists(resz_target) and exists(trns_target):
-                continue
+            if exists(resz_target.path) and exists(trns_target.path):
+                return
 
             img = cv2.imread(fpath)
             resz, M = imutils.center_pad_with_transform(img, self.imsize)
@@ -83,6 +86,12 @@ class PreprocessImages(luigi.Task):
                     trns_target.open('wb') as f2:
                 f1.write(resz_buf)
                 pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
+
+        image_filepaths = self.output().keys()
+        print('%d images to process' % (len(image_filepaths)))
+
+        for fpath in tqdm(image_filepaths, total=len(image_filepaths)):
+            worker(fpath)
 
 
 class LocalizationSegmentation(luigi.Task):
