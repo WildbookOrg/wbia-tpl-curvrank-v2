@@ -457,6 +457,7 @@ class EvaluateIdentification(luigi.Task):
         return [
             luigi.LocalTarget(join(basedir, '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(join(basedir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(join(basedir, '%s_topk.csv' % self.dataset)),
         ]
 
     def run(self):
@@ -515,43 +516,49 @@ class EvaluateIdentification(luigi.Task):
             window=self.window
         )
 
-        indiv_reciprocal_rank = defaultdict(list)
-        top1, top5, top10, total = 0, 0, 0, 0
+        indiv_rank_indices = defaultdict(list)
         qindivs = qr_dict.keys()
         with self.output()[0].open('w') as f:
             print('running identification for %d individuals' % (len(qindivs)))
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_dict[qind].keys()
+                assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
                     rindivs, scores = ranking.rank_individuals(
                         qr_dict[qind][qenc], db_dict, simfunc)
 
-                    indiv_reciprocal_rank[qind].append(
-                        1. / (1. + rindivs.index(qind))
-                    )
+                    rank = 1 + rindivs.index(qind)
+                    indiv_rank_indices[qind].append(rank)
 
-                    # first the query, then the ranking
                     f.write('%s,%s\n' % (
                         qind, ','.join(['%s' % r for r in rindivs])))
                     f.write('%s\n' % (
                         ','.join(['%.6f' % s for s in scores])))
 
-                    total += 1
-                    top1 += qind in rindivs[0:1]
-                    top5 += qind in rindivs[0:5]
-                    top10 += qind in rindivs[0:10]
+        with self.output()[1].open('w') as f:
+            f.write('individual,mrr\n')
+            for qind in indiv_rank_indices.keys():
+                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                num = len(indiv_rank_indices[qind])
+                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
-            print('accuracy scores:')
-            print('top1:  %.2f%%' % (100. * top1 / total))
-            print('top5:  %.2f%%' % (100. * top5 / total))
-            print('top10: %.2f%%' % (100. * top10 / total))
+        rank_indices = []
+        for ind in indiv_rank_indices:
+            for rank in indiv_rank_indices[ind]:
+                rank_indices.append(rank)
 
-            with self.output()[1].open('w') as f:
-                f.write('per individual mean reciprocal rank:\n')
-                for qind in indiv_reciprocal_rank.keys():
-                    mrr = np.mean(indiv_reciprocal_rank[qind])
-                    num = len(indiv_reciprocal_rank[qind])
-                    f.write(' %s (%d enc.): %.6f\n' % (qind, num, mrr))
+        topk_scores = [1, 5, 10, 25]
+        rank_indices = np.array(rank_indices)
+        num_queries = rank_indices.shape[0]
+        num_indivs = len(indiv_rank_indices)
+        print('accuracy scores:')
+        with self.output()[2].open('w') as f:
+            f.write('topk,accuracy\n')
+            for k in range(1, 1 + num_indivs):
+                topk = (100. / num_queries) * (rank_indices <= k).sum()
+                f.write('top-%d,%.6f\n' % (k, topk))
+                if k in topk_scores:
+                    print(' top-%d: %.2f%%' (k, topk))
 
 
 if __name__ == '__main__':
