@@ -180,23 +180,23 @@ class LocalizationSegmentation(luigi.Task):
             len(to_process), len(image_filepaths)))
 
         num_batches = (
-            len(image_filepaths) + self.batch_size - 1) / self.batch_size
+            len(to_process) + self.batch_size - 1) / self.batch_size
         print('%d batches to process' % (num_batches))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
-                              (i + 1) * self.batch_size)
+                              min((i + 1) * self.batch_size, len(to_process)))
             X_batch = np.empty(
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
             for i, idx in enumerate(idx_range):
-                fpath = image_filepaths[idx]
+                fpath = to_process[idx]
                 impath = preprocess_images_targets[fpath]['resized'].path
                 img = cv2.imread(impath)
                 X_batch[i] = img.transpose(2, 0, 1) / 255.
 
             M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
             for i, idx in enumerate(idx_range):
-                fpath = image_filepaths[idx]
+                fpath = to_process[idx]
                 loc_lr_target = output[fpath]['loc-lr']
                 seg_lr_target = output[fpath]['seg-lr']
                 trns_target = output[fpath]['transform']
