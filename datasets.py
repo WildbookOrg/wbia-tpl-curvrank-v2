@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import sqlite3
-from collections import defaultdict
 from os import listdir
 from os.path import basename, isdir, isfile, join, splitext
 
@@ -113,6 +112,7 @@ def load_sdrp_dataset(years):
 def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict):
     if name == 'nz':
         return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
+        #return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict)
     elif name == 'sdrp':
         return separate_sdrp_dataset()
     else:
@@ -120,35 +120,36 @@ def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict):
 
 
 def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
-    # stores all encounters in which an individual appears
-    ind_enc_dict = defaultdict(set)
-    # stores all the curvature vectors for an encounter
-    enc_curv_dict = defaultdict(list)
+    ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
         fname = splitext(basename(fpath))[0]
         if fname in curv_dict.keys():
-            ind_enc_dict[ind].add(enc)
-            enc_curv_dict[enc].append(curv_dict[fname])
+            if ind not in ind_enc_curv_dict:
+                ind_enc_curv_dict[ind] = {}
+            if enc not in ind_enc_curv_dict[ind]:
+                ind_enc_curv_dict[ind][enc] = []
+            ind_enc_curv_dict[ind][enc].append(curv_dict[fname])
 
     # db_dict: {'i1': [v1, v2, ..., vn]}
     # qr_dict: {'i2': {'e1': [v1, v2, ..., vm]}}
     db_dict, qr_dict = {}, {}
-    individuals = ind_enc_dict.keys()
+    individuals = ind_enc_curv_dict.keys()
     for ind in individuals:
-        encounters = ind_enc_dict[ind]
+        encounters = ind_enc_curv_dict[ind].keys()
         num_encounters = len(encounters)
         if num_encounters > 1:
-            # get number of curvature vectors appearing in each encounter
-            num_curvs = [len(enc_curv_dict[e]) for e in encounters]
+            num_curvs = [
+                len(ind_enc_curv_dict[ind][enc]) for enc in encounters
+            ]
             max_idx = np.argmax(num_curvs)
-            qr_enc_dict = {}
             for idx, enc in enumerate(encounters):
                 if idx == max_idx:
-                    db_dict[ind] = enc_curv_dict[enc]
+                    db_dict[ind] = ind_enc_curv_dict[ind][enc]
                 else:
-                    qr_enc_dict[enc] = enc_curv_dict[enc]
-
-            qr_dict[ind] = qr_enc_dict
+                    if ind not in qr_dict:
+                        qr_dict[ind] = {}
+                    else:
+                        qr_dict[ind][enc] = ind_enc_curv_dict[ind][enc]
         else:
             print('individual %s has only %d encounters' % (
                 ind, num_encounters))
@@ -156,9 +157,52 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
     # we only use individuals with at least two encounters
     for qind in qr_dict.keys():
         assert qind in db_dict.keys(), '%s missing from db!' % (qind)
-
     return db_dict, qr_dict
 
 
-def separate_sdrp_dataset():
-    return None
+def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
+    # {'i1': {'e1': [v1, v2, ..., vn], 'e2': [v1, v2, ..., vm]}}
+    ind_enc_curv_dict = {}
+    for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
+        fname = splitext(basename(fpath))[0]
+        if fname in curv_dict.keys():
+            if ind not in ind_enc_curv_dict:
+                ind_enc_curv_dict[ind] = {}
+            if enc not in ind_enc_curv_dict[ind]:
+                ind_enc_curv_dict[ind][enc] = []
+            ind_enc_curv_dict[ind][enc].append(curv_dict[fname])
+
+    db_dict, qr_dict = {}, {}
+    individuals = ind_enc_curv_dict.keys()
+    num_db_encounters = 5
+    for ind in individuals:
+        encounters = ind_enc_curv_dict[ind].keys()
+        num_encounters = len(encounters)
+        if num_encounters > 1:
+            if ind not in qr_dict:
+                qr_dict[ind] = {}
+            if num_encounters <= num_db_encounters:
+                num_samples = num_encounters - 1
+            else:
+                num_samples = num_db_encounters
+
+            rind = np.arange(num_encounters)
+            np.random.shuffle(rind)
+            db_idx, qr_idx = np.split(rind, np.array([num_samples]), axis=0)
+            for idx in db_idx:
+                enc = encounters[idx]
+                d_curv_list = []
+                for curv in ind_enc_curv_dict[ind][enc]:
+                    d_curv_list.append(curv)
+                db_dict[ind] = d_curv_list
+            for idx in qr_idx:
+                enc = encounters[idx]
+                q_curv_list = []
+                for curv in ind_enc_curv_dict[ind][enc]:
+                    q_curv_list.append(curv)
+                qr_dict[ind][enc] = q_curv_list
+        else:
+            print('individual %s has only %d encounters' % (
+                ind, num_encounters))
+
+    return db_dict, qr_dict
