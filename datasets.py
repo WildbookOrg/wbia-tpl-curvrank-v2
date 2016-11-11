@@ -148,8 +148,7 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
                 else:
                     if ind not in qr_dict:
                         qr_dict[ind] = {}
-                    else:
-                        qr_dict[ind][enc] = ind_enc_curv_dict[ind][enc]
+                    qr_dict[ind][enc] = ind_enc_curv_dict[ind][enc]
         else:
             print('individual %s has only %d encounters' % (
                 ind, num_encounters))
