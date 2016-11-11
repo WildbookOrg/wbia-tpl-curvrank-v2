@@ -3,14 +3,14 @@ import numpy as np
 import sqlite3
 from collections import defaultdict
 from os import listdir
-from os.path import basename, join, splitext
+from os.path import basename, isdir, isfile, join, splitext
 
 
 def load_dataset(name):
     if name == 'nz':
         return load_nz_dataset()
     elif name == 'sdrp':
-        return load_sdrp_dataset()
+        return load_sdrp_dataset([2013, 2014, 2015, 2016])
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -43,8 +43,7 @@ def load_nz_dataset():
     return data_list
 
 
-def load_sdrp_dataset():
-    image_dir = '/media/sdrp/SDRP Data/FinBase/Images'
+def load_sdrp_dataset(years):
     database = '/home/hendrik/projects/sdrp/databases/sdrp.db'
     conn = sqlite3.connect(database)
     cur = conn.cursor()
@@ -65,18 +64,48 @@ def load_sdrp_dataset():
         '  Sighting.SurveyFID = Survey.ID'
     )
 
-    # list of tuples: (SurveyNum, Sighting, Date, Alias, Image, ImageSide)
-    result = cur.fetchall()
-    data_list = []
-    for (SurveyNum, Sighting, Date, Alias, Image, ImageSide) in result:
-        data_list.append((
-            join(image_dir, Image),
-            Alias,
-            '%s-%s' % (SurveyNum, Sighting)
-        ))
+    # keep only images from individuals that are in the catalog
+    catalog_aliases = set()
+    for (_, _, _, alias, _, _) in cur.fetchall():
+        catalog_aliases.add(str(alias))
 
-    conn.commit()
-    cur.close()
+    data_dir = '/media/sdrp/SDRP Data'
+    sighting_dir_list = []
+    for year in years:
+        sightings_dir = join(data_dir, '%s Dig Pics' % (year))
+        sighting_dirs = listdir(sightings_dir)
+        for sighting_dir in sighting_dirs:
+            sighting_dir_list.append(
+                join(data_dir, sightings_dir, sighting_dir)
+            )
+
+    data_list = []
+    for sighting_dir in sighting_dir_list:
+        if not isdir(sighting_dir):
+            continue
+        fname_list = listdir(sighting_dir)
+        for fname in fname_list:
+            try:
+                alias, _, survey, sighting, date, _ = fname.strip().split(' ')
+            except ValueError:
+                continue
+
+            if survey.lower().startswith('s'):
+                survey = survey[1:]
+            if sighting.lower().startswith('s'):
+                sighting = sighting[1:]
+
+            image_filepath = join(sighting_dir, fname)
+            assert isfile(image_filepath), 'not a file: %s' % (image_filepath)
+            # NOTE: we only use left-view images for the moment
+            # we remove individuals that are not in the catalog to get rid of
+            # "possible"-tagged images, e.g., "DUposs6512"
+            if '(L)' in fname and alias in catalog_aliases:
+                data_list.append((
+                    image_filepath,
+                    '%s-%s' % (survey, sighting),
+                    alias,
+                ))
 
     return data_list
 
