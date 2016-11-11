@@ -53,6 +53,9 @@ class PreprocessImages(luigi.Task):
 
     def output(self):
         csv_fpath = self.requires()[0].output().path
+        # hack for when the csv file doesn't exist
+        if not exists(csv_fpath):
+            self.requires()[0].run()
         df = pd.read_csv(
             csv_fpath, header='infer',
             usecols=['impath', 'individual', 'encounter']
