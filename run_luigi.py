@@ -492,6 +492,23 @@ class EvaluateIdentification(luigi.Task):
             fname_curv_dict
         )
 
+        db_curvs_list = [len(db_dict[ind]) for ind in db_dict]
+        qr_curvs_list = []
+        for ind in qr_dict:
+            for enc in qr_dict[ind]:
+                qr_curvs_list.append(len(qr_dict[ind][enc]))
+
+        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+            np.max(db_curvs_list),
+            np.mean(db_curvs_list),
+            np.min(db_curvs_list))
+        )
+        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+            np.max(qr_curvs_list),
+            np.mean(qr_curvs_list),
+            np.min(qr_curvs_list))
+        )
+
         simfunc = partial(
             ranking.dtw_alignment_cost,
             weights=np.ones(4, dtype=np.float32),
@@ -503,7 +520,7 @@ class EvaluateIdentification(luigi.Task):
         qindivs = qr_dict.keys()
         with self.output()[0].open('w') as f:
             print('running identification for %d individuals' % (len(qindivs)))
-            for qind in tqdm(qindivs, total=len(qindivs)):
+            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_dict[qind].keys()
                 for qenc in qencs:
                     rindivs, scores = ranking.rank_individuals(
