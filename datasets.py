@@ -112,7 +112,6 @@ def load_sdrp_dataset(years):
 def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict):
     if name == 'nz':
         return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
-        #return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict)
     elif name == 'sdrp':
         return separate_sdrp_dataset()
     else:
