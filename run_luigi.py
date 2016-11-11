@@ -179,7 +179,7 @@ class LocalizationSegmentation(luigi.Task):
         num_batches = (
             len(image_filepaths) + self.batch_size - 1) / self.batch_size
         print('%d batches to process' % (num_batches))
-        for i in tqdm(range(num_batches), total=num_batches):
+        for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
                               (i + 1) * self.batch_size)
             X_batch = np.empty(
@@ -470,7 +470,8 @@ class EvaluateIdentification(luigi.Task):
         curv_filepaths = curv_dict.keys()
         print('computing curvature vectors of dimension %d for %d images' % (
             self.curv_length, len(curv_filepaths)))
-        for fpath in tqdm(curv_filepaths, total=len(curv_filepaths)):
+        for fpath in tqdm(curv_filepaths,
+                          total=len(curv_filepaths), leave=False):
             curv_target = curv_dict[fpath]['curvature']
             with open(curv_target.path, 'rb') as f:
                 curv = pickle.load(f)
