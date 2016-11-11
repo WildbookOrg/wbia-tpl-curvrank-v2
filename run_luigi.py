@@ -558,7 +558,7 @@ class EvaluateIdentification(luigi.Task):
                 topk = (100. / num_queries) * (rank_indices <= k).sum()
                 f.write('top-%d,%.6f\n' % (k, topk))
                 if k in topk_scores:
-                    print(' top-%d: %.2f%%' (k, topk))
+                    print(' top-%d: %.2f%%' % (k, topk))
 
 
 if __name__ == '__main__':
