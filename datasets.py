@@ -187,12 +187,13 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
             rind = np.arange(num_encounters)
             np.random.shuffle(rind)
             db_idx, qr_idx = np.split(rind, np.array([num_samples]), axis=0)
+            d_curv_list = []
             for idx in db_idx:
                 enc = encounters[idx]
-                d_curv_list = []
                 for curv in ind_enc_curv_dict[ind][enc]:
                     d_curv_list.append(curv)
-                db_dict[ind] = d_curv_list
+            db_dict[ind] = d_curv_list
+
             for idx in qr_idx:
                 enc = encounters[idx]
                 q_curv_list = []
