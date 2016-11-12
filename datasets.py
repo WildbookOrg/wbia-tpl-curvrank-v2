@@ -9,7 +9,7 @@ def load_dataset(name):
     if name == 'nz':
         return load_nz_dataset()
     elif name == 'sdrp':
-        return load_sdrp_dataset([2013, 2014, 2015, 2016])
+        return load_sdrp_dataset([2014, 2015, 2016])
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -102,8 +102,8 @@ def load_sdrp_dataset(years):
             if '(L)' in fname and alias in catalog_aliases:
                 data_list.append((
                     image_filepath,
-                    '%s-%s' % (survey, sighting),
                     alias,
+                    '%s-%s' % (survey, sighting),
                 ))
 
     return data_list
@@ -113,7 +113,7 @@ def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict):
     if name == 'nz':
         return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
     elif name == 'sdrp':
-        return separate_sdrp_dataset()
+        return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict)
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -172,7 +172,7 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
 
     db_dict, qr_dict = {}, {}
     individuals = ind_enc_curv_dict.keys()
-    num_db_encounters = 5
+    num_db_encounters = 10
     for ind in individuals:
         encounters = ind_enc_curv_dict[ind].keys()
         num_encounters = len(encounters)
