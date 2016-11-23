@@ -17,8 +17,8 @@ def resample(x, length):
 
 def resampleNd(X, length):
     Xr = np.zeros((length, X.shape[1]), dtype=np.float32)
-    for i in range(X.shape[1]):
-        Xr[:, i] = resample(X[:, i], 128)
+    for j in range(X.shape[1]):
+        Xr[:, j] = resample(X[:, j], length)
 
     return Xr
 
