@@ -65,13 +65,14 @@ class PreprocessImages(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in image_filepaths:
-            resz_fname = '%s.png' % splitext(basename(fpath))[0]
-            trns_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'resized': luigi.LocalTarget(
-                    join(basedir, 'resized', resz_fname)),
+                    join(basedir, 'resized', png_fname)),
                 'transform': luigi.LocalTarget(
-                    join(basedir, 'transform', trns_fname)),
+                    join(basedir, 'transform', pkl_fname)),
             }
 
         return outputs
@@ -110,15 +111,16 @@ class LocalizationSegmentation(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
-            img_fname = '%s.png' % splitext(basename(fpath))[0]
-            trns_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            fname =  splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'loc-lr': luigi.LocalTarget(
-                    join(basedir, 'loc-lr', img_fname)),
+                    join(basedir, 'loc-lr', png_fname)),
                 'seg-lr': luigi.LocalTarget(
-                    join(basedir, 'seg-lr', img_fname)),
+                    join(basedir, 'seg-lr', png_fname)),
                 'transform': luigi.LocalTarget(
-                    join(basedir, 'transform', trns_fname)),
+                    join(basedir, 'transform', pkl_fname)),
             }
 
         return outputs
@@ -234,13 +236,14 @@ class ExtractLowResolutionOutline(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
-            img_fname = '%s.png' % splitext(basename(fpath))[0]
-            outline_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'outline-visual': luigi.LocalTarget(
-                    join(basedir, 'outline-visual', img_fname)),
+                    join(basedir, 'outline-visual', png_fname)),
                 'outline-coords': luigi.LocalTarget(
-                    join(basedir, 'outline-coords', outline_fname)),
+                    join(basedir, 'outline-coords', pkl_fname)),
             }
 
         return outputs
@@ -285,12 +288,13 @@ class RefinedLocalizationSegmentation(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[1].output().keys():
-            img_fname = '%s.png' % splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
             outputs[fpath] = {
                 'loc-hr': luigi.LocalTarget(
-                    join(basedir, 'loc-hr', img_fname)),
+                    join(basedir, 'loc-hr', png_fname)),
                 'seg-hr': luigi.LocalTarget(
-                    join(basedir, 'seg-hr', img_fname)),
+                    join(basedir, 'seg-hr', png_fname)),
             }
 
         return outputs
@@ -352,13 +356,14 @@ class ExtractHighResolutionOutline(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[1].output().keys():
-            img_fname = '%s.png' % splitext(basename(fpath))[0]
-            outline_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'outline-visual': luigi.LocalTarget(
-                    join(basedir, 'outline-visual', img_fname)),
+                    join(basedir, 'outline-visual', png_fname)),
                 'outline-coords': luigi.LocalTarget(
-                    join(basedir, 'outline-coords', outline_fname)),
+                    join(basedir, 'outline-coords', pkl_fname)),
             }
 
         return outputs
@@ -406,10 +411,11 @@ class ComputeBlockCurvature(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
-            curv_fname = '%s.pickle' % splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
+            pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'curvature': luigi.LocalTarget(
-                    join(basedir, 'curvature', curv_fname)),
+                    join(basedir, 'curvature', pkl_fname)),
             }
 
         return outputs
