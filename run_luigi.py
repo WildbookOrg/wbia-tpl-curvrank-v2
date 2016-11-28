@@ -73,6 +73,9 @@ class PreprocessImages(luigi.Task):
                     join(basedir, 'resized', png_fname)),
                 'transform': luigi.LocalTarget(
                     join(basedir, 'transform', pkl_fname)),
+                # TODO: rerun with correct filename
+                'mask': luigi.LocalTarget(
+                    join(basedir, 'mask', png_fname)),
             }
 
         return outputs
@@ -100,10 +103,12 @@ class PreprocessImages(luigi.Task):
         pool.map(partial_preprocess_images, to_process)
 
 
-class LocalizationSegmentation(luigi.Task):
+class Localization(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
     def requires(self):
         return [PreprocessImages(dataset=self.dataset, imsize=self.imsize)]
 
@@ -115,10 +120,12 @@ class LocalizationSegmentation(luigi.Task):
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
-                'loc-lr': luigi.LocalTarget(
-                    join(basedir, 'loc-lr', png_fname)),
-                'seg-lr': luigi.LocalTarget(
-                    join(basedir, 'seg-lr', png_fname)),
+                'localization': luigi.LocalTarget(
+                    join(basedir, 'localization', png_fname)),
+                'localization-full': luigi.LocalTarget(
+                    join(basedir, 'localization-full', png_fname)),
+                'mask': luigi.LocalTarget(
+                    join(basedir, 'mask', pkl_fname)),
                 'transform': luigi.LocalTarget(
                     join(basedir, 'transform', pkl_fname)),
             }
@@ -126,48 +133,27 @@ class LocalizationSegmentation(luigi.Task):
         return outputs
 
     def run(self):
+        import imutils
         import localization
-        import segmentation
         import theano_funcs
         height, width = 256, 256
 
         print('building localization model')
-        layers_localization = localization.build_model(
-            (None, 3, height, width), downsample=2)
-        print('building segmentation model')
-        layers_segmentation = segmentation.build_model_batchnorm(
-            (None, 3, 128, 128))
+        layers = localization.build_model(
+            (None, 3, height, width), downsample=1)
 
         localization_weightsfile = join(
-            'data', 'weights', 'weights_localization_all.pickle'
+            'data', 'weights', 'weights_localization.pickle'
         )
         print('loading weights for the localization network from %s' % (
             localization_weightsfile))
         model.load_weights([
-            layers_localization['trans'], layers_localization['loc']],
+            layers['trans'], layers['loc']],
             localization_weightsfile
         )
-        segmentation_weightsfile = join(
-            'data', 'weights', 'weights_segmentation_all.pickle'
-        )
-        print('loading weights for the segmentation network from %s' % (
-            segmentation_weightsfile))
-        model.load_weights(
-            layers_segmentation['seg_out'],
-            segmentation_weightsfile
-        )
 
-        layers = {}
-        for name in layers_localization:
-            layers[name] = layers_localization[name]
-        for name in layers_segmentation:
-            layers[name] = layers_segmentation[name]
-
-        layers.pop('seg_in')
-        layers['seg_conv1'].input_layer = layers['trans']
-
-        print('compiling theano functions for loc. and seg.')
-        loc_seg_func = theano_funcs.create_end_to_end_infer_func(layers)
+        print('compiling theano functions for localization')
+        localization_func = theano_funcs.create_localization_infer_func(layers)
 
         output = self.output()
         preprocess_images_targets = self.requires()[0].output()
@@ -175,8 +161,9 @@ class LocalizationSegmentation(luigi.Task):
 
         # we don't parallelize this function because it uses the gpu
         to_process = [fpath for fpath in image_filepaths if
-                      not exists(output[fpath]['loc-lr'].path) or
-                      not exists(output[fpath]['seg-lr'].path) or
+                      not exists(output[fpath]['localization'].path) or
+                      not exists(output[fpath]['localization-full'].path) or
+                      not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
         print('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
@@ -190,36 +177,59 @@ class LocalizationSegmentation(luigi.Task):
             X_batch = np.empty(
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
+            mask_batch = np.empty(
+                (len(idx_range), 3, height, width), dtype=np.int32
+            )
+            trns_batch = np.empty(
+                (len(idx_range), 3, 3), dtype=np.float32
+            )
+
             for i, idx in enumerate(idx_range):
                 fpath = to_process[idx]
                 impath = preprocess_images_targets[fpath]['resized'].path
                 img = cv2.imread(impath)
+                tpath = preprocess_images_targets[fpath]['transform'].path
+                with open(tpath, 'rb') as f:
+                    trns_batch[i] = pickle.load(f)
+
+                mpath = preprocess_images_targets[fpath]['mask'].path
+                with open(mpath, 'rb') as f:
+                    mask_batch[i] = pickle.load(f)
+
                 X_batch[i] = img.transpose(2, 0, 1) / 255.
 
-            M_batch, X_batch_loc, X_batch_seg = loc_seg_func(X_batch)
+            L_batch_loc, X_batch_loc = localization_func(X_batch)
             for i, idx in enumerate(idx_range):
                 fpath = to_process[idx]
-                loc_lr_target = output[fpath]['loc-lr']
-                seg_lr_target = output[fpath]['seg-lr']
+                loc_lr_target = output[fpath]['localization']
+                loc_hr_target = output[fpath]['localization-full']
+                mask_target = output[fpath]['mask']
                 trns_target = output[fpath]['transform']
 
-                Mloc = np.vstack(
-                    (M_batch[i].reshape((2, 3)), np.array([0, 0, 1]))
+                prep_trns = trns_batch[i]
+                lclz_trns = np.vstack((
+                    L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
+                ))
+                mask = mask_batch[i].transpose(1, 2, 0)
+                img_loc_lr = (255. * X_batch_loc[i]).astype(
+                    np.uint8).transpose(1, 2, 0)
+                img_orig = cv2.imread(fpath)
+                img_loc_hr, mask_loc_hr = imutils.refine_localization(
+                    img_orig, mask, prep_trns, lclz_trns,
+                    self.scale, self.imsize
                 )
-                img_loc = (255. * X_batch_loc[i]).astype(
-                    np.uint8).transpose(1, 2, 0)
-                img_seg = (255. * X_batch_seg[i]).astype(
-                    np.uint8).transpose(1, 2, 0)
 
-                _, loc_buf = cv2.imencode('.png', img_loc)
-                _, seg_buf = cv2.imencode('.png', img_seg)
+                _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
+                _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
 
                 with loc_lr_target.open('wb') as f1,\
-                        seg_lr_target.open('wb') as f2,\
-                        trns_target.open('wb') as f3:
-                    f1.write(loc_buf)
-                    f2.write(seg_buf)
-                    pickle.dump(Mloc, f3, pickle.HIGHEST_PROTOCOL)
+                        loc_hr_target.open('wb') as f2,\
+                        mask_target.open('wb') as f3,\
+                        trns_target.open('wb') as f4:
+                    f1.write(img_loc_lr_buf)
+                    f2.write(img_loc_hr_buf)
+                    pickle.dump(mask_loc_hr, f3, pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(lclz_trns, f4, pickle.HIGHEST_PROTOCOL)
 
 
 class ExtractLowResolutionOutline(luigi.Task):
