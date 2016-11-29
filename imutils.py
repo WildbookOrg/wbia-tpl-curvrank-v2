@@ -30,20 +30,18 @@ def refine_segmentation(img, s):
     out_height, out_width = (s * np.ceil((
         orig_height, orig_width))).astype(np.int32)
     T70 = affine.build_scale_matrix(s)
-    T70a = affine.build_downsample_matrix(orig_height, orig_width)
-    T70b = affine.build_upsample_matrix(out_height, out_width)
     T70i = cv2.invertAffineTransform(T70[:2])
 
-    A = affine.multiply_matrices([T70a, T70i, T70b])
-    segm_refined = affine._transform_affine(
-        A[:2], img, out_height, out_width
+    A = T70i
+    segm_refined = cv2.warpAffine(
+        img.astype(np.float32), A[:2], (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
     )
 
     return segm_refined
 
 
 def refine_localization(img, mask, M, L, s, imsize):
-    orig_height, orig_width = img.shape[0:2]
     out_height, out_width = (s * np.ceil((imsize, imsize))).astype(np.int32)
 
     T10 = affine.build_downsample_matrix(imsize, imsize)
@@ -52,36 +50,18 @@ def refine_localization(img, mask, M, L, s, imsize):
     T43 = cv2.invertAffineTransform(M[:2])
     T70 = affine.build_scale_matrix(s)
 
-    T45 = affine.build_upsample_matrix(orig_height, orig_width)
-    T67 = affine.build_downsample_matrix(out_height, out_width)
-
-    # these can be simplified
     T70i = cv2.invertAffineTransform(T70[:2])
-    T45i = cv2.invertAffineTransform(T45[:2])
-    T67i = cv2.invertAffineTransform(T67[:2])
+    A = affine.multiply_matrices([T43, T32, T21, T10, T70i])
 
-    # because the segmentation output is 128 x 128
-    #T70a = affine.build_downsample_matrix(imsize / 2, imsize / 2)
-    #T70b = affine.build_upsample_matrix(out_height, out_width)
-
-    # the "get pixels" matrix for the image (also T56)
-    A = affine.multiply_matrices([T45i, T43, T32, T21, T10, T70i, T67i])
-    #A = affine.multiply_matrices([T43, T32, T21, T10, T70i])
-    # the "get pixels" matrix for the probabilities: note scaling
-    #B = affine.multiply_matrices([T70a, 0.5 * T70i, T70b])
-    # the "get points" matrix (also T70)
-    #C = T70
-
-    loc_refined = affine._transform_affine(
-        A[:2], img, out_height, out_width
+    loc_refined = cv2.warpAffine(
+        img.astype(np.float32), A[:2], (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
     )
-    #loc_refined = cv2.warpAffine(img.astype(np.float32), A[:2], (out_width, out_height), cv2.WARP_INVERSE_MAP)
 
-    mask_refined = affine._transform_affine(
-        A[:2], mask, out_height, out_width
+    mask_refined = cv2.warpAffine(
+        mask.astype(np.float32), A[:2], (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
     )
-    #loc_refined[mask_refined == 0] = 0.
-    #mask_refined = cv2.warpAffine(mask.astype(np.float32), A[:2], (out_width, out_height), cv2.WARP_INVERSE_MAP)
 
     return loc_refined, mask_refined
 
