@@ -232,6 +232,100 @@ class Localization(luigi.Task):
                     pickle.dump(lclz_trns, f4, pickle.HIGHEST_PROTOCOL)
 
 
+class Segmentation(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [Localization(dataset=self.dataset,
+                             imsize=self.imsize,
+                             batch_size=self.batch_size,)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            #pkl_fname = '%s.pickle' % fname
+            outputs[fpath] = {
+                'segmentation': luigi.LocalTarget(
+                    join(basedir, 'segmentation', png_fname)),
+                'keypoints': luigi.LocalTarget(
+                    join(basedir, 'keypoints', png_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        import imutils
+        import segmentation
+        import theano_funcs
+
+        height, width = 256, 256
+
+        print('building segmentation model')
+        layers = segmentation.build_model_batchnorm_full(
+            (None, 3, height, width))
+
+        segmentation_weightsfile = join(
+            'data', 'weights', 'weights_segmentation.pickle'
+        )
+        print('loading weights for the segmentation network from %s' % (
+            segmentation_weightsfile))
+        model.load_weights(layers['seg_out'], segmentation_weightsfile)
+
+        print('compiling theano functions for segmentation')
+        segmentation_func = theano_funcs.create_segmentation_infer_func(layers)
+
+        output = self.output()
+        localization_targets = self.requires()[0].output()
+        image_filepaths = localization_targets.keys()
+
+        to_process = [fpath for fpath in image_filepaths if
+                      not exists(output[fpath]['segmentation'].path) or
+                      not exists(output[fpath]['keypoints'].path)]
+        print('%d of %d images to process' % (
+            len(to_process), len(image_filepaths)))
+
+        num_batches = (
+            len(to_process) + self.batch_size - 1) / self.batch_size
+        print('%d batches to process' % (num_batches))
+        for i in tqdm(range(num_batches), total=num_batches, leave=False):
+            idx_range = range(i * self.batch_size,
+                              min((i + 1) * self.batch_size, len(to_process)))
+            X_batch = np.empty(
+                (len(idx_range), 3, height, width), dtype=np.float32
+            )
+
+            for i, idx in enumerate(idx_range):
+                fpath = to_process[idx]
+                impath = localization_targets[fpath]['localization-full'].path
+                img = cv2.imread(impath)
+                resz = cv2.resize(img, (height, width))
+                X_batch[i] = resz.transpose(2, 0, 1) / 255.
+
+            X_hat_batch = segmentation_func(X_batch)
+            for i, idx in enumerate(idx_range):
+                fpath = to_process[idx]
+                segm_target = output[fpath]['segmentation']
+                keyp_target = output[fpath]['keypoints']
+
+                segm = X_hat_batch[i].transpose(1, 2, 0)
+                keyp = np.zeros_like(segm)
+
+                segm_refn = imutils.refine_segmentation(segm, self.scale)
+                keyp_refn = keyp  # TODO
+                _, segm_refn_buf = cv2.imencode('.png', 255. * segm_refn)
+                _, keyp_refn_buf = cv2.imencode('.png', 255. * keyp_refn)
+                with segm_target.open('wb') as f1,\
+                        keyp_target.open('wb') as f2:
+                    f1.write(segm_refn_buf)
+                    f2.write(keyp_refn_buf)
+
+
 class ExtractLowResolutionOutline(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
