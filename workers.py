@@ -20,26 +20,45 @@ def preprocess_images(fpath, imsize, output_targets):
         pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
 
 
-# input_targets: localization_segmentation_targets
-def extract_low_resolution_outline(fpath, input_targets, output_targets):
-    coords_target = output_targets[fpath]['outline-coords']
+# input_targets: segmentation_targets
+def extract_outline(fpath, input1_targets, input2_targets, output_targets):
+    leading_coords_target = output_targets[fpath]['leading-coords']
+    trailing_coords_target = output_targets[fpath]['trailing-coords']
     visual_target = output_targets[fpath]['outline-visual']
 
-    loc_fpath = input_targets[fpath]['loc-lr'].path
-    seg_fpath = input_targets[fpath]['seg-lr'].path
+    loc_fpath = input1_targets[fpath]['localization-full'].path
+    seg_fpath = input2_targets[fpath]['seg-data']
+    key_fpath = input2_targets[fpath]['key-data']
     loc = cv2.imread(loc_fpath)
-    seg = cv2.imread(seg_fpath, cv2.IMREAD_GRAYSCALE)
+    with seg_fpath.open('rb') as f1,\
+            key_fpath.open('rb') as f2:
+        segm = pickle.load(f1)
+        keyp = pickle.load(f2)
 
-    outline = dorsal_utils.extract_outline(seg)
+    leading, trailing = dorsal_utils.extract_outline(loc, segm, keyp)
+    #weights, start, top, end = dorsal_utils.extract_outline(loc, segm, keyp)
+
+    #weights = cv2.cvtColor(weights, cv2.COLOR_GRAY2BGR)
+    #cv2.circle(weights, start[::-1], 3, (0, 1, 0))
+    #cv2.circle(weights, top[::-1], 3, (1, 0, 0))
+    #cv2.circle(weights, end[::-1], 3, (0, 0, 1))
+
+    #leading, trailing = np.array([]), np.array([])
 
     # TODO: what to write for failed extractions?
-    if outline.shape[0] > 0:
-        loc[outline[:, 1], outline[:, 0]] = (255, 0, 0)
+    if leading.shape[0] > 0:
+        loc[leading[:, 0], leading[:, 1]] = (255, 0, 0)
+    if trailing.shape[0] > 0:
+        loc[trailing[:, 0], trailing[:, 1]] = (0, 0, 255)
+
     _, visual_buf = cv2.imencode('.png', loc)
-    with coords_target.open('wb') as f1,\
-            visual_target.open('wb') as f2:
-        pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
-        f2.write(visual_buf)
+    #_, visual_buf = cv2.imencode('.png', 255 * weights)
+    with leading_coords_target.open('wb') as f1,\
+            trailing_coords_target.open('wb') as f2,\
+            visual_target.open('wb') as f3:
+        pickle.dump(leading, f1, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(trailing, f2, pickle.HIGHEST_PROTOCOL)
+        f3.write(visual_buf)
 
 
 # input1_targets: preprocess_images

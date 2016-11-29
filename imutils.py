@@ -25,8 +25,8 @@ def center_pad_with_transform(img, imsize):
     return resz, M
 
 
-def refine_segmentation(img, s):
-    orig_height, orig_width = img.shape[0:2]
+def refine_segmentation_keypoints(segm, keyp, s):
+    orig_height, orig_width = segm.shape[0:2]
     out_height, out_width = (s * np.ceil((
         orig_height, orig_width))).astype(np.int32)
     T70 = affine.build_scale_matrix(s)
@@ -34,11 +34,16 @@ def refine_segmentation(img, s):
 
     A = T70i
     segm_refined = cv2.warpAffine(
-        img.astype(np.float32), A[:2], (out_width, out_height),
+        segm.astype(np.float32), A[:2], (out_width, out_height),
         flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
     )
 
-    return segm_refined
+    keyp_refined = cv2.warpAffine(
+        keyp.astype(np.float32), A[:2], (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+    )
+
+    return segm_refined, keyp_refined
 
 
 def refine_localization(img, mask, M, L, s, imsize):
