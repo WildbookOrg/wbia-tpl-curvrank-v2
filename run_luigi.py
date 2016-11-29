@@ -454,9 +454,9 @@ class ComputeBlockCurvature(luigi.Task):
 
     def run(self):
         from workers import compute_block_curvature
-        extract_high_resolution_outline_targets = self.requires()[0].output()
+        extract_outline_targets = self.requires()[0].output()
         output = self.output()
-        input_filepaths = extract_high_resolution_outline_targets.keys()
+        input_filepaths = extract_outline_targets.keys()
 
         to_process = [fpath for fpath in input_filepaths if
                       not exists(output[fpath]['curvature'].path)]
@@ -468,7 +468,7 @@ class ComputeBlockCurvature(luigi.Task):
         partial_compute_block_curvature = partial(
             compute_block_curvature,
             scales=self.curvature_scales,
-            input_targets=extract_high_resolution_outline_targets,
+            input_targets=extract_outline_targets,
             output_targets=output,
         )
         pool.map(partial_compute_block_curvature, to_process)
