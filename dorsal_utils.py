@@ -3,7 +3,8 @@ import networkx as nx
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-from scipy.spatial.distance import cityblock
+
+from pyastar import astar_path
 
 
 # TODO: find a better way to structure these two functions
@@ -51,42 +52,23 @@ def extract_outline(img, segm, keyp):
         cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
         cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3),
     )
-    grad = cv2.normalize(
+    grad_norm = cv2.normalize(
         grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
-    segm = segm.astype(np.float32)
-    segm = cv2.normalize(
-        segm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    segm_norm = segm.astype(np.float32)
+    segm_norm = cv2.normalize(
+        segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
 
-    W = 1. / (0.25 * grad + 0.75 * segm)
+    #W = -1. * np.log(grad_norm * segm_norm)
 
-    #G = nx.grid_graph(dim=list(W.shape))
-    G = nx.Graph()
-    nodes = [(i, j) for i in range(W.shape[0]) for j in range(W.shape[1])]
-    G.add_nodes_from(nodes)
-    for (i, j) in nodes:
-        edges = []
-        if i + 1 < W.shape[0]:
-            weight = 0.5 * (W[i, j] + W[i + 1, j])
-            edges.append(((i, j), (i + 1, j), weight))
-        if j + 1 < W.shape[1]:
-            weight = 0.5 * (W[i, j] + W[i, j + 1])
-            edges.append(((i, j), (i, j + 1), weight))
-        G.add_weighted_edges_from(edges)
+    #W = 1. / (0.25 * grad + 0.75 * segm)
+    W = 1. / (np.clip(grad_norm * segm_norm, 1e-15, 1.))
 
-    leading = nx.astar_path(
-        G, source=start, target=top,
-        weight='weight', heuristic=cityblock
-    )
+    leading = astar_path(W, start, top)
+    trailing = astar_path(W, top, end)
 
-    trailing = nx.astar_path(
-        G, source=top, target=end,
-        weight='weight', heuristic=cityblock
-    )
-
-    #return W, start, top, end
-    return np.vstack(leading), np.vstack(trailing)
+    return  leading, trailing
 
 
 def extract_contour_refined(localization, segmentation, coordinates):
