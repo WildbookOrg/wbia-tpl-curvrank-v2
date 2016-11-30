@@ -518,7 +518,7 @@ class EvaluateIdentification(luigi.Task):
             with open(curv_target.path, 'rb') as f:
                 curv = pickle.load(f)
             # no trailing edge could be extracted for this image
-            if curv is None:
+            if curv is None or curv.shape[0] < 2:
                 continue
 
             fname = splitext(basename(fpath))[0]
