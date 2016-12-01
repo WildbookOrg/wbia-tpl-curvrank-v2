@@ -34,14 +34,6 @@ def extract_outline(fpath, input1_targets, input2_targets, output_targets):
         keyp = pickle.load(f2)
 
     leading, trailing = dorsal_utils.extract_outline(loc, segm, keyp)
-    #weights, start, top, end = dorsal_utils.extract_outline(loc, segm, keyp)
-
-    #weights = cv2.cvtColor(weights, cv2.COLOR_GRAY2BGR)
-    #cv2.circle(weights, start[::-1], 3, (0, 1, 0))
-    #cv2.circle(weights, top[::-1], 3, (1, 0, 0))
-    #cv2.circle(weights, end[::-1], 3, (0, 0, 1))
-
-    #leading, trailing = np.array([]), np.array([])
 
     # TODO: what to write for failed extractions?
     if leading.shape[0] > 0:
@@ -50,7 +42,6 @@ def extract_outline(fpath, input1_targets, input2_targets, output_targets):
         loc[trailing[:, 0], trailing[:, 1]] = (0, 0, 255)
 
     _, visual_buf = cv2.imencode('.png', loc)
-    #_, visual_buf = cv2.imencode('.png', 255 * weights)
     with leading_coords_target.open('wb') as f1,\
             trailing_coords_target.open('wb') as f2,\
             visual_target.open('wb') as f3:
