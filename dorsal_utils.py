@@ -40,12 +40,30 @@ def local_max2d(X):
 
 
 def extract_outline(img, segm, keyp):
-    probs = keyp * segm[:, :, np.newaxis]
-    probs_top, probs_start, probs_end =\
-        probs[:, :, 0], probs[:, :, 1], probs[:, :, 2]
-    start = np.unravel_index(probs_start.argmax(axis=None), probs_start.shape)
-    top = np.unravel_index(probs_top.argmax(axis=None), probs_top.shape)
-    end = np.unravel_index(probs_end.argmax(axis=None), probs_end.shape)
+    coordinates = np.mgrid[
+        0:segm.shape[0]:1, 0:segm.shape[1]:1
+    ].reshape(2, -1).T
+    i, j = np.round(
+        np.average(coordinates, weights=segm.flatten(), axis=0)
+    ).astype(np.int32)
+
+    leading, trailing = segm[i:, :j], segm[i:, j:]
+
+    leading_max_idx = local_max2d(leading)
+    trailing_max_idx = local_max2d(trailing)
+
+    # TODO: hack for when we cannot find any maxima
+    if leading_max_idx.shape[0] == 0 or trailing_max_idx.shape[0] == 0:
+        return np.array([])
+
+    leading_max_idx += np.array([i, 0])
+    trailing_max_idx += np.array([i, j])
+
+    leading_first_idx = leading_max_idx[:, 1].argmin()
+    trailing_last_idx = trailing_max_idx[:, 1].argmax()
+
+    start = leading_max_idx[leading_first_idx]
+    end = trailing_max_idx[trailing_last_idx]
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     grad = cv2.magnitude(
@@ -65,10 +83,12 @@ def extract_outline(img, segm, keyp):
     #W = 1. / (0.25 * grad + 0.75 * segm)
     W = 1. / (np.clip(grad_norm * segm_norm, 1e-15, 1.))
 
-    leading = astar_path(W, start, top)
-    trailing = astar_path(W, top, end)
+    #leading = astar_path(W, start, top)
+    #trailing = astar_path(W, top, end)
+    outline = astar_path(W, start, end)
 
-    return  leading, trailing
+    #return  leading, trailing
+    return outline
 
 
 def extract_contour_refined(localization, segmentation, coordinates):

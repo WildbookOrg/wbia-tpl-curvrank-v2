@@ -20,8 +20,7 @@ def preprocess_images(fpath, imsize, output_targets):
 
 # input_targets: segmentation_targets
 def extract_outline(fpath, input1_targets, input2_targets, output_targets):
-    leading_coords_target = output_targets[fpath]['leading-coords']
-    trailing_coords_target = output_targets[fpath]['trailing-coords']
+    coords_target = output_targets[fpath]['outline-coords']
     visual_target = output_targets[fpath]['outline-visual']
 
     loc_fpath = input1_targets[fpath]['localization-full'].path
@@ -33,32 +32,33 @@ def extract_outline(fpath, input1_targets, input2_targets, output_targets):
         segm = pickle.load(f1)
         keyp = pickle.load(f2)
 
-    leading, trailing = dorsal_utils.extract_outline(loc, segm, keyp)
+    outline = dorsal_utils.extract_outline(loc, segm, keyp)
 
     # TODO: what to write for failed extractions?
-    if leading.shape[0] > 0:
-        loc[leading[:, 0], leading[:, 1]] = (255, 0, 0)
-    if trailing.shape[0] > 0:
-        loc[trailing[:, 0], trailing[:, 1]] = (0, 0, 255)
+    if outline.shape[0] > 0:
+        loc[outline[:, 0], outline[:, 1]] = (255, 0, 0)
 
     _, visual_buf = cv2.imencode('.png', loc)
-    with leading_coords_target.open('wb') as f1,\
-            trailing_coords_target.open('wb') as f2,\
+    with coords_target.open('wb') as f1,\
             visual_target.open('wb') as f3:
-        pickle.dump(leading, f1, pickle.HIGHEST_PROTOCOL)
-        pickle.dump(trailing, f2, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
         f3.write(visual_buf)
 
 
 #input_targets: extract_high_resolution_outline_targets
 def compute_block_curvature(fpath, scales, input_targets, output_targets):
-    trailing_coords_target = input_targets[fpath]['trailing-coords']
-    with open(trailing_coords_target.path, 'rb') as f:
-        trailing = pickle.load(f)
+    outline_coords_target = input_targets[fpath]['outline-coords']
+    with open(outline_coords_target.path, 'rb') as f:
+        outline = pickle.load(f)
 
     # no successful outline could be found
-    if trailing.shape[0] > 0:
-        curv = dorsal_utils.block_curvature(trailing, scales)
+    if outline.shape[0] > 0:
+        idx = dorsal_utils.separate_leading_trailing_edges(outline)
+        if idx is not None:
+            te = outline[idx:]
+            curv = dorsal_utils.block_curvature(te, scales)
+        else:
+            curv = None
     else:
         curv = None
 

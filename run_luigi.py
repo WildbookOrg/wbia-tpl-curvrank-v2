@@ -351,6 +351,7 @@ class Segmentation(luigi.Task):
                 segm_refn, keyp_refn = imutils.refine_segmentation_keypoints(
                     segm, keyp, self.scale)
 
+                segm_refn[mask[:, :, 0] < 1] = 0.
                 keyp_refn[mask < 1] = 0.
 
                 _, segm_refn_buf = cv2.imencode('.png', 255. * segm_refn)
@@ -384,7 +385,7 @@ class ExtractOutline(luigi.Task):
         ]
 
     def output(self):
-        basedir = join('data', self.dataset, self.__class__.__name__)
+        basedir = join('data', self.dataset, self.__class__.__name__ + '-old-keypoints')
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
@@ -393,10 +394,8 @@ class ExtractOutline(luigi.Task):
             outputs[fpath] = {
                 'outline-visual': luigi.LocalTarget(
                     join(basedir, 'outline-visual', png_fname)),
-                'leading-coords': luigi.LocalTarget(
-                    join(basedir, 'leading-coords', pkl_fname)),
-                'trailing-coords': luigi.LocalTarget(
-                    join(basedir, 'trailing-coords', pkl_fname)),
+                'outline-coords': luigi.LocalTarget(
+                    join(basedir, 'outline-coords', pkl_fname)),
             }
 
         return outputs
