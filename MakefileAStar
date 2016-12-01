@@ -1,7 +1,6 @@
-# also remember to add the directory with the opencv libs to LD_LIBRARY_PATH
 CC=g++
-CFLAGS=-O3 -Wall -shared -fopenmp -fpic -I/home/hendrik/deep-learning/include
-LDFLAGS=-L/home/hendrik/deep-learning/lib -lopencv_core -lopencv_flann
+CFLAGS=-O3 -Wall -shared -fpic
+#LDFLAGS=
 SOURCES=astar.cpp
 OBJECTS=$(SOURCES:.cpp=.so)
 all:
