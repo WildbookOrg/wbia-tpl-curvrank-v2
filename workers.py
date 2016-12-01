@@ -53,6 +53,7 @@ def compute_block_curvature(fpath, scales, input_targets, output_targets):
 
     # no successful outline could be found
     if outline.shape[0] > 0:
+        outline = outline[:, ::-1]
         idx = dorsal_utils.separate_leading_trailing_edges(outline)
         if idx is not None:
             te = outline[idx:]
