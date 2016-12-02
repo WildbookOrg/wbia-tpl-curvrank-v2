@@ -396,8 +396,6 @@ class FindKeypoints(luigi.Task):
             input2_targets=segmentation_targets,
             output_targets=output,
         )
-        from sklearn.utils import shuffle
-        to_process = shuffle(to_process)
         #for fpath in tqdm(to_process, total=len(image_filepaths)):
         #    partial_find_keypoints(fpath)
         pool = mp.Pool(processes=32)
