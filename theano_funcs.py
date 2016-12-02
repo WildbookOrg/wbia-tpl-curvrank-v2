@@ -203,19 +203,16 @@ def create_segmentation_infer_func(layers):
     return infer_func
 
 
-def create_segmentation_keypoints_func(layers_segm, layers_keyp):
+def create_segmentation_func(layers):
     X = T.tensor4('X')
     X_batch = T.tensor4('X_batch')
 
-    # transformed input, final segmentation
-    S, K  = get_output(
-        [layers_segm['seg_out'], layers_keyp['key_out']],
-        X,
-        deterministic=True)
+    # final segmentation
+    S  = get_output(layers['seg_out'], X, deterministic=True)
 
     infer_func = theano.function(
         inputs=[theano.In(X_batch)],
-        outputs=[S, K],
+        outputs=S,
         updates=None,
         givens={
             X: X_batch,
