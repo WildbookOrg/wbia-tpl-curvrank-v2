@@ -203,102 +203,16 @@ def create_segmentation_infer_func(layers):
     return infer_func
 
 
-def create_end_to_end_train_func(layers, lr=0.01, mntm=0.9):
-    X = T.tensor4('X')
-    X_batch = T.tensor4('X_batch')
-    Y = T.tensor4('Y')
-    Y_batch = T.tensor4('Y_batch')
-
-    # transformed input, final segmentation
-    loc_out, seg_out = get_output(
-        [layers['trans'], layers['seg_out']],
-        X, deterministic=False)
-
-    train_loss = T.mean(
-        T.nnet.binary_crossentropy(
-            T.clip(seg_out, 1e-15, 1 - 1e-15),
-            Y)
-    )
-
-    params = get_all_params(layers['seg_out'], trainable=True)
-    #params = get_all_params([layers['loc'], layers['trans']], trainable=True)
-    updates = nesterov_momentum(train_loss, params, lr, mntm)
-
-    train_func = theano.function(
-        inputs=[theano.In(X_batch), theano.In(Y_batch)],
-        outputs=[train_loss, loc_out, seg_out],
-        updates=updates,
-        #updates=None,
-        givens={
-            X: X_batch,
-            Y: Y_batch,
-        },
-    )
-
-    return train_func
-
-
-def create_end_to_end_valid_func(layers):
-    # the original input image
-    X = T.tensor4('X')
-    X_batch = T.tensor4('X_batch')
-    # the localization target
-    Y = T.tensor4('Y')
-    Y_batch = T.tensor4('Y_batch')
-    # the segmentation target
-    S = T.tensor4('S')
-    S_batch = T.tensor4('S_batch')
-    # the padding mask
-    Z = T.tensor4('Z')
-    Z_batch = T.tensor4('Z_batch')
-
-    # transformed input, final segmentation
-    loc_out, seg_out = get_output(
-        [layers['trans'], layers['seg_out']],
-        X, deterministic=True)
-
-    # T.sqr computes the square, not square root
-    loc_valid_loss = T.sum(T.sqr(loc_out - Y) * Z) / Z.sum()
-
-    seg_valid_loss = T.mean(
-        T.nnet.binary_crossentropy(
-            T.clip(seg_out, 1e-15, 1 - 1e-15),
-            S)
-    )
-
-    valid_func = theano.function(
-        inputs=[
-            theano.In(X_batch),
-            theano.In(Y_batch),
-            theano.In(Z_batch),
-            theano.In(S_batch),
-        ],
-        outputs=[loc_valid_loss, seg_valid_loss, loc_out, seg_out],
-        updates=None,
-        givens={
-            X: X_batch,
-            Y: Y_batch,
-            Z: Z_batch,
-            S: S_batch,
-        },
-    )
-
-    return valid_func
-
-
-def create_end_to_end_infer_func(layers):
+def create_segmentation_func(layers):
     X = T.tensor4('X')
     X_batch = T.tensor4('X_batch')
 
-    # transformed input, final segmentation
-    M, loc_out, seg_out = get_output(
-        [layers['loc'], layers['trans'], layers['seg_out']],
-        X,
-        deterministic=True)
+    # final segmentation
+    S  = get_output(layers['seg_out'], X, deterministic=True)
 
     infer_func = theano.function(
         inputs=[theano.In(X_batch)],
-        outputs=[M, loc_out, seg_out],
+        outputs=S,
         updates=None,
         givens={
             X: X_batch,

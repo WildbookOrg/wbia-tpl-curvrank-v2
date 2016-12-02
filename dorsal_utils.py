@@ -4,6 +4,8 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
+from pyastar import astar_path
+
 
 # TODO: find a better way to structure these two functions
 def resample(x, length):
@@ -24,6 +26,7 @@ def resampleNd(X, length):
 
 
 def local_max2d(X):
+    assert X.ndim == 2, 'X.ndim = %d != 2' % (X.ndim)
     rows_grid = np.zeros_like(X).astype(np.bool)
     cols_grid = np.zeros_like(X).astype(np.bool)
     rows_max_idx = argrelextrema(X, np.greater, order=X.shape[0], axis=0)
@@ -37,7 +40,7 @@ def local_max2d(X):
     return np.vstack((i, j)).T
 
 
-def extract_outline(X):
+def find_keypoints(X):
     coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
     i, j = np.round(
         np.average(coordinates, weights=X.flatten(), axis=0)
@@ -49,59 +52,48 @@ def extract_outline(X):
     trailing_max_idx = local_max2d(trailing)
 
     # TODO: hack for when we cannot find any maxima
-    if leading_max_idx.shape[0] == 0 or trailing_max_idx.shape[0] == 0:
-        return np.array([])
+    if leading_max_idx.shape[0] > 0:
+        leading_max_idx += np.array([i, 0])
+        leading_first_idx = leading_max_idx[:, 1].argmin()
+        start = leading_max_idx[leading_first_idx]
+    else:
+        start = None
 
-    leading_max_idx += np.array([i, 0])
-    trailing_max_idx += np.array([i, j])
+    if trailing_max_idx.shape[0] > 0:
+        trailing_max_idx += np.array([i, j])
+        trailing_last_idx = trailing_max_idx[:, 1].argmax()
+        end = trailing_max_idx[trailing_last_idx]
+    else:
+        end = None
 
-    leading_first_idx = leading_max_idx[:, 1].argmin()
-    trailing_last_idx = trailing_max_idx[:, 1].argmax()
+    return start, end
 
-    leading_start = leading_max_idx[leading_first_idx][::-1]
-    trailing_end = trailing_max_idx[trailing_last_idx][::-1]
 
-    height, width = X.shape
-    nodes = np.arange(np.prod(X.shape))
-    G = nx.Graph()
-    G.add_nodes_from(nodes)
+def extract_outline(img, segm, start, end):
+    assert img.ndim == 3, 'img.dim = %d != 3' % (img.ndim)
+    assert segm.ndim == 2, 'segm.ndim = %d != 2' % (segm.ndim)
 
-    # TODO: revisit this hack
-    X[:, 0], X[:, -1], X[0, :], X[-1, :] = 0., 0., 0., 0.
-    W = 1. / X
-    for n in nodes:
-        y, x = n / width, n % width
-        edges = []
-        if x < width - 1:
-            weight = 0.5 * (
-                W[n / width, n % width] +
-                W[(n + 1) / width, (n + 1) % width])
-            edges.append((n, n + 1, weight))
-        if y < height - 1:
-            weight = 0.5 * (
-                W[n / width, n % width] +
-                W[(n + width) / width, (n + width) % width])
-            edges.append((n, n + width, weight))
-
-        G.add_weighted_edges_from(edges)
-
-    for src, dst in G.edges():
-        assert 0 <= src < height * width and 0 <= dst < height * width
-
-    assert G.number_of_nodes() == height * width
-
-    src = width * leading_start[1] + leading_start[0]
-    dst = width * trailing_end[1] + trailing_end[0]
-
-    path = nx.shortest_path(
-        G, source=src, target=dst, weight='weight'
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    grad = cv2.magnitude(
+        cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
+        cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3),
+    )
+    grad_norm = cv2.normalize(
+        grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
+    segm_norm = segm.astype(np.float32)
+    segm_norm = cv2.normalize(
+        segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
 
-    coordinates = []
-    for p in path:
-        coordinates.append((p % width, p / width))
+    #W = -1. * np.log(grad_norm * segm_norm)
 
-    return np.vstack(coordinates)
+    #W = 1. / (0.25 * grad + 0.75 * segm)
+    W = 1. / (np.clip(grad_norm * segm_norm, 1e-15, 1.))
+
+    outline = astar_path(W, start, end)
+
+    return outline
 
 
 def extract_contour_refined(localization, segmentation, coordinates):
