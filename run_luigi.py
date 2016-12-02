@@ -243,21 +243,20 @@ class Segmentation(luigi.Task):
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
-                'seg-image': luigi.LocalTarget(
-                    join(basedir, 'seg-image', png_fname)),
-                'key-image': luigi.LocalTarget(
-                    join(basedir, 'key-image', png_fname)),
-                'seg-data': luigi.LocalTarget(
-                    join(basedir, 'seg-data', pkl_fname)),
-                'key-data': luigi.LocalTarget(
-                    join(basedir, 'key-data', pkl_fname)),
+                'segmentation-image': luigi.LocalTarget(
+                    join(basedir, 'segmentation-image', png_fname)),
+                'segmentation-data': luigi.LocalTarget(
+                    join(basedir, 'segmentation-data', pkl_fname)),
+                'segmentation-full-image': luigi.LocalTarget(
+                    join(basedir, 'segmentation-full-image', png_fname)),
+                'segmentation-full-data': luigi.LocalTarget(
+                    join(basedir, 'segmentation-full-data', pkl_fname)),
             }
 
         return outputs
 
     def run(self):
         import imutils
-        import keypoints
         import segmentation
         import theano_funcs
 
@@ -275,38 +274,25 @@ class Segmentation(luigi.Task):
             segmentation_weightsfile))
         model.load_weights(layers_segm['seg_out'], segmentation_weightsfile)
 
-        print('building keypoints model with input shape %r' % (input_shape,))
-        layers_keyp = keypoints.build_model_batchnorm_full(input_shape)
-
-        keypoints_weightsfile = join(
-            'data', 'weights', 'weights_keypoints.pickle'
-        )
-        print('loading weights for the keypoints network from %s' % (
-            keypoints_weightsfile))
-        model.load_weights(layers_keyp['key_out'], keypoints_weightsfile)
-
-        layers = {}
-        for name in layers_segm:
-            layers[name] = layers_segm[name]
-        for name in layers_keyp:
-            layers[name] = layers_keyp[name]
-        layers.pop('key_in')
-        layers['key_conv1'].input_layer = layers['seg_in']
-
-        print('compiling theano functions for segmentation/keypoints')
-        segm_keyp_func = theano_funcs.create_segmentation_keypoints_func(
-            layers_segm, layers_keyp
-        )
+        print('compiling theano functions for segmentation')
+        segm_func = theano_funcs.create_segmentation_func(layers_segm)
 
         output = self.output()
         localization_targets = self.requires()[0].output()
         image_filepaths = localization_targets.keys()
 
-        to_process = [fpath for fpath in image_filepaths if
-                      not exists(output[fpath]['seg-image'].path) or
-                      not exists(output[fpath]['seg-data'].path) or
-                      not exists(output[fpath]['key-image'].path) or
-                      not exists(output[fpath]['key-data'].path)]
+        to_process = []
+        for fpath in image_filepaths:
+            seg_img_fpath = output[fpath]['segmentation-image'].path
+            seg_data_fpath = output[fpath]['segmentation-data'].path
+            seg_full_img_fpath = output[fpath]['segmentation-full-image'].path
+            seg_full_data_fpath = output[fpath]['segmentation-full-data'].path
+            if not exists(seg_img_fpath) \
+                    or not exists(seg_data_fpath) \
+                    or not exists(seg_full_img_fpath) \
+                    or not exists(seg_full_data_fpath):
+                to_process.append(fpath)
+
         print('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
@@ -336,34 +322,86 @@ class Segmentation(luigi.Task):
                 with open(msk_path, 'rb') as f:
                     M_batch[i] = pickle.load(f).transpose(2, 0, 1)
 
-            S_batch, K_batch = segm_keyp_func(X_batch)
+            S_batch  = segm_func(X_batch)
             for i, idx in enumerate(idx_range):
                 fpath = to_process[idx]
-                segm_img_target = output[fpath]['seg-image']
-                keyp_img_target = output[fpath]['key-image']
-                segm_data_target = output[fpath]['seg-data']
-                keyp_data_target = output[fpath]['key-data']
+                segm_img_target = output[fpath]['segmentation-image']
+                segm_data_target = output[fpath]['segmentation-data']
+                segm_full_img_target = output[fpath]['segmentation-full-image']
+                segm_full_data_target = output[fpath]['segmentation-full-data']
 
-                segm = S_batch[i].transpose(1, 2, 0)
-                keyp = K_batch[i].transpose(1, 2, 0)
+                segm = S_batch[i, 0].transpose(1, 2, 0)
                 mask = M_batch[i].transpose(1, 2, 0)
 
-                segm_refn, keyp_refn = imutils.refine_segmentation_keypoints(
-                    segm, keyp, self.scale)
+                segm_refn = imutils.refine_segmentation(segm, self.scale)
 
                 segm_refn[mask[:, :, 0] < 1] = 0.
-                keyp_refn[mask < 1] = 0.
 
+                _, segm_buf = cv2.imencode('.png', 255. * segm)
                 _, segm_refn_buf = cv2.imencode('.png', 255. * segm_refn)
-                _, keyp_refn_buf = cv2.imencode('.png', 255. * keyp_refn)
                 with segm_img_target.open('wb') as f1,\
-                        keyp_img_target.open('wb') as f2,\
-                        segm_data_target.open('wb') as f3,\
-                        keyp_data_target.open('wb') as f4:
-                    f1.write(segm_refn_buf)
-                    f2.write(keyp_refn_buf)
-                    pickle.dump(segm_refn, f3, pickle.HIGHEST_PROTOCOL)
-                    pickle.dump(keyp_refn, f4, pickle.HIGHEST_PROTOCOL)
+                        segm_data_target.open('wb') as f2,\
+                        segm_full_img_target.open('wb') as f3,\
+                        segm_full_data_target.open('wb') as f4:
+                    f1.write(segm_buf)
+                    pickle.dump(segm, f2, pickle.HIGHEST_PROTOCOL)
+                    f3.write(segm_refn_buf)
+                    pickle.dump(segm_refn, f4, pickle.HIGHEST_PROTOCOL)
+
+
+class FindKeypoints(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+
+    def requires(self):
+        return [Localization(dataset=self.dataset,
+                             imsize=self.imsize,
+                             batch_size=self.batch_size),
+                Segmentation(dataset=self.dataset,
+                             imsize=self.imsize,
+                             batch_size=self.batch_size)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
+            outputs[fpath] = {
+                'keypoints-visual': luigi.LocalTarget(
+                    join(basedir, 'keypoints-visual', png_fname)),
+                'keypoints-coords': luigi.LocalTarget(
+                    join(basedir, 'keypoints-coords', pkl_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import find_keypoints
+        output = self.output()
+        localization_targets = self.requires()[0].output()
+        segmentation_targets = self.requires()[1].output()
+        image_filepaths = segmentation_targets.keys()
+        to_process = [fpath for fpath in image_filepaths if
+                      not exists(output[fpath]['keypoints-visual'].path) or
+                      not exists(output[fpath]['keypoints-coords'].path)]
+        print('%d of %d images to process' % (
+            len(to_process), len(image_filepaths)))
+
+        partial_find_keypoints = partial(
+            find_keypoints,
+            input1_targets=localization_targets,
+            input2_targets=segmentation_targets,
+            output_targets=output,
+        )
+        from sklearn.utils import shuffle
+        to_process = shuffle(to_process)
+        #for fpath in tqdm(to_process, total=len(image_filepaths)):
+        #    partial_find_keypoints(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_find_keypoints, to_process)
 
 
 class ExtractOutline(luigi.Task):
@@ -381,11 +419,14 @@ class ExtractOutline(luigi.Task):
             Segmentation(dataset=self.dataset,
                          imsize=self.imsize,
                          batch_size=self.batch_size,
-                         scale=self.scale)
+                         scale=self.scale),
+            FindKeypoints(dataset=self.dataset,
+                          imsize=self.imsize,
+                          batch_size=self.batch_size),
         ]
 
     def output(self):
-        basedir = join('data', self.dataset, self.__class__.__name__ + '-old-keypoints')
+        basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
@@ -405,18 +446,20 @@ class ExtractOutline(luigi.Task):
         output = self.output()
         localization_targets = self.requires()[0].output()
         segmentation_targets = self.requires()[1].output()
+        keypoints_targets = self.requires()[2].output()
         image_filepaths = segmentation_targets.keys()
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['outline-visual'].path) or
-                      not exists(output[fpath]['leading-coords'].path) or
-                      not exists(output[fpath]['trailing-coords'].path)]
+                      not exists(output[fpath]['outline-coords'].path)]
         print('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
         partial_extract_outline = partial(
             extract_outline,
+            scale=self.scale,
             input1_targets=localization_targets,
             input2_targets=segmentation_targets,
+            input3_targets=keypoints_targets,
             output_targets=output,
         )
         #for fpath in tqdm(to_process, total=len(image_filepaths)):
