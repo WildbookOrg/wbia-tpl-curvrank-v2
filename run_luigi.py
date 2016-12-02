@@ -330,7 +330,7 @@ class Segmentation(luigi.Task):
                 segm_full_img_target = output[fpath]['segmentation-full-image']
                 segm_full_data_target = output[fpath]['segmentation-full-data']
 
-                segm = S_batch[i, 0].transpose(1, 2, 0)
+                segm = S_batch[i].transpose(1, 2, 0)
                 mask = M_batch[i].transpose(1, 2, 0)
 
                 segm_refn = imutils.refine_segmentation(segm, self.scale)
