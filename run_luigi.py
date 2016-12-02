@@ -89,14 +89,14 @@ class PreprocessImages(luigi.Task):
 
         print('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
-        #for fpath in tqdm(to_process, total=len(to_process)):
-        #    preprocess_images(fpath, self.imsize, output)
-        pool = mp.Pool(processes=32)
         partial_preprocess_images = partial(
             preprocess_images,
             imsize=self.imsize,
             output_targets=output,
         )
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_preprocess_images(fpath)
+        pool = mp.Pool(processes=32)
         pool.map(partial_preprocess_images, to_process)
 
 
@@ -503,14 +503,15 @@ class ComputeBlockCurvature(luigi.Task):
         print('%d of %d images to process' % (
             len(to_process), len(input_filepaths)))
 
-        #for fpath in tqdm(to_process, total=len(outline_filepaths)):
-        pool = mp.Pool(processes=32)
         partial_compute_block_curvature = partial(
             compute_block_curvature,
             scales=self.curvature_scales,
             input_targets=extract_outline_targets,
             output_targets=output,
         )
+        #for fpath in tqdm(to_process, total=len(outline_filepaths)):
+        #    partial_compute_block_curvature(fpath)
+        pool = mp.Pool(processes=32)
         pool.map(partial_compute_block_curvature, to_process)
 
 
