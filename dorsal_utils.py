@@ -26,6 +26,7 @@ def resampleNd(X, length):
 
 
 def local_max2d(X):
+    assert X.ndim == 2, 'X.ndim = %d != 2' % (X.ndim)
     rows_grid = np.zeros_like(X).astype(np.bool)
     cols_grid = np.zeros_like(X).astype(np.bool)
     rows_max_idx = argrelextrema(X, np.greater, order=X.shape[0], axis=0)
@@ -39,31 +40,38 @@ def local_max2d(X):
     return np.vstack((i, j)).T
 
 
-def extract_outline(img, segm, keyp):
-    coordinates = np.mgrid[
-        0:segm.shape[0]:1, 0:segm.shape[1]:1
-    ].reshape(2, -1).T
+def find_keypoints(X):
+    coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
     i, j = np.round(
-        np.average(coordinates, weights=segm.flatten(), axis=0)
+        np.average(coordinates, weights=X.flatten(), axis=0)
     ).astype(np.int32)
 
-    leading, trailing = segm[i:, :j], segm[i:, j:]
+    leading, trailing = X[i:, :j], X[i:, j:]
 
     leading_max_idx = local_max2d(leading)
     trailing_max_idx = local_max2d(trailing)
 
     # TODO: hack for when we cannot find any maxima
-    if leading_max_idx.shape[0] == 0 or trailing_max_idx.shape[0] == 0:
-        return np.array([])
+    if leading_max_idx.shape[0] > 0:
+        leading_max_idx += np.array([i, 0])
+        leading_first_idx = leading_max_idx[:, 1].argmin()
+        start = leading_max_idx[leading_first_idx]
+    else:
+        start = None
 
-    leading_max_idx += np.array([i, 0])
-    trailing_max_idx += np.array([i, j])
+    if trailing_max_idx.shape[0] > 0:
+        trailing_max_idx += np.array([i, j])
+        trailing_last_idx = trailing_max_idx[:, 1].argmax()
+        end = trailing_max_idx[trailing_last_idx]
+    else:
+        end = None
 
-    leading_first_idx = leading_max_idx[:, 1].argmin()
-    trailing_last_idx = trailing_max_idx[:, 1].argmax()
+    return start, end
 
-    start = leading_max_idx[leading_first_idx]
-    end = trailing_max_idx[trailing_last_idx]
+
+def extract_outline(img, segm, start, end):
+    assert img.ndim == 3, 'img.dim = %d != 3' % (img.ndim)
+    assert segm.ndim == 2, 'segm.ndim = %d != 2' % (segm.ndim)
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     grad = cv2.magnitude(
@@ -83,11 +91,8 @@ def extract_outline(img, segm, keyp):
     #W = 1. / (0.25 * grad + 0.75 * segm)
     W = 1. / (np.clip(grad_norm * segm_norm, 1e-15, 1.))
 
-    #leading = astar_path(W, start, top)
-    #trailing = astar_path(W, top, end)
     outline = astar_path(W, start, end)
 
-    #return  leading, trailing
     return outline
 
 
