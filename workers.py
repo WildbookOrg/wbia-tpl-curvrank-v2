@@ -87,21 +87,54 @@ def extract_outline(fpath, scale,
         f2.write(visual_buf)
 
 
-#input_targets: extract_high_resolution_outline_targets
-def compute_block_curvature(fpath, scales, input_targets, output_targets):
-    outline_coords_target = input_targets[fpath]['outline-coords']
+#input1_targets: localization_targets
+#input2_targets: extract_outline_targets
+def separate_edges(fpath, input1_targets, input2_targets, output_targets):
+    localization_target = input1_targets[fpath]['localization-full']
+    outline_coords_target = input2_targets[fpath]['outline-coords']
+
+    loc = cv2.imread(localization_target.path)
     with open(outline_coords_target.path, 'rb') as f:
         outline = pickle.load(f)
 
     # no successful outline could be found
     if outline.shape[0] > 0:
-        outline = outline[:, ::-1]
         idx = dorsal_utils.separate_leading_trailing_edges(outline)
         if idx is not None:
-            te = outline[idx:]
-            curv = dorsal_utils.block_curvature(te, scales)
+            leading_edge = outline[:idx]
+            trailing_edge = outline[idx:]
+
+            loc[leading_edge[:, 0], leading_edge[:, 1]] = (255, 0, 0)
+            loc[trailing_edge[:, 0], trailing_edge[:, 1]] = (0, 0, 255)
         else:
-            curv = None
+            leading_edge, trailing_edge = None, None
+    else:
+        leading_edge, trailing_edge = None, None
+
+    vis_target = output_targets[fpath]['visual']
+    _, loc_buf = cv2.imencode('.png', loc)
+
+    with vis_target.open('wb') as f1:
+        f1.write(loc_buf)
+
+    leading_target = output_targets[fpath]['leading-coords']
+    trailing_target = output_targets[fpath]['trailing-coords']
+    with leading_target.open('wb') as f1,\
+            trailing_target.open('wb') as f2:
+        pickle.dump(leading_edge, f1, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
+
+
+#input_targets: extract_high_resolution_outline_targets
+def compute_block_curvature(fpath, scales, input_targets, output_targets):
+    trailing_coords_target = input_targets[fpath]['trailing-coords']
+    with open(trailing_coords_target.path, 'rb') as f:
+        trailing_edge = pickle.load(f)
+
+    if trailing_edge is not None:
+        # compute_curvature uses (x, y) coordinates
+        trailing_edge = trailing_edge[:, ::-1]
+        curv = dorsal_utils.block_curvature(trailing_edge, scales)
     else:
         curv = None
 
