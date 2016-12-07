@@ -700,5 +700,67 @@ class EvaluateIdentification(luigi.Task):
                     print(' top-%d: %.2f%%' % (k, topk))
 
 
+class VisualizeIndividuals(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [PrepareData(dataset=self.dataset),
+                SeparateEdges(dataset=self.dataset,
+                              imsize=self.imsize,
+                              batch_size=self.batch_size,
+                              scale=self.scale)]
+
+    def output(self):
+        csv_fpath = self.requires()[0].output().path
+        # hack for when the csv file doesn't exist
+        if not exists(csv_fpath):
+            self.requires()[0].run()
+        df = pd.read_csv(
+            csv_fpath, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        image_filepaths = df['impath'].values
+        individuals = df['individual'].values
+
+        outputs = {}
+        for (indiv, fpath) in zip(individuals, image_filepaths):
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            outputs[fpath] = {
+                'image': luigi.LocalTarget(
+                    join(basedir, indiv, png_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import visualize_individuals
+        output = self.output()
+
+        separate_edges_targets = self.requires()[1].output()
+        image_filepaths = separate_edges_targets.keys()
+
+        to_process = [fpath for fpath in image_filepaths if
+                      not exists(output[fpath]['image'].path)]
+
+        print('%d of %d images to process' % (
+            len(to_process), len(image_filepaths)))
+
+        partial_visualize_individuals = partial(
+            visualize_individuals,
+            input_targets=separate_edges_targets,
+            output_targets=output
+        )
+
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_visualize_individuals(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_visualize_individuals, to_process)
+
+
 if __name__ == '__main__':
     luigi.run()

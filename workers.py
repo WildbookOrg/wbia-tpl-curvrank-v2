@@ -142,3 +142,13 @@ def compute_block_curvature(fpath, scales, input_targets, output_targets):
     # write the failures too or it seems like the task did not complete
     with curv_target.open('wb') as f1:
         pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
+
+
+def visualize_individuals(fpath, input_targets, output_targets):
+    separate_edges_target = input_targets[fpath]['visual']
+    img = cv2.imread(separate_edges_target.path)
+
+    visualization_target = output_targets[fpath]['image']
+    _, img_buf = cv2.imencode('.png', img)
+    with visualization_target.open('wb') as f:
+        f.write(img_buf)
