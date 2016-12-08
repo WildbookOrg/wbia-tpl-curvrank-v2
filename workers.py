@@ -99,7 +99,8 @@ def compute_block_curvature(fpath, scales, input_targets, output_targets):
         idx = dorsal_utils.separate_leading_trailing_edges(outline)
         if idx is not None:
             te = outline[idx:]
-            curv = dorsal_utils.block_curvature(te, scales)
+            #curv = dorsal_utils.block_curvature(te, scales)
+            curv = dorsal_utils.oriented_curvature(te, scales, None, None)
         else:
             curv = None
     else:
