@@ -217,3 +217,107 @@ def block_curvature(contour, scales):
             curvature[i, j] = area / ((x1 - x0) * (y1 - y0))
 
     return curvature
+
+
+def oriented_curvature(contour, scales, ax1, ax2):
+    curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
+    for j, s in enumerate(scales):
+        r = s * (contour[:, 1].max() - contour[:, 1].min())
+        for i, (x, y) in enumerate(contour):
+            x0, x1  = x - r, x + r
+            y0, y1 = y - r, y + r
+
+            x0x1 = (contour[:, 0] >= x0) & (contour[:, 0] <= x1)
+            y0y1 = (contour[:, 1] >= y0) & (contour[:, 1] <= y1)
+
+            select_idx = x0x1 & y0y1
+            curve = contour[select_idx]
+            inside = np.zeros(curve.shape[0], dtype=np.bool)
+            for idx, (xc, yc) in enumerate(curve):
+                if np.sqrt((x - xc) ** 2 + (y - yc) ** 2) <= r:
+                    inside[idx] = True
+
+            curve = np.vstack(curve[inside])
+
+            n = curve[-1] - curve[0]
+            theta = np.arctan2(n[1], n[0])
+            n = np.array([-n[1], n[0]])
+            n = n / np.linalg.norm(n)
+
+            curve_p = reorient(curve, theta, np.array([x, y]))
+
+            r0 = curve_p[0] - np.array([0, r])
+            r1 = curve_p[-1] + np.array([0, r])
+            area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
+
+            curv = area / np.prod(r1 - r0)
+            curvature[i, j] = curv
+
+            if i % 128 == 0 and False:
+                circle = plt.Circle((x, y), r, color='blue', fill=False)
+                ax1.scatter(curve[:, 0], curve[:, 1], color='blue', s=1)
+                w, h = r1 - r0
+                rect = patches.Rectangle(r0, w, h, facecolor='none')
+                ax2.add_patch(rect)
+                ax1.arrow(
+                    x, y, 20 * n[0], 20 * n[1], length_includes_head=True,
+                    color='blue'
+                )
+                ax1.add_artist(circle)
+                ax2.scatter(curve_p[:, 0], curve_p[:, 1], color='blue', s=1)
+
+    return curvature
+
+
+def rotate(radians):
+    M = np.eye(3)
+    M[0, 0], M[1, 1] = np.cos(radians), np.cos(radians)
+    M[0, 1], M[1, 0] = np.sin(radians), -np.sin(radians)
+
+    return M
+
+
+def reorient(points, theta, center):
+    M = rotate(theta)
+    points_trans = points - center
+    points_aug = np.hstack((points_trans, np.ones((points.shape[0], 1))))
+    points_trans = np.dot(M, points_aug.transpose())
+    points_trans = points_trans.transpose()[:, :2]
+    points_trans += center
+
+    return np.squeeze(points_trans)
+
+
+def test_oriented_curvature():
+    import cPickle as pickle
+    import random
+    from os import listdir
+    from os.path import join
+    contour_dir = join(
+        'data', 'nz', 'SeparateEdges', 'trailing-coords',
+    )
+    contour_fpaths = listdir(contour_dir)
+    contour_fpath = join(contour_dir, random.choice(contour_fpaths))
+    with open(contour_fpath, 'rb') as f:
+        contour = pickle.load(f)
+    contour = contour[:, ::-1]  # ij -> xy
+
+    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(22., 12))
+    ax1.scatter(contour[:, 0], contour[:, 1], color='red', s=1)
+
+    #curv = oriented_curvature(contour, (0.04, 0.06, 0.08, 0.10), ax1, ax2)
+    curv = oriented_curvature(contour, (0.02, 0.10, 0.25, 0.50), ax1, ax2)
+
+    ax3.set_xlim((0, 1))
+    ax3.plot(curv[::-1], np.arange(curv.shape[0]))
+
+    ax1.axis('equal')
+    ax1.set_ylim(ax1.get_ylim()[::-1])
+    ax2.set_ylim(ax2.get_ylim()[::-1])
+    plt.savefig('curve.png', bbox_inches='tight')
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+    test_oriented_curvature()
