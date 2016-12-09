@@ -655,7 +655,7 @@ class ParameterSearch(luigi.Task):
 
     def _gen_params_list(self):
         base_scales = np.linspace(0.1, 0.3, 7)
-        incr_scales = np.linspace(0.01, 0.2, 1)
+        incr_scales = np.linspace(0.01, 0.2, 10)
         num_scales = 4
         params_list = []
         for incr in incr_scales:
