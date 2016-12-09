@@ -285,7 +285,8 @@ def reorient(points, theta, center):
     points_trans = points_trans.transpose()[:, :2]
     points_trans += center
 
-    return np.squeeze(points_trans)
+    #return np.squeeze(points_trans)
+    return points_trans
 
 
 def test_oriented_curvature():
