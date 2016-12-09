@@ -481,13 +481,14 @@ class ComputeBlockCurvature(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        curvdir = ','.join([str(s) for s in self.curvature_scales])
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'curvature': luigi.LocalTarget(
-                    join(basedir, 'curvature', pkl_fname)),
+                    join(basedir, curvdir, pkl_fname)),
             }
 
         return outputs
@@ -522,6 +523,7 @@ class EvaluateIdentification(luigi.Task):
     scale = luigi.IntParameter(default=4)
     window = luigi.IntParameter(default=8)
     curv_length = luigi.IntParameter(default=128)
+    curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
 
     def requires(self):
         return [
@@ -529,14 +531,19 @@ class EvaluateIdentification(luigi.Task):
             ComputeBlockCurvature(dataset=self.dataset,
                                   imsize=self.imsize,
                                   batch_size=self.batch_size,
-                                  scale=self.scale)]
+                                  scale=self.scale,
+                                  curvature_scales=self.curvature_scales)]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        curvdir = ','.join([str(s) for s in self.curvature_scales])
         return [
-            luigi.LocalTarget(join(basedir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(join(basedir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(join(basedir, '%s_topk.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_all.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_topk.csv' % self.dataset)),
         ]
 
     def run(self):
