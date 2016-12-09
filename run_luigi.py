@@ -481,7 +481,7 @@ class ComputeBlockCurvature(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join([str(s) for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
@@ -536,7 +536,7 @@ class EvaluateIdentification(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join([str(s) for s in self.curvature_scales])
+        curvdir = ','.join(['%3f' % s for s in self.curvature_scales])
         return [
             luigi.LocalTarget(
                 join(basedir, curvdir, '%s_all.csv' % self.dataset)),
@@ -645,6 +645,65 @@ class EvaluateIdentification(luigi.Task):
                 f.write('top-%d,%.6f\n' % (k, topk))
                 if k in topk_scores:
                     print(' top-%d: %.2f%%' % (k, topk))
+
+
+class ParameterSearch(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    curv_length = luigi.IntParameter(default=128)
+    curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
+
+    def requires(self):
+        return [
+            EvaluateIdentification(
+                dataset=self.dataset,
+                curv_length=self.curv_length,
+                curvature_scales=(0.133, 0.207, 0.280, 0.353)),
+            EvaluateIdentification(
+                dataset=self.dataset,
+                curv_length=self.curv_length,
+                curvature_scales=(0.10, 0.20, 0.30, 0.40))]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        return [
+            luigi.LocalTarget(join(basedir, 'results.txt')),
+            luigi.LocalTarget(join(basedir, 'best.txt')),
+        ]
+
+    def run(self):
+        k_values = [1, 5, 10, 25]
+        params_list = []
+        evaluation_runs = self.requires()
+        results = np.zeros(
+            (len(evaluation_runs), len(k_values)), dtype=np.float32
+        )
+
+        with self.output()[0].open('w') as f:
+            f.write('scales,%s\n' % ','.join([str(k) for k in k_values]))
+            for i, task in enumerate(evaluation_runs):
+                params_list.append(task.curvature_scales)
+                csv_fpath = task.output()[2].path
+                df = pd.read_csv(
+                    csv_fpath, header='infer', usecols=['topk', 'accuracy']
+                )
+                scores = df['accuracy'].values
+                for j, k in enumerate(k_values):
+                    results[i, j] = scores[k - 1]
+                f.write('%s: %s\n' % (
+                    ','.join(['%.3f' % s for s in task.curvature_scales]),
+                    ','.join(['%.2f' % s for s in results[i]]))
+                )
+
+        with self.output()[1].open('w') as f:
+            for j, k in enumerate(k_values):
+                f.write('best scales for top-%d accuracy\n' % k)
+                sorted_idx = np.argsort(results[:, j])[::-1]
+                for p, idx in enumerate(sorted_idx[0:5]):
+                    scales = params_list[idx]
+                    f.write(' %d) %s: %s\n' % (
+                        1 + p, ','.join(['%.3f' % s for s in scales]),
+                        ','.join(['%.2f' % r for r in results[idx]]))
+                    )
 
 
 if __name__ == '__main__':
