@@ -224,41 +224,37 @@ def oriented_curvature(contour, scales, ax1, ax2):
     for j, s in enumerate(scales):
         r = s * (contour[:, 1].max() - contour[:, 1].min())
         for i, (x, y) in enumerate(contour):
-            x0, x1  = x - r, x + r
-            y0, y1 = y - r, y + r
+            center = np.array([x, y])
 
-            x0x1 = (contour[:, 0] >= x0) & (contour[:, 0] <= x1)
-            y0y1 = (contour[:, 1] >= y0) & (contour[:, 1] <= y1)
-
-            select_idx = x0x1 & y0y1
-            curve = contour[select_idx]
-            inside = np.zeros(curve.shape[0], dtype=np.bool)
-            for idx, (xc, yc) in enumerate(curve):
-                if np.sqrt((x - xc) ** 2 + (y - yc) ** 2) <= r:
-                    inside[idx] = True
-
-            curve = np.vstack(curve[inside])
+            inside = ((contour - center) ** 2).sum(axis=1) <= (r ** 2)
+            curve = np.vstack(contour[inside])
 
             n = curve[-1] - curve[0]
             theta = np.arctan2(n[1], n[0])
-            n = np.array([-n[1], n[0]])
-            n = n / np.linalg.norm(n)
 
-            curve_p = reorient(curve, theta, np.array([x, y]))
+            curve_p = reorient(curve, theta, center)
+            center_p = np.squeeze(reorient(center[None], theta, center))
 
-            r0 = curve_p[0] - np.array([0, r])
-            r1 = curve_p[-1] + np.array([0, r])
+            r0 = center_p - np.array([r, r])
+            r1 = center_p + np.array([r, r])
+            r0[0] = max(curve_p[:, 0].min(), r0[0])
+            r1[0] = min(curve_p[:, 0].max(), r1[0])
+
             area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
 
             curv = area / np.prod(r1 - r0)
             curvature[i, j] = curv
 
-            if i % 128 == 0 and False:
+            if i % 256 == 0 and False:
+                print('curv at (%d, %d) = %.6f' % (x, y, curv))
                 circle = plt.Circle((x, y), r, color='blue', fill=False)
                 ax1.scatter(curve[:, 0], curve[:, 1], color='blue', s=1)
                 w, h = r1 - r0
                 rect = patches.Rectangle(r0, w, h, facecolor='none')
                 ax2.add_patch(rect)
+
+                n = np.array([-n[1], n[0]])
+                n = n / np.linalg.norm(n)
                 ax1.arrow(
                     x, y, 20 * n[0], 20 * n[1], length_includes_head=True,
                     color='blue'
@@ -285,7 +281,9 @@ def reorient(points, theta, center):
     points_trans = points_trans.transpose()[:, :2]
     points_trans += center
 
-    #return np.squeeze(points_trans)
+    assert points_trans.ndim == 2, 'points_trans.ndim == %d != 2' % (
+        points_trans.ndim)
+
     return points_trans
 
 
@@ -299,6 +297,7 @@ def test_oriented_curvature():
     )
     contour_fpaths = listdir(contour_dir)
     contour_fpath = join(contour_dir, random.choice(contour_fpaths))
+    #contour_fpath = join(contour_dir, contour_fpaths[0])
     with open(contour_fpath, 'rb') as f:
         contour = pickle.load(f)
     contour = contour[:, ::-1]  # ij -> xy
@@ -306,8 +305,11 @@ def test_oriented_curvature():
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(22., 12))
     ax1.scatter(contour[:, 0], contour[:, 1], color='red', s=1)
 
-    #curv = oriented_curvature(contour, (0.04, 0.06, 0.08, 0.10), ax1, ax2)
-    curv = oriented_curvature(contour, (0.02, 0.10, 0.25, 0.50), ax1, ax2)
+    scales = (0.06, 0.10, 0.14, 0.18)
+    #scales = (0.133, 0.207, 0.280, 0.353)
+    #scales = (0.10, 0.12, 0.14, 0.16)
+    curv = oriented_curvature(contour, scales, ax1, ax2)
+    #curv = oriented_curvature(contour, scales, ax1, ax2)
 
     ax3.set_xlim((0, 1))
     ax3.plot(curv[::-1], np.arange(curv.shape[0]))
