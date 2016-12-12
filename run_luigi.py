@@ -703,8 +703,8 @@ class ParameterSearch(luigi.Task):
                     results[i, j] = scores[k - 1]
                 f.write('%s: %s\n' % (
                     ','.join(['%.3f' % s for s in task.curvature_scales]),
-                    ','.join(['%.2f' % s for s in results[i]]))
-                )
+                    ','.join(['%.2f' % s for s in results[i]])
+                ))
 
         with self.output()[1].open('w') as f:
             for j, k in enumerate(k_values):
@@ -714,8 +714,8 @@ class ParameterSearch(luigi.Task):
                     scales = params_list[idx]
                     f.write(' %d) %s: %s\n' % (
                         1 + p, ','.join(['%.3f' % s for s in scales]),
-                        ','.join(['%.2f' % r for r in results[idx]]))
-                    )
+                        ','.join(['%.2f' % r for r in results[idx]])
+                    ))
 
 
 if __name__ == '__main__':
