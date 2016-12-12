@@ -481,13 +481,14 @@ class ComputeBlockCurvature(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'curvature': luigi.LocalTarget(
-                    join(basedir, 'curvature', pkl_fname)),
+                    join(basedir, curvdir, pkl_fname)),
             }
 
         return outputs
@@ -522,6 +523,7 @@ class EvaluateIdentification(luigi.Task):
     scale = luigi.IntParameter(default=4)
     window = luigi.IntParameter(default=8)
     curv_length = luigi.IntParameter(default=128)
+    curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
 
     def requires(self):
         return [
@@ -529,14 +531,19 @@ class EvaluateIdentification(luigi.Task):
             ComputeBlockCurvature(dataset=self.dataset,
                                   imsize=self.imsize,
                                   batch_size=self.batch_size,
-                                  scale=self.scale)]
+                                  scale=self.scale,
+                                  curvature_scales=self.curvature_scales)]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        curvdir = ','.join(['%3f' % s for s in self.curvature_scales])
         return [
-            luigi.LocalTarget(join(basedir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(join(basedir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(join(basedir, '%s_topk.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_all.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_topk.csv' % self.dataset)),
         ]
 
     def run(self):
@@ -551,10 +558,11 @@ class EvaluateIdentification(luigi.Task):
         fname_curv_dict = {}
         curv_dict = self.requires()[1].output()
         curv_filepaths = curv_dict.keys()
-        print('computing curvature vectors of dimension %d for %d images' % (
-            self.curv_length, len(curv_filepaths)))
-        for fpath in tqdm(curv_filepaths,
-                          total=len(curv_filepaths), leave=False):
+        #print('computing curvature vectors of dimension %d for %d images' % (
+        #    self.curv_length, len(curv_filepaths)))
+        #for fpath in tqdm(curv_filepaths,
+        #                  total=len(curv_filepaths), leave=False):
+        for fpath in curv_filepaths:
             curv_target = curv_dict[fpath]['curvature']
             with open(curv_target.path, 'rb') as f:
                 curv = pickle.load(f)
@@ -578,16 +586,16 @@ class EvaluateIdentification(luigi.Task):
             for enc in qr_dict[ind]:
                 qr_curvs_list.append(len(qr_dict[ind][enc]))
 
-        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
-            np.max(db_curvs_list),
-            np.mean(db_curvs_list),
-            np.min(db_curvs_list))
-        )
-        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
-            np.max(qr_curvs_list),
-            np.mean(qr_curvs_list),
-            np.min(qr_curvs_list))
-        )
+        #print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+        #    np.max(db_curvs_list),
+        #    np.mean(db_curvs_list),
+        #    np.min(db_curvs_list))
+        #)
+        #print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+        #    np.max(qr_curvs_list),
+        #    np.mean(qr_curvs_list),
+        #    np.min(qr_curvs_list))
+        #)
 
         simfunc = partial(
             ranking.dtw_alignment_cost,
@@ -598,8 +606,9 @@ class EvaluateIdentification(luigi.Task):
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_dict.keys()
         with self.output()[0].open('w') as f:
-            print('running identification for %d individuals' % (len(qindivs)))
-            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+            #print('running identification for %d individuals' % (len(qindivs)))
+            #for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+            for qind in qindivs:
                 qencs = qr_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
@@ -626,18 +635,87 @@ class EvaluateIdentification(luigi.Task):
             for rank in indiv_rank_indices[ind]:
                 rank_indices.append(rank)
 
-        topk_scores = [1, 5, 10, 25]
+        #topk_scores = [1, 5, 10, 25]
         rank_indices = np.array(rank_indices)
         num_queries = rank_indices.shape[0]
         num_indivs = len(indiv_rank_indices)
-        print('accuracy scores:')
+        #print('accuracy scores:')
         with self.output()[2].open('w') as f:
             f.write('topk,accuracy\n')
             for k in range(1, 1 + num_indivs):
                 topk = (100. / num_queries) * (rank_indices <= k).sum()
                 f.write('top-%d,%.6f\n' % (k, topk))
-                if k in topk_scores:
-                    print(' top-%d: %.2f%%' % (k, topk))
+                #if k in topk_scores:
+                #    print(' top-%d: %.2f%%' % (k, topk))
+
+
+class ParameterSearch(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    curv_length = luigi.IntParameter(default=128)
+
+    def _gen_params_list(self):
+        base_scales = np.linspace(0.1, 0.3, 7)
+        incr_scales = np.linspace(0.01, 0.2, 10)
+        num_scales = 4
+        params_list = []
+        for incr in incr_scales:
+            for base in base_scales:
+                params_list.append(
+                    [base + i * incr for i in range(num_scales)]
+                )
+
+        return params_list
+
+    def requires(self):
+        return [
+            EvaluateIdentification(
+                dataset=self.dataset,
+                curv_length=self.curv_length,
+                curvature_scales=scales)
+            for scales in self._gen_params_list()
+        ]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        return [
+            luigi.LocalTarget(join(basedir, 'results.txt')),
+            luigi.LocalTarget(join(basedir, 'best.txt')),
+        ]
+
+    def run(self):
+        k_values = [1, 5, 10, 25]
+        params_list = []
+        evaluation_runs = self.requires()
+        results = np.zeros(
+            (len(evaluation_runs), len(k_values)), dtype=np.float32
+        )
+
+        with self.output()[0].open('w') as f:
+            f.write('scales,%s\n' % ','.join([str(k) for k in k_values]))
+            for i, task in enumerate(evaluation_runs):
+                params_list.append(task.curvature_scales)
+                csv_fpath = task.output()[2].path
+                df = pd.read_csv(
+                    csv_fpath, header='infer', usecols=['topk', 'accuracy']
+                )
+                scores = df['accuracy'].values
+                for j, k in enumerate(k_values):
+                    results[i, j] = scores[k - 1]
+                f.write('%s: %s\n' % (
+                    ','.join(['%.3f' % s for s in task.curvature_scales]),
+                    ','.join(['%.2f' % s for s in results[i]])
+                ))
+
+        with self.output()[1].open('w') as f:
+            for j, k in enumerate(k_values):
+                f.write('best scales for top-%d accuracy\n' % k)
+                sorted_idx = np.argsort(results[:, j])[::-1]
+                for p, idx in enumerate(sorted_idx[0:5]):
+                    scales = params_list[idx]
+                    f.write(' %d) %s: %s\n' % (
+                        1 + p, ','.join(['%.3f' % s for s in scales]),
+                        ','.join(['%.2f' % r for r in results[idx]])
+                    ))
 
 
 if __name__ == '__main__':
