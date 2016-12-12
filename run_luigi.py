@@ -472,7 +472,7 @@ class ComputeBlockCurvature(luigi.Task):
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
     #curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
-    curvature_scales = luigi.Parameter(default=(0.02, 0.04, 0.06, 0.08))
+    curvature_scales = luigi.Parameter(default=(0.06, 0.10, 0.14, 0.18))
 
     def requires(self):
         return [ExtractOutline(dataset=self.dataset,
