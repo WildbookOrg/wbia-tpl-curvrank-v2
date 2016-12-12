@@ -561,6 +561,11 @@ class EvaluateIdentification(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['.%3f' % s for s in self.curvature_scales])
         #curvdir = ','.join(['%3f' % s for s in self.curvature_scales])
+        if self.oriented:
+            curvdir = join('oriented', curvdir)
+        else:
+            curvdir = join('standard', curvdir)
+
         return [
             luigi.LocalTarget(
                 join(basedir, curvdir, '%s_all.csv' % self.dataset)),
