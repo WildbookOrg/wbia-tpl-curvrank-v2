@@ -471,7 +471,15 @@ class ComputeBlockCurvature(luigi.Task):
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
-    curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
+    oriented = luigi.BoolParameter(default=False)
+    if oriented:  # use oriented curvature
+        curvature_scales = luigi.Parameter(
+            default=(0.06, 0.10, 0.14, 0.18)
+        )
+    else:       # use standard block curvature
+        curvature_scales = luigi.Parameter(
+            default=(0.133, 0.207, 0.280, 0.353)
+        )
 
     def requires(self):
         return [ExtractOutline(dataset=self.dataset,
@@ -510,7 +518,7 @@ class ComputeBlockCurvature(luigi.Task):
             input_targets=extract_outline_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(outline_filepaths)):
+        #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_compute_block_curvature(fpath)
         pool = mp.Pool(processes=32)
         pool.map(partial_compute_block_curvature, to_process)
@@ -569,6 +577,8 @@ class EvaluateIdentification(luigi.Task):
             # no trailing edge could be extracted for this image
             if curv is None or curv.shape[0] < 2:
                 continue
+            else:
+                assert curv.ndim == 2, 'curv.ndim == %d != 2' % (curv.ndim)
 
             fname = splitext(basename(fpath))[0]
             fname_curv_dict[fname] = dorsal_utils.resampleNd(
