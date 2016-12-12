@@ -245,7 +245,7 @@ def oriented_curvature(contour, scales, ax1, ax2):
             curv = area / np.prod(r1 - r0)
             curvature[i, j] = curv
 
-            if i % 256 == 0 and False:
+            if i % 256 == 0 and True:
                 print('curv at (%d, %d) = %.6f' % (x, y, curv))
                 circle = plt.Circle((x, y), r, color='blue', fill=False)
                 ax1.scatter(curve[:, 0], curve[:, 1], color='blue', s=1)
