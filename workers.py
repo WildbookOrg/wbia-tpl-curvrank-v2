@@ -88,7 +88,8 @@ def extract_outline(fpath, scale,
 
 
 #input_targets: extract_high_resolution_outline_targets
-def compute_block_curvature(fpath, scales, input_targets, output_targets):
+def compute_block_curvature(fpath, scales, oriented,
+                            input_targets, output_targets):
     outline_coords_target = input_targets[fpath]['outline-coords']
     with open(outline_coords_target.path, 'rb') as f:
         outline = pickle.load(f)
@@ -99,8 +100,10 @@ def compute_block_curvature(fpath, scales, input_targets, output_targets):
         idx = dorsal_utils.separate_leading_trailing_edges(outline)
         if idx is not None:
             te = outline[idx:]
-            #curv = dorsal_utils.block_curvature(te, scales)
-            curv = dorsal_utils.oriented_curvature(te, scales, None, None)
+            if oriented:
+                curv = dorsal_utils.oriented_curvature(te, scales)
+            else:
+                curv = dorsal_utils.block_curvature(te, scales)
         else:
             curv = None
     else:
