@@ -490,6 +490,10 @@ class ComputeBlockCurvature(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        if self.oriented:
+            curvdir = join('oriented', curvdir)
+        else:
+            curvdir = join('standard', curvdir)
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
@@ -515,6 +519,7 @@ class ComputeBlockCurvature(luigi.Task):
         partial_compute_block_curvature = partial(
             compute_block_curvature,
             scales=self.curvature_scales,
+            oriented=self.oriented,
             input_targets=extract_outline_targets,
             output_targets=output,
         )
@@ -531,7 +536,16 @@ class EvaluateIdentification(luigi.Task):
     scale = luigi.IntParameter(default=4)
     window = luigi.IntParameter(default=8)
     curv_length = luigi.IntParameter(default=128)
-    curvature_scales = luigi.Parameter(default=(0.133, 0.207, 0.280, 0.353))
+    oriented = luigi.BoolParameter(default=False)
+
+    if oriented:  # use oriented curvature
+        curvature_scales = luigi.Parameter(
+            default=(0.06, 0.10, 0.14, 0.18)
+        )
+    else:       # use standard block curvature
+        curvature_scales = luigi.Parameter(
+            default=(0.133, 0.207, 0.280, 0.353)
+        )
 
     def requires(self):
         return [
@@ -540,11 +554,13 @@ class EvaluateIdentification(luigi.Task):
                                   imsize=self.imsize,
                                   batch_size=self.batch_size,
                                   scale=self.scale,
+                                  oriented=self.oriented,
                                   curvature_scales=self.curvature_scales)]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%3f' % s for s in self.curvature_scales])
+        curvdir = ','.join(['.%3f' % s for s in self.curvature_scales])
+        #curvdir = ','.join(['%3f' % s for s in self.curvature_scales])
         return [
             luigi.LocalTarget(
                 join(basedir, curvdir, '%s_all.csv' % self.dataset)),
