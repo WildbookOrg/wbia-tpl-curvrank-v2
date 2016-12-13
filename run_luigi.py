@@ -473,11 +473,11 @@ class ComputeBlockCurvature(luigi.Task):
     scale = luigi.IntParameter(default=4)
     oriented = luigi.BoolParameter(default=False)
     if oriented:  # use oriented curvature
-        curvature_scales = luigi.Parameter(
+        curvature_scales = luigi.ListParameter(
             default=(0.06, 0.10, 0.14, 0.18)
         )
     else:       # use standard block curvature
-        curvature_scales = luigi.Parameter(
+        curvature_scales = luigi.ListParameter(
             default=(0.133, 0.207, 0.280, 0.353)
         )
 
@@ -539,11 +539,11 @@ class EvaluateIdentification(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
-        curvature_scales = luigi.Parameter(
+        curvature_scales = luigi.ListParameter(
             default=(0.06, 0.10, 0.14, 0.18)
         )
     else:       # use standard block curvature
-        curvature_scales = luigi.Parameter(
+        curvature_scales = luigi.ListParameter(
             default=(0.133, 0.207, 0.280, 0.353)
         )
 
