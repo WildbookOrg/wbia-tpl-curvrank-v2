@@ -221,24 +221,24 @@ def block_curvature(contour, scales):
 
 def oriented_curvature(contour, scales):
     curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
-    for j, s in enumerate(scales):
-        r = s * (contour[:, 1].max() - contour[:, 1].min())
-        for i, (x, y) in enumerate(contour):
-            center = np.array([x, y])
+    radii = (contour[:, 1].max() - contour[:, 1].min()) * np.array(scales)
+    for i, (x, y) in enumerate(contour):
+        center = np.array([x, y])
+        dists = ((contour - center) ** 2).sum(axis=1)
+        inside = dists[:, np.newaxis] <= (radii * radii)
 
-            inside = ((contour - center) ** 2).sum(axis=1) <= (r ** 2)
-            curve = np.vstack(contour[inside])
+        for j, _ in enumerate(scales):
+            curve = contour[inside[:, j]]
 
             n = curve[-1] - curve[0]
             theta = np.arctan2(n[1], n[0])
 
             curve_p = reorient(curve, theta, center)
             center_p = np.squeeze(reorient(center[None], theta, center))
-
-            r0 = center_p - np.array([r, r])
-            r1 = center_p + np.array([r, r])
+            r0 = center_p - radii[j]
+            r1 = center_p + radii[j]
             r0[0] = max(curve_p[:, 0].min(), r0[0])
-            #r1[0] = min(curve_p[:, 0].max(), r1[0])
+            r1[0] = min(curve_p[:, 0].max(), r1[0])
 
             area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
 
