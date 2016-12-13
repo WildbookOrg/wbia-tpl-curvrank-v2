@@ -221,22 +221,22 @@ def block_curvature(contour, scales):
 
 def oriented_curvature(contour, scales, ax1, ax2):
     curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
-    for j, s in enumerate(scales):
-        r = s * (contour[:, 1].max() - contour[:, 1].min())
-        for i, (x, y) in enumerate(contour):
-            center = np.array([x, y])
+    radii = (contour[:, 1].max() - contour[:, 1].min()) * np.array(scales)
+    for i, (x, y) in enumerate(contour):
+        center = np.array([x, y])
+        dists = ((contour - center) ** 2).sum(axis=1)
+        inside = dists[:, np.newaxis] <= (radii * radii)
 
-            inside = ((contour - center) ** 2).sum(axis=1) <= (r ** 2)
-            curve = np.vstack(contour[inside])
+        for j, _ in enumerate(scales):
+            curve = contour[inside[:, j]]
 
             n = curve[-1] - curve[0]
             theta = np.arctan2(n[1], n[0])
 
             curve_p = reorient(curve, theta, center)
             center_p = np.squeeze(reorient(center[None], theta, center))
-
-            r0 = center_p - np.array([r, r])
-            r1 = center_p + np.array([r, r])
+            r0 = center_p - radii[j]
+            r1 = center_p + radii[j]
             r0[0] = max(curve_p[:, 0].min(), r0[0])
             r1[0] = min(curve_p[:, 0].max(), r1[0])
 
@@ -247,7 +247,7 @@ def oriented_curvature(contour, scales, ax1, ax2):
 
             if i % 256 == 0 and True:
                 print('curv at (%d, %d) = %.6f' % (x, y, curv))
-                circle = plt.Circle((x, y), r, color='blue', fill=False)
+                circle = plt.Circle((x, y), radii[j], color='blue', fill=False)
                 ax1.scatter(curve[:, 0], curve[:, 1], color='blue', s=1)
                 w, h = r1 - r0
                 rect = patches.Rectangle(r0, w, h, facecolor='none')
