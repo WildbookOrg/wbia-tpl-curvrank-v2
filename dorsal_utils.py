@@ -219,7 +219,7 @@ def block_curvature(contour, scales):
     return curvature
 
 
-def oriented_curvature(contour, scales, ax1, ax2):
+def oriented_curvature(contour, scales):
     curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
     radii = (contour[:, 1].max() - contour[:, 1].min()) * np.array(scales)
     for i, (x, y) in enumerate(contour):
@@ -245,23 +245,6 @@ def oriented_curvature(contour, scales, ax1, ax2):
             curv = area / np.prod(r1 - r0)
             curvature[i, j] = curv
 
-            if i % 256 == 0 and True:
-                print('curv at (%d, %d) = %.6f' % (x, y, curv))
-                circle = plt.Circle((x, y), radii[j], color='blue', fill=False)
-                ax1.scatter(curve[:, 0], curve[:, 1], color='blue', s=1)
-                w, h = r1 - r0
-                rect = patches.Rectangle(r0, w, h, facecolor='none')
-                ax2.add_patch(rect)
-
-                n = np.array([-n[1], n[0]])
-                n = n / np.linalg.norm(n)
-                ax1.arrow(
-                    x, y, 20 * n[0], 20 * n[1], length_includes_head=True,
-                    color='blue'
-                )
-                ax1.add_artist(circle)
-                ax2.scatter(curve_p[:, 0], curve_p[:, 1], color='blue', s=1)
-
     return curvature
 
 
@@ -285,42 +268,3 @@ def reorient(points, theta, center):
         points_trans.ndim)
 
     return points_trans
-
-
-def test_oriented_curvature():
-    import cPickle as pickle
-    import random
-    from os import listdir
-    from os.path import join
-    contour_dir = join(
-        'data', 'nz', 'SeparateEdges', 'trailing-coords',
-    )
-    contour_fpaths = listdir(contour_dir)
-    contour_fpath = join(contour_dir, random.choice(contour_fpaths))
-    #contour_fpath = join(contour_dir, contour_fpaths[0])
-    with open(contour_fpath, 'rb') as f:
-        contour = pickle.load(f)
-    contour = contour[:, ::-1]  # ij -> xy
-
-    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(22., 12))
-    ax1.scatter(contour[:, 0], contour[:, 1], color='red', s=1)
-
-    scales = (0.06, 0.10, 0.14, 0.18)
-    #scales = (0.133, 0.207, 0.280, 0.353)
-    #scales = (0.10, 0.12, 0.14, 0.16)
-    curv = oriented_curvature(contour, scales, ax1, ax2)
-    #curv = oriented_curvature(contour, scales, ax1, ax2)
-
-    ax3.set_xlim((0, 1))
-    ax3.plot(curv[::-1], np.arange(curv.shape[0]))
-
-    ax1.axis('equal')
-    ax1.set_ylim(ax1.get_ylim()[::-1])
-    ax2.set_ylim(ax2.get_ylim()[::-1])
-    plt.savefig('curve.png', bbox_inches='tight')
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-    test_oriented_curvature()
