@@ -586,11 +586,11 @@ class EvaluateIdentification(luigi.Task):
         fname_curv_dict = {}
         curv_dict = self.requires()[1].output()
         curv_filepaths = curv_dict.keys()
-        #print('computing curvature vectors of dimension %d for %d images' % (
-        #    self.curv_length, len(curv_filepaths)))
-        #for fpath in tqdm(curv_filepaths,
-        #                  total=len(curv_filepaths), leave=False):
-        for fpath in curv_filepaths:
+        print('computing curvature vectors of dimension %d for %d images' % (
+            self.curv_length, len(curv_filepaths)))
+        #for fpath in curv_filepaths:
+        for fpath in tqdm(curv_filepaths,
+                          total=len(curv_filepaths), leave=False):
             curv_target = curv_dict[fpath]['curvature']
             with open(curv_target.path, 'rb') as f:
                 curv = pickle.load(f)
@@ -616,16 +616,16 @@ class EvaluateIdentification(luigi.Task):
             for enc in qr_dict[ind]:
                 qr_curvs_list.append(len(qr_dict[ind][enc]))
 
-        #print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
-        #    np.max(db_curvs_list),
-        #    np.mean(db_curvs_list),
-        #    np.min(db_curvs_list))
-        #)
-        #print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
-        #    np.max(qr_curvs_list),
-        #    np.mean(qr_curvs_list),
-        #    np.min(qr_curvs_list))
-        #)
+        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+            np.max(db_curvs_list),
+            np.mean(db_curvs_list),
+            np.min(db_curvs_list))
+        )
+        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+            np.max(qr_curvs_list),
+            np.mean(qr_curvs_list),
+            np.min(qr_curvs_list))
+        )
 
         simfunc = partial(
             ranking.dtw_alignment_cost,
@@ -636,9 +636,9 @@ class EvaluateIdentification(luigi.Task):
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_dict.keys()
         with self.output()[0].open('w') as f:
-            #print('running identification for %d individuals' % (len(qindivs)))
-            #for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-            for qind in qindivs:
+            #for qind in qindivs:
+            print('running identification for %d individuals' % (len(qindivs)))
+            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
@@ -665,27 +665,30 @@ class EvaluateIdentification(luigi.Task):
             for rank in indiv_rank_indices[ind]:
                 rank_indices.append(rank)
 
-        #topk_scores = [1, 5, 10, 25]
+        topk_scores = [1, 5, 10, 25]
         rank_indices = np.array(rank_indices)
         num_queries = rank_indices.shape[0]
         num_indivs = len(indiv_rank_indices)
-        #print('accuracy scores:')
+        print('accuracy scores:')
         with self.output()[2].open('w') as f:
             f.write('topk,accuracy\n')
             for k in range(1, 1 + num_indivs):
                 topk = (100. / num_queries) * (rank_indices <= k).sum()
                 f.write('top-%d,%.6f\n' % (k, topk))
-                #if k in topk_scores:
-                #    print(' top-%d: %.2f%%' % (k, topk))
+                if k in topk_scores:
+                    print(' top-%d: %.2f%%' % (k, topk))
 
 
 class ParameterSearch(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     curv_length = luigi.IntParameter(default=128)
+    oriented = luigi.BoolParameter(default=False)
 
     def _gen_params_list(self):
-        base_scales = np.linspace(0.1, 0.3, 7)
-        incr_scales = np.linspace(0.01, 0.2, 10)
+        #base_scales = np.linspace(0.1, 0.3, 7)
+        #incr_scales = np.linspace(0.01, 0.2, 10)
+        base_scales = np.linspace(0.01, 0.2, 20)
+        incr_scales = np.linspace(0.01, 0.1, 10)
         num_scales = 4
         params_list = []
         for incr in incr_scales:
@@ -701,15 +704,21 @@ class ParameterSearch(luigi.Task):
             EvaluateIdentification(
                 dataset=self.dataset,
                 curv_length=self.curv_length,
+                oriented=self.oriented,
                 curvature_scales=scales)
             for scales in self._gen_params_list()
         ]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        if self.oriented:
+            paramsdir = 'oriented'
+        else:
+            paramsdir = 'standard'
+
         return [
-            luigi.LocalTarget(join(basedir, 'results.txt')),
-            luigi.LocalTarget(join(basedir, 'best.txt')),
+            luigi.LocalTarget(join(basedir, paramsdir, 'results.txt')),
+            luigi.LocalTarget(join(basedir, paramsdir, 'best.txt')),
         ]
 
     def run(self):
