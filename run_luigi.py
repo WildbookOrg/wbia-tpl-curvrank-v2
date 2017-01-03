@@ -543,6 +543,66 @@ class ExtractOutline(luigi.Task):
         pool.map(partial_extract_outline, to_process)
 
 
+class SeparateEdges(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [Localization(dataset=self.dataset,
+                             imsize=self.imsize,
+                             batch_size=self.batch_size,
+                             scale=self.scale),
+                ExtractOutline(dataset=self.dataset,
+                               imsize=self.imsize,
+                               batch_size=self.batch_size,
+                               scale=self.scale)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
+            outputs[fpath] = {
+                'visual': luigi.LocalTarget(
+                    join(basedir, 'visual', png_fname)),
+                'leading-coords': luigi.LocalTarget(
+                    join(basedir, 'leading-coords', pkl_fname)),
+                'trailing-coords': luigi.LocalTarget(
+                    join(basedir, 'trailing-coords', pkl_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import separate_edges
+        localization_targets = self.requires()[0].output()
+        extract_outline_targets = self.requires()[1].output()
+        output = self.output()
+        input_filepaths = extract_outline_targets.keys()
+
+        to_process = [fpath for fpath in input_filepaths if
+                      not exists(output[fpath]['visual'].path) or
+                      not exists(output[fpath]['leading-coords'].path) or
+                      not exists(output[fpath]['trailing-coords'].path)]
+        print('%d of %d images to process' % (
+            len(to_process), len(input_filepaths)))
+
+        partial_separate_edges = partial(
+            separate_edges,
+            input1_targets=localization_targets,
+            input2_targets=extract_outline_targets,
+            output_targets=output,
+        )
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_separate_edges(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_separate_edges, to_process)
+
+
 class ComputeBlockCurvature(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
@@ -559,10 +619,10 @@ class ComputeBlockCurvature(luigi.Task):
         )
 
     def requires(self):
-        return [ExtractOutline(dataset=self.dataset,
-                               imsize=self.imsize,
-                               batch_size=self.batch_size,
-                               scale=self.scale)]
+        return [SeparateEdges(dataset=self.dataset,
+                              imsize=self.imsize,
+                              batch_size=self.batch_size,
+                              scale=self.scale)]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -584,9 +644,9 @@ class ComputeBlockCurvature(luigi.Task):
 
     def run(self):
         from workers import compute_block_curvature
-        extract_outline_targets = self.requires()[0].output()
+        separate_edges_targets = self.requires()[0].output()
         output = self.output()
-        input_filepaths = extract_outline_targets.keys()
+        input_filepaths = separate_edges_targets.keys()
 
         to_process = [fpath for fpath in input_filepaths if
                       not exists(output[fpath]['curvature'].path)]
@@ -597,7 +657,7 @@ class ComputeBlockCurvature(luigi.Task):
             compute_block_curvature,
             scales=self.curvature_scales,
             oriented=self.oriented,
-            input_targets=extract_outline_targets,
+            input_targets=separate_edges_targets,
             output_targets=output,
         )
         #for fpath in tqdm(to_process, total=len(to_process)):
@@ -833,6 +893,68 @@ class ParameterSearch(luigi.Task):
                         1 + p, ','.join(['%.3f' % s for s in scales]),
                         ','.join(['%.2f' % r for r in results[idx]])
                     ))
+
+
+class VisualizeIndividuals(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [PrepareData(dataset=self.dataset),
+                SeparateEdges(dataset=self.dataset,
+                              imsize=self.imsize,
+                              batch_size=self.batch_size,
+                              scale=self.scale)]
+
+    def output(self):
+        csv_fpath = self.requires()[0].output().path
+        # hack for when the csv file doesn't exist
+        if not exists(csv_fpath):
+            self.requires()[0].run()
+        df = pd.read_csv(
+            csv_fpath, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        image_filepaths = df['impath'].values
+        individuals = df['individual'].values
+
+        outputs = {}
+        for (indiv, fpath) in zip(individuals, image_filepaths):
+            fname = splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            outputs[fpath] = {
+                'image': luigi.LocalTarget(
+                    join(basedir, indiv, png_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import visualize_individuals
+        output = self.output()
+
+        separate_edges_targets = self.requires()[1].output()
+        image_filepaths = separate_edges_targets.keys()
+
+        to_process = [fpath for fpath in image_filepaths if
+                      not exists(output[fpath]['image'].path)]
+
+        print('%d of %d images to process' % (
+            len(to_process), len(image_filepaths)))
+
+        partial_visualize_individuals = partial(
+            visualize_individuals,
+            input_targets=separate_edges_targets,
+            output_targets=output
+        )
+
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_visualize_individuals(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_visualize_individuals, to_process)
 
 
 if __name__ == '__main__':
