@@ -35,6 +35,83 @@ class PrepareData(luigi.Task):
                 f.write('%s,%s,%s\n' % (img_fpath, indiv_name, enc_name))
 
 
+class EncounterStats(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+
+    def requires(self):
+        return [PrepareData(dataset=self.dataset)]
+
+    def complete(self):
+        if not exists(self.requires()[0].output().path):
+            return False
+        else:
+            return all(map(
+                lambda output: output.exists(),
+                luigi.task.flatten(self.output())
+            ))
+
+    def output(self):
+        return luigi.LocalTarget(
+            join('data', self.dataset, self.__class__.__name__,
+                 '%s.png' % self.dataset)
+        )
+
+    def run(self):
+        import matplotlib.pyplot as plt
+        csv_fpath = self.requires()[0].output().path
+        # hack for when the csv file doesn't exist
+        if not exists(csv_fpath):
+            self.requires()[0].run()
+        df = pd.read_csv(
+            csv_fpath, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+
+        ind_enc_count_dict = {}
+        for img, ind, enc in df.values:
+            if ind not in ind_enc_count_dict:
+                ind_enc_count_dict[ind] = {}
+            if enc not in ind_enc_count_dict[ind]:
+                ind_enc_count_dict[ind][enc] = 0
+            ind_enc_count_dict[ind][enc] += 1
+
+        individuals_to_remove = []
+        for ind in ind_enc_count_dict:
+            if len(ind_enc_count_dict[ind]) == 1:
+                print('%s has only 1 encounter' % (ind))
+                individuals_to_remove.append(ind)
+
+        for ind in individuals_to_remove:
+            ind_enc_count_dict.pop(ind)
+
+        image_counts, encounter_counts = [], []
+        for ind in ind_enc_count_dict:
+            for enc in ind_enc_count_dict[ind]:
+                image_counts.append(ind_enc_count_dict[ind][enc])
+                encounter_counts.append(len(ind_enc_count_dict[ind]))
+
+        images_per_encounter, enc_bins = np.histogram(
+            image_counts, bins=range(1, 20), density=True,
+        )
+        encounters_per_individual, indiv_bins = np.histogram(
+            encounter_counts, bins=range(1, 20), density=True,
+        )
+
+        f, (ax1, ax2) = plt.subplots(2, 1, figsize=(22., 12))
+
+        ax1.set_title('Number of encounters f(x) with x images')
+        ax1.set_xlabel('Images')
+        ax1.set_ylabel('Encounters')
+        ax1.bar(enc_bins[:-1], images_per_encounter, 0.25, color='b')
+
+        ax2.set_title('Number of individuals f(x) with x encounters')
+        ax2.set_xlabel('Encounters')
+        ax2.set_ylabel('Individuals')
+        ax2.bar(indiv_bins[:-1], encounters_per_individual, 0.25, color='b')
+        with self.output().open('wb') as f:
+            plt.savefig(f, bbox_inches='tight')
+
+
 class PreprocessImages(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
@@ -540,7 +617,8 @@ class EvaluateIdentification(luigi.Task):
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
-            default=(0.06, 0.10, 0.14, 0.18)
+            #default=(0.06, 0.10, 0.14, 0.18)
+            default=(0.110, 0.160, 0.210, 0.260)
         )
     else:       # use standard block curvature
         curvature_scales = luigi.ListParameter(
@@ -559,7 +637,7 @@ class EvaluateIdentification(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f-check' % s for s in self.curvature_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
         else:
