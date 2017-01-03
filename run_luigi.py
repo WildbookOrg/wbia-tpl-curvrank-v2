@@ -666,6 +666,55 @@ class ComputeBlockCurvature(luigi.Task):
         pool.map(partial_compute_block_curvature, to_process)
 
 
+class ComputeDescriptors(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+
+    def requires(self):
+        return [SeparateEdges(dataset=self.dataset,
+                              imsize=self.imsize,
+                              batch_size=self.batch_size,
+                              scale=self.scale)]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+
+        outputs = {}
+        for fpath in self.requires()[0].output().keys():
+            fname = splitext(basename(fpath))[0]
+            pkl_fname = '%s.pickle' % fname
+            outputs[fpath] = {
+                'descriptors': luigi.LocalTarget(
+                    join(basedir, pkl_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import compute_descriptors
+        separate_edges_targets = self.requires()[0].output()
+        output = self.output()
+        input_filepaths = separate_edges_targets.keys()
+
+        to_process = [fpath for fpath in input_filepaths if
+                      not exists(output[fpath]['descriptors'].path)]
+        print('%d of %d images to process' % (
+            len(to_process), len(input_filepaths)))
+
+        partial_compute_descriptors = partial(
+            compute_descriptors,
+            scales=[(2, 1), (2, 2), (2, 4), (2, 8)],
+            input_targets=separate_edges_targets,
+            output_targets=output,
+        )
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_compute_descriptors(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_compute_descriptors, to_process)
+
+
 class EvaluateIdentification(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
