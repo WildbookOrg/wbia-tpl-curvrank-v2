@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from itertools import combinations
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
@@ -182,6 +183,39 @@ def oriented_curvature(contour, radii):
             curvature[i, j] = curv
 
     return curvature
+
+
+def diff_of_gauss_descriptor(contour, m, s):
+    length = 1024  # length of the resampled contour
+    num_keypoints = 32  # number of keypoints to place
+    resampled = resampleNd(contour, length)
+    keypoints = np.linspace(
+        0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
+    )
+
+    steps = 1 + 4 * m * s
+    interp_length = 256. + 4 * m * s
+    descriptors = []
+    for (idx0, idx1) in combinations(keypoints, 2):
+        x, y = resampled[idx0:idx1].T
+
+        x_interp = np.linspace(0., interp_length, num=x.shape[0])
+        fx_interp = interp1d(x_interp, x, kind='linear')
+
+        y_interp = np.linspace(0., interp_length, num=y.shape[0])
+        fy_interp = interp1d(y_interp, y, kind='linear')
+
+        x_resamp = fx_interp(np.arange(interp_length))
+        y_resamp = fy_interp(np.arange(interp_length))
+
+        curve = np.vstack((x_resamp, y_resamp)).T
+        feat = diff_of_gauss_norm(curve, steps, m=m, s=s)
+        feat /= np.sqrt(np.sum(feat * feat))
+        assert feat.shape[0] == 256
+
+        descriptors.append(feat)
+
+    return np.vstack(descriptors)
 
 
 def rotate(radians):
