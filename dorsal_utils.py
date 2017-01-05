@@ -250,7 +250,8 @@ def oriented_curvature(contour, scales):
 
 
 def diff_of_gauss_descriptor(contour, m, s):
-    length = 1024  # length of the resampled contour
+    length = 1024       # length of the resampled contour
+    feat_dim = 256      # dimension of the feature vector
     num_keypoints = 32  # number of keypoints to place
     resampled = resampleNd(contour, length)
     keypoints = np.linspace(
@@ -258,7 +259,7 @@ def diff_of_gauss_descriptor(contour, m, s):
     )
 
     steps = 1 + 4 * m * s
-    interp_length = 256. + 4 * m * s
+    interp_length = feat_dim + 4 * m * s
     descriptors = []
     for (idx0, idx1) in combinations(keypoints, 2):
         x, y = resampled[idx0:idx1].T
@@ -275,7 +276,7 @@ def diff_of_gauss_descriptor(contour, m, s):
         curve = np.vstack((x_resamp, y_resamp)).T
         feat = diff_of_gauss_norm(curve, steps, m=m, s=s)
         feat /= np.sqrt(np.sum(feat * feat))
-        assert feat.shape[0] == 256
+        assert feat.shape[0] == feat_dim
 
         descriptors.append(feat)
 
