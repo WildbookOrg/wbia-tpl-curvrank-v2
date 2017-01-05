@@ -807,7 +807,7 @@ class EvaluateDescriptors(luigi.Task):
         flann_list, params_list = [], []
         db_list = [db1, db2, db3, db4]
         for db in db_list:
-            flann_list.append(pyflann.FLANN())
+            flann_list.append(pyflann.FLANN(random_seed=42))
         print('building kdtrees')
         for db, flann in tqdm(
                 zip(db_list, flann_list), total=len(flann_list), leave=False):
