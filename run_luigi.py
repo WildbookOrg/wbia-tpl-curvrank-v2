@@ -946,6 +946,187 @@ class ComputeDescriptors(luigi.Task):
         pool.map(partial_compute_descriptors, to_process)
 
 
+class EvaluateDescriptors(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+    k = luigi.IntParameter(default=3)
+
+    def requires(self):
+        return [
+            PrepareData(dataset=self.dataset),
+            ComputeDescriptors(dataset=self.dataset),
+        ]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        return [
+            luigi.LocalTarget(
+                join(basedir, '%s_all.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, '%s_topk.csv' % self.dataset))
+        ]
+
+    def run(self):
+        import operator
+        import pyflann
+        from collections import defaultdict
+        df = pd.read_csv(
+            self.requires()[0].output().path, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+
+        fname_desc_dict = {}
+        desc_dict = self.requires()[1].output()
+        desc_filepaths = desc_dict.keys()
+
+        print('loading descriptor vectors of dimension %d for %d images' % (
+            256, len(desc_filepaths)))
+
+        for fpath in tqdm(desc_filepaths,
+                          total=len(desc_filepaths), leave=False):
+            fname = splitext(basename(fpath))[0]
+            fname_desc_dict[fname] = desc_dict[fpath]['descriptors']  # TODO
+
+        db_dict, qr_dict = datasets.separate_database_queries(
+            self.dataset, df['impath'].values,
+            df['individual'].values, df['encounter'].values,
+            fname_desc_dict
+        )
+
+        db_descs_list = [len(db_dict[ind]) for ind in db_dict]
+        qr_descs_list = []
+        for ind in qr_dict:
+            for enc in qr_dict[ind]:
+                qr_descs_list.append(len(qr_dict[ind][enc]))
+
+        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+            np.max(db_descs_list),
+            np.mean(db_descs_list),
+            np.min(db_descs_list))
+        )
+        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+            np.max(qr_descs_list),
+            np.mean(qr_descs_list),
+            np.min(qr_descs_list))
+        )
+
+        db_labels = []
+        db1, db2, db3, db4 = [], [], [], []
+        print('loading descriptors for %d database individuals' % (
+            len(db_dict)))
+        for dind in tqdm(db_dict, total=len(db_dict), leave=False):
+            for target in db_dict[dind]:
+                with target.open('rb') as f:
+                    desc = pickle.load(f)
+                if desc is None:
+                    continue
+                for db, d in zip([db1, db2, db3, db4], desc):
+                    db.append(d)
+                for _ in range(desc[0].shape[0]):
+                    db_labels.append(dind)
+
+        db1 = np.vstack(db1)
+        db2 = np.vstack(db2)
+        db3 = np.vstack(db3)
+        db4 = np.vstack(db4)
+        dbl = np.hstack(db_labels)
+
+        flann_list, params_list = [], []
+        db_list = [db1, db2, db3, db4]
+        for db in db_list:
+            flann_list.append(pyflann.FLANN())
+        print('building kdtrees')
+        for db, flann in tqdm(
+                zip(db_list, flann_list), total=len(flann_list), leave=False):
+            params_list.append(flann.build_index(db))
+
+        indiv_rank_indices = defaultdict(list)
+        qindivs = qr_dict.keys()
+        with self.output()[0].open('w') as f:
+            print('running identification for %d individuals' % (len(qindivs)))
+            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+                qencs = qr_dict[qind].keys()
+                assert qencs, 'empty encounter list for %s' % qind
+                for qenc in qencs:
+                    q1, q2, q3, q4 = [], [], [], []
+                    for target in qr_dict[qind][qenc]:
+                        with target.open('rb') as dfile:
+                            desc = pickle.load(dfile)
+                        if desc is None:
+                            continue
+                        for q, d in zip([q1, q2, q3, q4], desc):
+                            q.append(d)
+
+                    if not q1:
+                        #print('no descriptors for %s: %s' % (qind, qenc))
+                        continue
+                    q1 = np.vstack(q1)
+                    q2 = np.vstack(q2)
+                    q3 = np.vstack(q3)
+                    q4 = np.vstack(q4)
+
+                    q_list = [q1, q2, q3, q4]
+                    for flann, params, q in zip(
+                            flann_list, params_list, q_list):
+                        ind, dist = flann.nn_index(
+                            q, self.k, checks=params['checks']
+                        )
+
+                        scores = defaultdict(int)
+                        for i in range(q.shape[0]):
+                            classes = dbl[ind][i, :]
+                            for c in np.unique(classes):
+                                j, = np.where(classes == c)
+                                score = dist[i, j.min()] - dist[i, -1]
+                                scores[c] += score
+
+                    ranking = sorted(scores.items(),
+                                     key=operator.itemgetter(1))
+                    rindivs = [x[0] for x in ranking]
+                    scores = [x[1] for x in ranking]
+
+                    try:
+                        rank = 1 + rindivs.index(qind)
+                    except ValueError:
+                        rank = 1 + (len(rindivs) + len(qindivs)) / 2
+
+                    indiv_rank_indices[qind].append(rank)
+
+                    f.write('%s,%s\n' % (
+                        qind, ','.join(['%s' % r for r in rindivs])))
+                    f.write('%s\n' % (
+                        ','.join(['%.6f' % s for s in scores])))
+
+        with self.output()[1].open('w') as f:
+            f.write('individual,mrr\n')
+            for qind in indiv_rank_indices.keys():
+                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                num = len(indiv_rank_indices[qind])
+                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+
+        rank_indices = []
+        for ind in indiv_rank_indices:
+            for rank in indiv_rank_indices[ind]:
+                rank_indices.append(rank)
+
+        topk_scores = [1, 5, 10, 25]
+        rank_indices = np.array(rank_indices)
+        num_queries = rank_indices.shape[0]
+        num_indivs = len(indiv_rank_indices)
+        print('accuracy scores:')
+        with self.output()[2].open('w') as f:
+            f.write('topk,accuracy\n')
+            for k in range(1, 1 + num_indivs):
+                topk = (100. / num_queries) * (rank_indices <= k).sum()
+                f.write('top-%d,%.6f\n' % (k, topk))
+                if k in topk_scores:
+                    print(' top-%d: %.2f%%' % (k, topk))
+
+
 class EvaluateIdentification(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
