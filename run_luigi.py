@@ -671,6 +671,8 @@ class ComputeDescriptors(luigi.Task):
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
+    descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
+    descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
 
     def requires(self):
         return [SeparateEdges(dataset=self.dataset,
@@ -680,14 +682,17 @@ class ComputeDescriptors(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-
+        descdir = ', '.join(
+            ['%s' % ((m, s),) for (m, s) in zip(
+                self.descriptor_m, self.descriptor_s)]
+        )
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'descriptors': luigi.LocalTarget(
-                    join(basedir, pkl_fname)),
+                    join(basedir, descdir, pkl_fname)),
             }
 
         return outputs
@@ -703,9 +708,10 @@ class ComputeDescriptors(luigi.Task):
         print('%d of %d images to process' % (
             len(to_process), len(input_filepaths)))
 
+        scales = [(m, s) for m, s in zip(self.descriptor_m, self.descriptor_s)]
         partial_compute_descriptors = partial(
             compute_descriptors,
-            scales=[(2, 1), (2, 2), (2, 4), (2, 8)],
+            scales=scales,
             input_targets=separate_edges_targets,
             output_targets=output,
         )
@@ -720,24 +726,32 @@ class EvaluateDescriptors(luigi.Task):
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
+    descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
+    descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
     k = luigi.IntParameter(default=3)
 
     def requires(self):
         return [
             PrepareData(dataset=self.dataset),
-            ComputeDescriptors(dataset=self.dataset),
+            ComputeDescriptors(dataset=self.dataset,
+                               descriptor_m=self.descriptor_m,
+                               descriptor_s=self.descriptor_s),
         ]
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        descdir = ', '.join(
+            ['%s' % ((m, s),) for (m, s) in zip(
+                self.descriptor_m, self.descriptor_s)]
+        )
         kdir = '%d' % self.k
         return [
             luigi.LocalTarget(
-                join(basedir, kdir, '%s_all.csv' % self.dataset)),
+                join(basedir, kdir, descdir, '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, '%s_mrr.csv' % self.dataset)),
+                join(basedir, kdir, descdir, '%s_mrr.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, '%s_topk.csv' % self.dataset))
+                join(basedir, kdir, descdir, '%s_topk.csv' % self.dataset))
         ]
 
     def run(self):
@@ -840,13 +854,13 @@ class EvaluateDescriptors(luigi.Task):
                     q4 = np.vstack(q4)
 
                     q_list = [q1, q2, q3, q4]
+                    scores = defaultdict(int)
                     for flann, params, q in zip(
                             flann_list, params_list, q_list):
                         ind, dist = flann.nn_index(
                             q, self.k, checks=params['checks']
                         )
 
-                        scores = defaultdict(int)
                         for i in range(q.shape[0]):
                             classes = dbl[ind][i, :]
                             for c in np.unique(classes):
