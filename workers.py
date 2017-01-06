@@ -155,10 +155,10 @@ def compute_descriptors(fpath, scales, input_targets, output_targets):
 
     if trailing_edge is not None:
         trailing_edge = trailing_edge[:, ::-1]
-        descriptors = []
+        descriptors = {}
         for (m, s) in scales:
             desc = dorsal_utils.diff_of_gauss_descriptor(trailing_edge, m, s)
-            descriptors.append(desc.astype(np.float32))
+            descriptors[(m, s)] = desc.astype(np.float32)
     else:
         descriptors = None
 
