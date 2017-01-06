@@ -799,7 +799,7 @@ class EvaluateDescriptors(luigi.Task):
         )
 
         db_labels = []
-        db1, db2, db3, db4 = [], [], [], []
+        descriptors_dict = defaultdict(list)
         print('loading descriptors for %d database individuals' % (
             len(db_dict)))
         for dind in tqdm(db_dict, total=len(db_dict), leave=False):
@@ -808,27 +808,23 @@ class EvaluateDescriptors(luigi.Task):
                     descriptors = pickle.load(f)
                 if descriptors is None:
                     continue
-                for db, m, s in zip(
-                    [db1, db2, db3, db4],
-                        self.descriptor_m, self.descriptor_s):
-                    db.append(descriptors[(m, s)])
+                for m, s in zip(self.descriptor_m, self.descriptor_s):
+                    descriptors_dict[(m, s)].append(descriptors[(m, s)])
                 for _ in range(descriptors[(m, s)].shape[0]):
                     db_labels.append(dind)
 
-        db1 = np.vstack(db1)
-        db2 = np.vstack(db2)
-        db3 = np.vstack(db3)
-        db4 = np.vstack(db4)
+        for (m, s) in descriptors_dict:
+            descriptors_dict[(m, s)] = np.vstack(descriptors_dict[(m, s)])
+
         dbl = np.hstack(db_labels)
 
         flann_list, params_list = [], []
-        db_list = [db1, db2, db3, db4]
-        for db in db_list:
+        for _ in descriptors_dict:
             flann_list.append(pyflann.FLANN(random_seed=42))
         print('building kdtrees')
-        for db, flann in tqdm(
-                zip(db_list, flann_list), total=len(flann_list), leave=False):
-            params_list.append(flann.build_index(db))
+        for (m, s), flann in tqdm(
+                zip(descriptors_dict, flann_list), leave=False):
+            params_list.append(flann.build_index(descriptors_dict[(m, s)]))
 
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_dict.keys()
@@ -838,34 +834,38 @@ class EvaluateDescriptors(luigi.Task):
                 qencs = qr_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
-                    q1, q2, q3, q4 = [], [], [], []
+                    descriptors_dict = defaultdict(list)
                     for target in qr_dict[qind][qenc]:
                         with target.open('rb') as dfile:
                             descriptors = pickle.load(dfile)
                         if descriptors is None:
                             continue
-                        for q, m, s in zip(
-                                [q1, q2, q3, q4],
-                                self.descriptor_m, self.descriptor_s):
-                            q.append(descriptors[(m, s)])
+                        for m, s in zip(self.descriptor_m, self.descriptor_s):
+                            descriptors_dict[(m, s)].append(
+                                descriptors[(m, s)]
+                            )
 
-                    if not q1:
-                        #print('no descriptors for %s: %s' % (qind, qenc))
+                    empty_encounter = False
+                    for (m, s) in descriptors_dict:
+                        if not descriptors_dict[(m, s )]:
+                            empty_encounter = True
+                    if empty_encounter:
                         continue
-                    q1 = np.vstack(q1)
-                    q2 = np.vstack(q2)
-                    q3 = np.vstack(q3)
-                    q4 = np.vstack(q4)
 
-                    q_list = [q1, q2, q3, q4]
-                    scores = defaultdict(int)
-                    for flann, params, q in zip(
-                            flann_list, params_list, q_list):
-                        ind, dist = flann.nn_index(
-                            q, self.k, checks=params['checks']
+                    for (m, s) in descriptors_dict:
+                        descriptors_dict[(m, s)] = np.vstack(
+                            descriptors_dict[(m, s)]
                         )
 
-                        for i in range(q.shape[0]):
+                    scores = defaultdict(int)
+                    for flann, params, (m, s) in zip(
+                            flann_list, params_list, descriptors_dict):
+                        query_features = descriptors_dict[(m, s)]
+                        ind, dist = flann.nn_index(
+                            query_features, self.k, checks=params['checks']
+                        )
+
+                        for i in range(query_features.shape[0]):
                             classes = dbl[ind][i, :]
                             for c in np.unique(classes):
                                 j, = np.where(classes == c)
