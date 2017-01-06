@@ -1036,12 +1036,14 @@ class EvaluateDescriptors(luigi.Task):
         for dind in tqdm(db_dict, total=len(db_dict), leave=False):
             for target in db_dict[dind]:
                 with target.open('rb') as f:
-                    desc = pickle.load(f)
-                if desc is None:
+                    descriptors = pickle.load(f)
+                if descriptors is None:
                     continue
-                for db, d in zip([db1, db2, db3, db4], desc):
-                    db.append(d)
-                for _ in range(desc[0].shape[0]):
+                for db, m, s in zip(
+                    [db1, db2, db3, db4],
+                        self.descriptor_m, self.descriptor_s):
+                    db.append(descriptors[(m, s)])
+                for _ in range(descriptors[(m, s)].shape[0]):
                     db_labels.append(dind)
 
         db1 = np.vstack(db1)
@@ -1070,11 +1072,13 @@ class EvaluateDescriptors(luigi.Task):
                     q1, q2, q3, q4 = [], [], [], []
                     for target in qr_dict[qind][qenc]:
                         with target.open('rb') as dfile:
-                            desc = pickle.load(dfile)
-                        if desc is None:
+                            descriptors = pickle.load(dfile)
+                        if descriptors is None:
                             continue
-                        for q, d in zip([q1, q2, q3, q4], desc):
-                            q.append(d)
+                        for q, m, s in zip(
+                                [q1, q2, q3, q4],
+                                self.descriptor_m, self.descriptor_s):
+                            q.append(descriptors[(m, s)])
 
                     if not q1:
                         #print('no descriptors for %s: %s' % (qind, qenc))
