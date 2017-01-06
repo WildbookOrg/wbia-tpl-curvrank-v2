@@ -211,7 +211,7 @@ def compute_descriptors(fpath, scales, input_targets, output_targets):
         descriptors = []
         for (m, s) in scales:
             desc = dorsal_utils.diff_of_gauss_descriptor(trailing_edge, m, s)
-            descriptors.append(desc)
+            descriptors.append(desc.astype(np.float32))
     else:
         descriptors = None
 
