@@ -810,21 +810,22 @@ class EvaluateDescriptors(luigi.Task):
                     continue
                 for m, s in zip(self.descriptor_m, self.descriptor_s):
                     descriptors_dict[(m, s)].append(descriptors[(m, s)])
+                # label each feature with the individual name
                 for _ in range(descriptors[(m, s)].shape[0]):
                     db_labels.append(dind)
 
+        # stack list of features per encounter into a single array
         for (m, s) in descriptors_dict:
             descriptors_dict[(m, s)] = np.vstack(descriptors_dict[(m, s)])
 
         dbl = np.hstack(db_labels)
 
-        flann_list, params_list = [], []
-        for _ in descriptors_dict:
-            flann_list.append(pyflann.FLANN(random_seed=42))
+        flann_dict, params_dict = {}, {}
         print('building kdtrees')
-        for (m, s), flann in tqdm(
-                zip(descriptors_dict, flann_list), leave=False):
-            params_list.append(flann.build_index(descriptors_dict[(m, s)]))
+        for (m, s) in tqdm(descriptors_dict, leave=False):
+            flann = pyflann.FLANN(random_seed=42)
+            flann_dict[(m, s)] = flann
+            params_dict[(m, s)] = flann.build_index(descriptors_dict[(m, s)])
 
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_dict.keys()
@@ -845,6 +846,7 @@ class EvaluateDescriptors(luigi.Task):
                                 descriptors[(m, s)]
                             )
 
+                    # for some encounters there may be no trailing edge
                     empty_encounter = False
                     for (m, s) in descriptors_dict:
                         if not descriptors_dict[(m, s )]:
@@ -857,9 +859,10 @@ class EvaluateDescriptors(luigi.Task):
                             descriptors_dict[(m, s)]
                         )
 
+                    # lnbnn classification
                     scores = defaultdict(int)
-                    for flann, params, (m, s) in zip(
-                            flann_list, params_list, descriptors_dict):
+                    for (m, s) in descriptors_dict:
+                        flann, params = flann_dict[(m, s)], params_dict[(m, s)]
                         query_features = descriptors_dict[(m, s)]
                         ind, dist = flann.nn_index(
                             query_features, self.k, checks=params['checks']
