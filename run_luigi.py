@@ -961,13 +961,14 @@ class EvaluateDescriptors(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        kdir = '%d' % self.k
         return [
             luigi.LocalTarget(
-                join(basedir, '%s_all.csv' % self.dataset)),
+                join(basedir, kdir, '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, '%s_mrr.csv' % self.dataset)),
+                join(basedir, kdir, '%s_mrr.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, '%s_topk.csv' % self.dataset))
+                join(basedir, kdir, '%s_topk.csv' % self.dataset))
         ]
 
     def run(self):
