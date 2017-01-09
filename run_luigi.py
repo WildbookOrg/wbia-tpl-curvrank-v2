@@ -687,10 +687,7 @@ class ComputeDescriptors(luigi.Task):
             ['%s' % ((m, s),) for (m, s) in zip(
                 self.descriptor_m, self.descriptor_s)]
         )
-        if self.uniform:
-            unifdir = 'uniform'
-        else:
-            unifdir = 'standard'
+        unifdir = 'uniform' if self.uniform else 'standard'
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
@@ -732,9 +729,10 @@ class EvaluateDescriptors(luigi.Task):
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
+    k = luigi.IntParameter(default=3)
     descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
     descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
-    k = luigi.IntParameter(default=3)
+    uniform = luigi.BoolParameter(default=False)
 
     def requires(self):
         return [
@@ -751,13 +749,17 @@ class EvaluateDescriptors(luigi.Task):
                 self.descriptor_m, self.descriptor_s)]
         )
         kdir = '%d' % self.k
+        unifdir = 'uniform' if self.uniform else 'standard'
         return [
             luigi.LocalTarget(
-                join(basedir, kdir, descdir, '%s_all.csv' % self.dataset)),
+                join(basedir, kdir, unifdir, descdir,
+                     '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, descdir, '%s_mrr.csv' % self.dataset)),
+                join(basedir, kdir, unifdir, descdir,
+                     '%s_mrr.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, descdir, '%s_topk.csv' % self.dataset))
+                join(basedir, kdir, unifdir, descdir,
+                     '%s_topk.csv' % self.dataset))
         ]
 
     def run(self):
