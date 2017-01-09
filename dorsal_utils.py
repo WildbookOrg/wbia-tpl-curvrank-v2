@@ -188,9 +188,9 @@ def oriented_curvature(contour, radii):
 def diff_of_gauss_descriptor(contour, m, s, uniform=False):
     length = 1024       # length of the resampled contour
     feat_dim = 256      # dimension of the feature vector
-    num_keypoints = 32  # number of keypoints to place
     resampled = resampleNd(contour, length)
     if uniform:
+        num_keypoints = 32  # number of keypoints to place
         keypoints = np.linspace(
             0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
         )
