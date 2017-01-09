@@ -904,6 +904,7 @@ class ComputeDescriptors(luigi.Task):
     scale = luigi.IntParameter(default=4)
     descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
     descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
+    uniform = luigi.BoolParameter(default=False)
 
     def requires(self):
         return [SeparateEdges(dataset=self.dataset,
@@ -917,13 +918,17 @@ class ComputeDescriptors(luigi.Task):
             ['%s' % ((m, s),) for (m, s) in zip(
                 self.descriptor_m, self.descriptor_s)]
         )
+        if self.uniform:
+            unifdir = 'uniform'
+        else:
+            unifdir = 'standard'
         outputs = {}
         for fpath in self.requires()[0].output().keys():
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'descriptors': luigi.LocalTarget(
-                    join(basedir, descdir, pkl_fname)),
+                    join(basedir, unifdir, descdir, pkl_fname)),
             }
 
         return outputs
@@ -943,6 +948,7 @@ class ComputeDescriptors(luigi.Task):
         partial_compute_descriptors = partial(
             compute_descriptors,
             scales=scales,
+            uniform=self.uniform,
             input_targets=separate_edges_targets,
             output_targets=output,
         )
