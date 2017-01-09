@@ -201,7 +201,7 @@ def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
                 h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
-def compute_descriptors(fpath, scales, input_targets, output_targets):
+def compute_descriptors(fpath, scales, uniform, input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f)
@@ -210,7 +210,9 @@ def compute_descriptors(fpath, scales, input_targets, output_targets):
         trailing_edge = trailing_edge[:, ::-1]
         descriptors = {}
         for (m, s) in scales:
-            desc = dorsal_utils.diff_of_gauss_descriptor(trailing_edge, m, s)
+            desc = dorsal_utils.diff_of_gauss_descriptor(
+                trailing_edge, m, s, uniform,
+            )
             descriptors[(m, s)] = desc.astype(np.float32)
     else:
         descriptors = None
