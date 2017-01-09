@@ -206,7 +206,7 @@ def diff_of_gauss_descriptor(contour, m, s, uniform=False):
         maxima_idx += steps // 2
 
         keypoints = np.zeros(min(50, 2 + maxima_idx.shape[0]), dtype=np.int32)
-        keypoints[0], keypoints[-1] = 0, resampled.shape[0] - 1
+        keypoints[0], keypoints[-1] = 0, resampled.shape[0]
         keypoints[1:-1] = np.sort(maxima_idx)
 
     steps = 1 + 4 * m * s
