@@ -195,19 +195,19 @@ def diff_of_gauss_descriptor(contour, m, s, uniform=False):
             0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
         )
     else:
+        num_keypoints = 50
         steps = 1 + 4 * 8 * 2
         response = diff_of_gauss_norm(resampled, steps,  m=8, s=2)
 
         maxima_idx, = argrelextrema(response, np.greater, order=1)
+
+        sorted_idx = np.argsort(response[maxima_idx])[::-1]
+        maxima_idx =  maxima_idx[sorted_idx][0:48]
         maxima_idx += steps // 2
 
-        sorted_idx = np.argsort(maxima_idx)
-
         keypoints = np.zeros(min(50, 2 + maxima_idx.shape[0]), dtype=np.int32)
-        keypoints[0] = 0
-        keypoints[-1] = resampled.shape[0] - 1
-        # indices should be in ascending order
-        keypoints[1:-1] = maxima_idx[sorted_idx][::-1][0:48][::-1]
+        keypoints[0], keypoints[-1] = 0, resampled.shape[0] - 1
+        keypoints[1:-1] = np.sort(maxima_idx)
 
     steps = 1 + 4 * m * s
     interp_length = feat_dim + 4 * m * s
