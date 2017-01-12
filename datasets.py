@@ -112,16 +112,15 @@ def load_sdrp_dataset(years):
 def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict,
                               **kwargs):
     if name == 'nz':
-        return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict,
-                                   kwargs)
+        return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
     elif name == 'sdrp':
         return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
-                                     kwargs)
+                                     **kwargs)
     else:
         assert False, 'bad dataset name: %s' % (name)
 
 
-def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
+def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
         fname = splitext(basename(fpath))[0]
@@ -161,8 +160,8 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
     return db_dict, qr_dict
 
 
-def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
-    num_db_encounters = kwargs.get('num_db_encounters', 10)
+def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
+                          num_db_encounters=10):
     # {'i1': {'e1': [v1, v2, ..., vn], 'e2': [v1, v2, ..., vm]}}
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
@@ -184,13 +183,13 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
             if ind not in qr_dict:
                 qr_dict[ind] = {}
             if num_encounters <= num_db_encounters:
-                num_samples = num_encounters - 1
+                num_db_samples = num_encounters - 1
             else:
-                num_samples = num_db_encounters
+                num_db_samples = num_db_encounters
 
             rind = np.arange(num_encounters)
             np.random.shuffle(rind)
-            db_idx, qr_idx = np.split(rind, np.array([num_samples]), axis=0)
+            db_idx, qr_idx = np.split(rind, np.array([num_db_samples]), axis=0)
             d_curv_list = []
             for idx in db_idx:
                 enc = encounters[idx]
