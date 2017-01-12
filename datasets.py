@@ -109,16 +109,19 @@ def load_sdrp_dataset(years):
     return data_list
 
 
-def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict):
+def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict,
+                              **kwargs):
     if name == 'nz':
-        return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
+        return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict,
+                                   kwargs)
     elif name == 'sdrp':
-        return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict)
+        return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
+                                     kwargs)
     else:
         assert False, 'bad dataset name: %s' % (name)
 
 
-def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
+def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
         fname = splitext(basename(fpath))[0]
@@ -158,7 +161,8 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
     return db_dict, qr_dict
 
 
-def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
+def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs):
+    num_db_encounters = kwargs.get('num_db_encounters', 10)
     # {'i1': {'e1': [v1, v2, ..., vn], 'e2': [v1, v2, ..., vm]}}
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
@@ -170,9 +174,9 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
                 ind_enc_curv_dict[ind][enc] = []
             ind_enc_curv_dict[ind][enc].append(curv_dict[fname])
 
+    single_encounter_individuals = 0
     db_dict, qr_dict = {}, {}
     individuals = ind_enc_curv_dict.keys()
-    num_db_encounters = 10
     for ind in individuals:
         encounters = ind_enc_curv_dict[ind].keys()
         num_encounters = len(encounters)
@@ -201,7 +205,9 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict):
                     q_curv_list.append(curv)
                 qr_dict[ind][enc] = q_curv_list
         else:
-            print('individual %s has only %d encounters' % (
-                ind, num_encounters))
+            single_encounter_individuals += 1
+
+    print('there are %d individuals with only 1 encounter' %  (
+        single_encounter_individuals))
 
     return db_dict, qr_dict
