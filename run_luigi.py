@@ -674,6 +674,7 @@ class EvaluateIdentification(luigi.Task):
     window = luigi.IntParameter(default=8)
     curv_length = luigi.IntParameter(default=128)
     oriented = luigi.BoolParameter(default=False)
+    normalize = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -739,6 +740,10 @@ class EvaluateIdentification(luigi.Task):
                 assert curv.ndim == 2, 'curv.ndim == %d != 2' % (curv.ndim)
 
             fname = splitext(basename(fpath))[0]
+            if self.normalize:
+                curv -= curv.mean(axis=0)
+                curv /= curv.std(axis=0)
+
             fname_curv_dict[fname] = dorsal_utils.resampleNd(
                 curv, self.curv_length)
 
