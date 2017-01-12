@@ -675,6 +675,7 @@ class EvaluateIdentification(luigi.Task):
     curv_length = luigi.IntParameter(default=128)
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
+    num_db_encounters = luigi.IntParameter(default=10)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -698,7 +699,7 @@ class EvaluateIdentification(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%.3f-check' % s for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
         else:
@@ -750,7 +751,7 @@ class EvaluateIdentification(luigi.Task):
         db_dict, qr_dict = datasets.separate_database_queries(
             self.dataset, df['impath'].values,
             df['individual'].values, df['encounter'].values,
-            fname_curv_dict
+            fname_curv_dict, num_db_encounters=self.num_db_encounters
         )
 
         db_curvs_list = [len(db_dict[ind]) for ind in db_dict]
