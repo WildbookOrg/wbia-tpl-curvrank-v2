@@ -865,8 +865,8 @@ class EvaluateIdentification(luigi.Task):
                 qcurvs = qr_curv_dict[qind][qenc]
                 for dind in dindivs:
                     dcurvs = db_curv_dict[dind]
-                    result_matrix = simfunc(qcurvs, dcurvs)
-                    result_dict[dind] = result_matrix
+                    # mxn matrix: m query curvs, n db curvs for an individual
+                    result_dict[dind] = simfunc(qcurvs, dcurvs)
 
                 with output[qind][qenc].open('wb') as f:
                     pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
