@@ -698,17 +698,15 @@ class SeparateDatabaseQueries(luigi.Task):
         )
         fname_trailing_edge_dict = {}
         trailing_edge_dict = self.requires()[1].output()
-        curv_filepaths = trailing_edge_dict.keys()
-        for fpath in tqdm(curv_filepaths,
-                          total=len(curv_filepaths), leave=False):
-            curv_target = trailing_edge_dict[fpath]['trailing-coords']
-            with open(curv_target.path, 'rb') as f:
-                curv = pickle.load(f)
+        trailing_edge_filepaths = trailing_edge_dict.keys()
+        for fpath in tqdm(trailing_edge_filepaths,
+                          total=len(trailing_edge_filepaths), leave=False):
+            trailing_edge_target = trailing_edge_dict[fpath]['trailing-coords']
+            with open(trailing_edge_target.path, 'rb') as f:
+                trailing_edge = pickle.load(f)
             # no trailing edge could be extracted for this image
-            if curv is None or curv.shape[0] < 2:
+            if trailing_edge is None:
                 continue
-            else:
-                assert curv.ndim == 2, 'curv.ndim == %d != 2' % (curv.ndim)
             fname = splitext(basename(fpath))[0]
             fname_trailing_edge_dict[fname] = fpath
 
@@ -736,7 +734,6 @@ class EvaluateIdentification(luigi.Task):
     curv_length = luigi.IntParameter(default=128)
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
-    num_db_encounters = luigi.IntParameter(default=10)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -756,10 +753,15 @@ class EvaluateIdentification(luigi.Task):
                                   batch_size=self.batch_size,
                                   scale=self.scale,
                                   oriented=self.oriented,
-                                  curvature_scales=self.curvature_scales)]
+                                  curvature_scales=self.curvature_scales),
+            SeparateDatabaseQueries(dataset=self.dataset,
+                                    imsize=self.imsize,
+                                    batch_size=self.batch_size,
+                                    scale=self.scale)
+        ]
 
     def output(self):
-        basedir = join('data', self.dataset, self.__class__.__name__)
+        basedir = join('data', self.dataset, self.__class__.__name__ + '-par')
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
@@ -779,47 +781,53 @@ class EvaluateIdentification(luigi.Task):
         import dorsal_utils
         import ranking
         from collections import defaultdict
-        df = pd.read_csv(
-            self.requires()[0].output().path, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
+        curv_targets = self.requires()[1].output()
+        db_fpath_dict_target = self.requires()[2].output()['database']
+        qr_fpath_dict_target = self.requires()[2].output()['queries']
 
-        fname_curv_dict = {}
-        curv_dict = self.requires()[1].output()
-        curv_filepaths = curv_dict.keys()
-        print('computing curvature vectors of dimension %d for %d images' % (
-            self.curv_length, len(curv_filepaths)))
-        #for fpath in curv_filepaths:
-        for fpath in tqdm(curv_filepaths,
-                          total=len(curv_filepaths), leave=False):
-            curv_target = curv_dict[fpath]['curvature']
-            with open(curv_target.path, 'rb') as f:
-                curv = pickle.load(f)
-            # no trailing edge could be extracted for this image
-            if curv is None or curv.shape[0] < 2:
-                continue
-            else:
-                assert curv.ndim == 2, 'curv.ndim == %d != 2' % (curv.ndim)
+        with db_fpath_dict_target.open('rb') as f:
+            db_fpath_dict = pickle.load(f)
+        with qr_fpath_dict_target.open('rb') as f:
+            qr_fpath_dict = pickle.load(f)
 
-            fname = splitext(basename(fpath))[0]
-            if self.normalize:
-                curv -= curv.mean(axis=0)
-                curv /= curv.std(axis=0)
+        db_curv_dict = {}
+        print('loading curvature vectors for %d database individuals' % (
+            len(db_fpath_dict)))
+        for dind in db_fpath_dict:
+            if dind not in db_curv_dict:
+                db_curv_dict[dind] = []
+            for fpath in db_fpath_dict[dind]:
+                with curv_targets[fpath]['curvature'].open('rb') as f:
+                    curv = pickle.load(f)
+                if self.normalize:
+                    curv -= curv.mean(axis=0)
+                    curv /= curv.std(axis=0)
+                curv = dorsal_utils.resampleNd(curv, self.curv_length)
+                db_curv_dict[dind].append(curv)
 
-            fname_curv_dict[fname] = dorsal_utils.resampleNd(
-                curv, self.curv_length)
+        qr_curv_dict = {}
+        print('loading curvature vectors for %d query individuals' % (
+            len(qr_fpath_dict)))
+        for qind in qr_fpath_dict:
+            if qind not in qr_curv_dict:
+                qr_curv_dict[qind] = {}
+            for qenc in qr_fpath_dict[qind]:
+                if qenc not in qr_curv_dict[qind]:
+                    qr_curv_dict[qind][qenc] = []
+                for fpath in qr_fpath_dict[qind][qenc]:
+                    with curv_targets[fpath]['curvature'].open('rb') as f:
+                        curv = pickle.load(f)
+                    if self.normalize:
+                        curv -= curv.mean(axis=0)
+                        curv /= curv.std(axis=0)
+                    curv = dorsal_utils.resampleNd(curv, self.curv_length)
+                    qr_curv_dict[qind][qenc].append(curv)
 
-        db_dict, qr_dict = datasets.separate_database_queries(
-            self.dataset, df['impath'].values,
-            df['individual'].values, df['encounter'].values,
-            fname_curv_dict, num_db_encounters=self.num_db_encounters
-        )
-
-        db_curvs_list = [len(db_dict[ind]) for ind in db_dict]
+        db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
         qr_curvs_list = []
-        for ind in qr_dict:
-            for enc in qr_dict[ind]:
-                qr_curvs_list.append(len(qr_dict[ind][enc]))
+        for ind in qr_curv_dict:
+            for enc in qr_curv_dict[ind]:
+                qr_curvs_list.append(len(qr_curv_dict[ind][enc]))
 
         print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
             np.max(db_curvs_list),
@@ -839,16 +847,16 @@ class EvaluateIdentification(luigi.Task):
         )
 
         indiv_rank_indices = defaultdict(list)
-        qindivs = qr_dict.keys()
+        qindivs = qr_curv_dict.keys()
         with self.output()[0].open('w') as f:
             #for qind in qindivs:
             print('running identification for %d individuals' % (len(qindivs)))
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-                qencs = qr_dict[qind].keys()
+                qencs = qr_curv_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
                     rindivs, scores = ranking.rank_individuals(
-                        qr_dict[qind][qenc], db_dict, simfunc)
+                        qr_curv_dict[qind][qenc], db_curv_dict, simfunc)
 
                     rank = 1 + rindivs.index(qind)
                     indiv_rank_indices[qind].append(rank)
