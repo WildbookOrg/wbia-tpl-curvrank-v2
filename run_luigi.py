@@ -768,19 +768,25 @@ class EvaluateIdentification(luigi.Task):
         else:
             curvdir = join('standard', curvdir)
 
-        return [
-            luigi.LocalTarget(
-                join(basedir, curvdir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(basedir, curvdir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(basedir, curvdir, '%s_topk.csv' % self.dataset)),
-        ]
+        # query dict tells us which encounters become result objects
+        with self.requires()[2].output()['queries'].open('rb') as f:
+            qr_curv_dict = pickle.load(f)
+
+        output = {}
+        for qind in qr_curv_dict:
+            if qind not in output:
+                output[qind] = {}
+            for qenc in qr_curv_dict[qind]:
+                # an encounter may belong to multiple individuals, hence qind
+                output[qind][qenc] = luigi.LocalTarget(
+                    join(basedir, curvdir, qind, '%s.pickle' % qenc)
+                )
+
+        return output
 
     def run(self):
         import dorsal_utils
         import ranking
-        from collections import defaultdict
         curv_targets = self.requires()[1].output()
         db_fpath_dict_target = self.requires()[2].output()['database']
         qr_fpath_dict_target = self.requires()[2].output()['queries']
@@ -846,50 +852,24 @@ class EvaluateIdentification(luigi.Task):
             window=self.window
         )
 
-        indiv_rank_indices = defaultdict(list)
+        output = self.output()
         qindivs = qr_curv_dict.keys()
-        with self.output()[0].open('w') as f:
-            #for qind in qindivs:
-            print('running identification for %d individuals' % (len(qindivs)))
-            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-                qencs = qr_curv_dict[qind].keys()
-                assert qencs, 'empty encounter list for %s' % qind
-                for qenc in qencs:
-                    rindivs, scores = ranking.rank_individuals(
-                        qr_curv_dict[qind][qenc], db_curv_dict, simfunc)
+        dindivs = db_curv_dict.keys()
+        print('running identification for %d individuals' % (len(qindivs)))
+        for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+            qencs = qr_curv_dict[qind].keys()
+            assert qencs, 'empty encounter list for %s' % qind
 
-                    rank = 1 + rindivs.index(qind)
-                    indiv_rank_indices[qind].append(rank)
+            for qenc in qencs:
+                result_dict = {}
+                qcurvs = qr_curv_dict[qind][qenc]
+                for dind in dindivs:
+                    dcurvs = db_curv_dict[dind]
+                    result_matrix = simfunc(qcurvs, dcurvs)
+                    result_dict[dind] = result_matrix
 
-                    f.write('%s,%s\n' % (
-                        qind, ','.join(['%s' % r for r in rindivs])))
-                    f.write('%s\n' % (
-                        ','.join(['%.6f' % s for s in scores])))
-
-        with self.output()[1].open('w') as f:
-            f.write('individual,mrr\n')
-            for qind in indiv_rank_indices.keys():
-                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
-                num = len(indiv_rank_indices[qind])
-                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
-
-        rank_indices = []
-        for ind in indiv_rank_indices:
-            for rank in indiv_rank_indices[ind]:
-                rank_indices.append(rank)
-
-        topk_scores = [1, 5, 10, 25]
-        rank_indices = np.array(rank_indices)
-        num_queries = rank_indices.shape[0]
-        num_indivs = len(indiv_rank_indices)
-        print('accuracy scores:')
-        with self.output()[2].open('w') as f:
-            f.write('topk,accuracy\n')
-            for k in range(1, 1 + num_indivs):
-                topk = (100. / num_queries) * (rank_indices <= k).sum()
-                f.write('top-%d,%.6f\n' % (k, topk))
-                if k in topk_scores:
-                    print(' top-%d: %.2f%%' % (k, topk))
+                with output[qind][qenc].open('wb') as f:
+                    pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
 
 
 class ParameterSearch(luigi.Task):
