@@ -666,6 +666,67 @@ class ComputeBlockCurvature(luigi.Task):
         pool.map(partial_compute_block_curvature, to_process)
 
 
+class SeparateDatabaseQueries(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+    num_db_encounters = luigi.IntParameter(default=10)
+
+    def requires(self):
+        return [
+            PrepareData(dataset=self.dataset),
+            SeparateEdges(dataset=self.dataset,
+                          imsize=self.imsize,
+                          batch_size=self.batch_size,
+                          scale=self.scale)
+        ]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        return {
+            'database': luigi.LocalTarget(
+                join(basedir, '%s.pickle' % 'database')),
+            'queries': luigi.LocalTarget(
+                join(basedir, '%s.pickle' % 'queries')),
+        }
+
+    def run(self):
+        df = pd.read_csv(
+            self.requires()[0].output().path, header='infer',
+            usecols=['impath', 'individual', 'encounter']
+        )
+        fname_trailing_edge_dict = {}
+        trailing_edge_dict = self.requires()[1].output()
+        curv_filepaths = trailing_edge_dict.keys()
+        for fpath in tqdm(curv_filepaths,
+                          total=len(curv_filepaths), leave=False):
+            curv_target = trailing_edge_dict[fpath]['trailing-coords']
+            with open(curv_target.path, 'rb') as f:
+                curv = pickle.load(f)
+            # no trailing edge could be extracted for this image
+            if curv is None or curv.shape[0] < 2:
+                continue
+            else:
+                assert curv.ndim == 2, 'curv.ndim == %d != 2' % (curv.ndim)
+            fname = splitext(basename(fpath))[0]
+            fname_trailing_edge_dict[fname] = fpath
+
+        db_dict, qr_dict = datasets.separate_database_queries(
+            self.dataset, df['impath'].values,
+            df['individual'].values, df['encounter'].values,
+            fname_trailing_edge_dict, num_db_encounters=self.num_db_encounters
+        )
+
+        output = self.output()
+        print('saving database with %d individuals' % (len(db_dict)))
+        with output['database'].open('wb') as f:
+            pickle.dump(db_dict, f, pickle.HIGHEST_PROTOCOL)
+        print('saving queries with %d individuals' % (len(qr_dict)))
+        with output['queries'].open('wb') as f:
+            pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
+
+
 class EvaluateIdentification(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
