@@ -787,6 +787,7 @@ class EvaluateIdentification(luigi.Task):
     def run(self):
         import dorsal_utils
         import ranking
+        from workers import identify_encounters
         curv_targets = self.requires()[1].output()
         db_fpath_dict_target = self.requires()[2].output()['database']
         qr_fpath_dict_target = self.requires()[2].output()['queries']
@@ -854,22 +855,18 @@ class EvaluateIdentification(luigi.Task):
 
         output = self.output()
         qindivs = qr_curv_dict.keys()
-        dindivs = db_curv_dict.keys()
         print('running identification for %d individuals' % (len(qindivs)))
-        for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-            qencs = qr_curv_dict[qind].keys()
-            assert qencs, 'empty encounter list for %s' % qind
-
-            for qenc in qencs:
-                result_dict = {}
-                qcurvs = qr_curv_dict[qind][qenc]
-                for dind in dindivs:
-                    dcurvs = db_curv_dict[dind]
-                    # mxn matrix: m query curvs, n db curvs for an individual
-                    result_dict[dind] = simfunc(qcurvs, dcurvs)
-
-                with output[qind][qenc].open('wb') as f:
-                    pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
+        partial_identify_encounters = partial(
+            identify_encounters,
+            qr_curv_dict=qr_curv_dict,
+            db_curv_dict=db_curv_dict,
+            simfunc=simfunc,
+            output_targets=output,
+        )
+        pool = mp.Pool(processes=32)
+        pool.map(partial_identify_encounters, qindivs)
+        #for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+        #    partial_identify_encounters(qind)
 
 
 class ParameterSearch(luigi.Task):

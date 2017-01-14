@@ -156,3 +156,20 @@ def visualize_individuals(fpath, input_targets, output_targets):
     _, img_buf = cv2.imencode('.png', img)
     with visualization_target.open('wb') as f:
         f.write(img_buf)
+
+
+def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
+                        output_targets):
+    qencs = qr_curv_dict[qind].keys()
+    dindivs = db_curv_dict.keys()
+    assert qencs, 'empty encounter list for %s' % qind
+    for qenc in qencs:
+        result_dict = {}
+        qcurvs = qr_curv_dict[qind][qenc]
+        for dind in dindivs:
+            dcurvs = db_curv_dict[dind]
+            # mxn matrix: m query curvs, n db curvs for an individual
+            result_dict[dind] = simfunc(qcurvs, dcurvs)
+
+        with output_targets[qind][qenc].open('wb') as f:
+            pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
