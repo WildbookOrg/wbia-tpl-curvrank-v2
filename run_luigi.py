@@ -869,6 +869,118 @@ class EvaluateIdentification(luigi.Task):
         #    partial_identify_encounters(qind)
 
 
+class SummarizeResults(luigi.Task):
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    imsize = luigi.IntParameter(default=256)
+    batch_size = luigi.IntParameter(default=32)
+    scale = luigi.IntParameter(default=4)
+    window = luigi.IntParameter(default=8)
+    curv_length = luigi.IntParameter(default=128)
+    oriented = luigi.BoolParameter(default=False)
+    normalize = luigi.BoolParameter(default=False)
+    num_db_encounters = luigi.IntParameter(default=10)
+
+    if oriented:  # use oriented curvature
+        curvature_scales = luigi.ListParameter(
+            #default=(0.06, 0.10, 0.14, 0.18)
+            default=(0.110, 0.160, 0.210, 0.260)
+        )
+    else:       # use standard block curvature
+        curvature_scales = luigi.ListParameter(
+            default=(0.133, 0.207, 0.280, 0.353)
+        )
+
+    def requires(self):
+        return [
+            SeparateDatabaseQueries(dataset=self.dataset,
+                                    imsize=self.imsize,
+                                    batch_size=self.batch_size,
+                                    scale=self.scale,
+                                    num_db_encounters=self.num_db_encounters),
+            EvaluateIdentification(dataset=self.dataset,
+                                   imsize=self.imsize,
+                                   batch_size=self.batch_size,
+                                   scale=self.scale,
+                                   window=self.window,
+                                   curv_length=self.curv_length,
+                                   curvature_scales=self.curvature_scales,
+                                   oriented=self.oriented,
+                                   normalize=self.normalize)
+        ]
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        if self.oriented:
+            curvdir = join('oriented', curvdir)
+        else:
+            curvdir = join('standard', curvdir)
+
+        return [
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_all.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(basedir, curvdir, '%s_topk.csv' % self.dataset)),
+        ]
+
+    def run(self):
+        from collections import defaultdict
+        evaluation_targets = self.requires()[1].output()
+        separate_db_queries_targets = self.requires()[0].output()
+        with separate_db_queries_targets['database'].open('rb') as f:
+            db_dict = pickle.load(f)
+        db_indivs = db_dict.keys()
+        indiv_rank_indices = defaultdict(list)
+        with self.output()[0].open('w') as f:
+            for qind in tqdm(evaluation_targets, leave=False):
+                for qenc in evaluation_targets[qind]:
+                    with evaluation_targets[qind][qenc].open('rb') as f1:
+                        result_dict = pickle.load(f1)
+                    scores = np.zeros(len(db_indivs), dtype=np.float32)
+                    for i, dind in enumerate(db_indivs):
+                        result_matrix = result_dict[dind]
+                        scores[i] = result_matrix.min(axis=None)
+
+                    asc_scores_idx = np.argsort(scores)
+                    ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                    ranked_scores = [scores[idx] for idx in asc_scores_idx]
+
+                    rank = 1 + ranked_indivs.index(qind)
+                    indiv_rank_indices[qind].append(rank)
+
+                    f.write('%s,%s\n' % (
+                        qind, ','.join(['%s' % r for r in ranked_indivs])))
+                    f.write('%s\n' % (
+                        ','.join(['%.6f' % s for s in ranked_scores])))
+
+        with self.output()[1].open('w') as f:
+            f.write('individual,mrr\n')
+            for qind in indiv_rank_indices.keys():
+                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                num = len(indiv_rank_indices[qind])
+                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+
+        rank_indices = []
+        for ind in indiv_rank_indices:
+            for rank in indiv_rank_indices[ind]:
+                rank_indices.append(rank)
+
+        topk_scores = [1, 5, 10, 25]
+        rank_indices = np.array(rank_indices)
+        num_queries = rank_indices.shape[0]
+        num_indivs = len(indiv_rank_indices)
+        print('accuracy scores:')
+        with self.output()[2].open('w') as f:
+            f.write('topk,accuracy\n')
+            for k in range(1, 1 + num_indivs):
+                topk = (100. / num_queries) * (rank_indices <= k).sum()
+                f.write('top-%d,%.6f\n' % (k, topk))
+                if k in topk_scores:
+                    print(' top-%d: %.2f%%' % (k, topk))
+
+
 class ParameterSearch(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     curv_length = luigi.IntParameter(default=128)
