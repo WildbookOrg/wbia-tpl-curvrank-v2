@@ -23,4 +23,4 @@ def dtw_alignment_cost(query_vectors, database_vectors, weights, window):
         for j, dcurv in enumerate(database_vectors):
             S[i, j] = compute_dtw_fast(qcurv, dcurv, weights, window)
 
-    return S.min(axis=None)
+    return S
