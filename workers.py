@@ -4,6 +4,9 @@ import cPickle as pickle
 import numpy as np
 import dorsal_utils
 import imutils
+import matplotlib
+matplotlib.use('Agg')  # NOQA
+import matplotlib.pyplot as plt
 
 
 def preprocess_images(fpath, imsize, output_targets):
@@ -173,3 +176,152 @@ def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
 
         with output_targets[qind][qenc].open('wb') as f:
             pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
+
+
+# input1_targets: evaluation_targets (the result dicts)
+# input2_targets: edges_targets (the separate_edges visualizations)
+# input3_targets: block_curv_targets (the curvature vectors)
+def visualize_misidentifications(qind, qr_dict, db_dict, num_db, num_qr,
+                                 input1_targets, input2_targets,
+                                 input3_targets, output_targets):
+    dindivs = np.hstack(db_dict.keys())  # TODO: add sorted() everywhere
+    qencs = input1_targets[qind].keys()
+    for qenc in qencs:
+        with input1_targets[qind][qenc].open('rb') as f:
+            result_dict = pickle.load(f)
+        result_across_db = np.hstack([result_dict[dind] for dind in dindivs])
+        indivs_across_db = np.hstack(
+            [np.repeat(dind, len(db_dict[dind])) for dind in dindivs]
+        )
+        db_fnames = np.hstack([db_dict[dind] for dind in dindivs])
+        query_fnames = np.hstack(qr_dict[qind][qenc])
+
+        assert db_fnames.shape[0] == result_across_db.shape[1]
+        best_score_per_query = result_across_db.min(axis=1)
+        qr_best_idx = best_score_per_query.argsort(axis=0)[0:num_qr]
+        qr_best_fnames = query_fnames[qr_best_idx]
+        qr_best_scores = result_across_db[qr_best_idx]
+
+        db_best_idx = qr_best_scores.argsort(axis=1)
+
+        db_best_fnames = db_fnames[db_best_idx[:, 0:num_db]]
+        db_best_scores = np.array([
+            qr_best_scores[i, db_best_idx[i]]
+            for i in np.arange(db_best_idx.shape[0])
+        ])
+        db_best_indivs = indivs_across_db[db_best_idx]
+
+        db_best_qr_idx = np.argmax(db_best_indivs == qind, axis=1)
+        db_best_qr_fnames = db_fnames[db_best_idx][
+            np.arange(db_best_qr_idx.shape[0]), db_best_qr_idx
+        ]
+
+        db_best_qr_indivs = db_best_indivs[
+            np.arange(db_best_idx.shape[0]), db_best_qr_idx
+        ]
+
+        db_best_qr_scores = db_best_scores[
+            np.arange(db_best_qr_idx.shape[0]), db_best_qr_idx
+        ]
+
+        f, axarr = plt.subplots(
+            2 + min(db_best_fnames.shape[1], num_db),  # rows
+            min(qr_best_fnames.shape[0], num_qr),      # cols
+            figsize=(22., 12.)
+        )
+        if axarr.ndim == 1:
+            axarr = np.expand_dims(axarr, axis=1)  # ensure 2d
+        db_rows = []
+        for i, _ in enumerate(qr_best_fnames):
+            qr_edge_fname = input2_targets[qr_best_fnames[i]]['visual']
+            qr_curv_fname = input3_targets[qr_best_fnames[i]]['curvature']
+            db_edge_fnames = [
+                input2_targets[name]['visual'] for name in db_best_fnames[i]
+            ]
+            db_qr_edge_fname = input2_targets[db_best_qr_fnames[i]]['visual']
+            db_qr_curv_fname = input3_targets[
+                db_best_qr_fnames[i]
+            ]['curvature']
+
+            db_curv_fnames = [
+                input3_targets[name]['curvature'] for name in db_best_fnames[i]
+            ]
+
+            qr_img = cv2.resize(cv2.imread(qr_edge_fname.path), (256, 256))
+            cv2.putText(
+                qr_img, '%s: %s' % (qind, qenc),
+                (10, qr_img.shape[0] - 10),
+                cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0)
+            )
+
+            db_row = []
+            for didx, db_edge_fname in enumerate(db_edge_fnames):
+                db_img = cv2.resize(cv2.imread(db_edge_fname.path), (256, 256))
+                dind = db_best_indivs[i, didx]
+                dscore = db_best_scores[i, didx]
+                cv2.putText(
+                    db_img, '%d) %s: %.6f' % (
+                        1 + didx, db_best_indivs[i, didx], dscore),
+                    (10, db_img.shape[0] - 10),
+                    cv2.FONT_HERSHEY_PLAIN, 1.0,
+                    (0, 255, 0) if dind == qind else (0, 0, 255)
+                )
+                db_row.append(db_img)
+
+            db_qr_img = cv2.resize(
+                cv2.imread(db_qr_edge_fname.path), (256, 256),
+            )
+            cv2.putText(
+                db_qr_img, '%d) %s: %.6f' % (
+                    1 + db_best_qr_idx[i], db_best_qr_indivs[i],
+                    db_best_qr_scores[i]),
+                (10, db_qr_img.shape[0] - 10),
+                cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0)
+            )
+
+            db_row = np.hstack(db_row)
+            db_rows.append(np.hstack((qr_img, db_row, db_qr_img)))
+
+            with qr_curv_fname.open('rb') as f:
+                qcurv = pickle.load(f)
+            axarr[0, i].set_title('%s: %s' % (qind, qenc), size='xx-small')
+            axarr[0, i].plot(np.arange(qcurv.shape[0]), qcurv)
+            axarr[0, i].set_ylim((0, 1))
+            axarr[0, i].set_xlim((0, qcurv.shape[0]))
+            axarr[0, i].xaxis.set_visible(False)
+            for didx, db_curv_fname in enumerate(db_curv_fnames, start=1):
+                with db_curv_fname.open('rb') as f:
+                    dcurv = pickle.load(f)
+                axarr[didx, i].plot(np.arange(dcurv.shape[0]), dcurv)
+                axarr[didx, i].set_title(
+                    '%d) %s: %.6f' % (
+                        didx, db_best_indivs[i, didx - 1],
+                        db_best_scores[i, didx - 1]),
+                    size='xx-small')
+                axarr[didx, i].set_ylim((0, 1))
+                axarr[didx, i].set_xlim((0, dcurv.shape[0]))
+                axarr[didx, i].xaxis.set_visible(False)
+
+            with db_qr_curv_fname.open('rb') as f:
+                db_qr_curv = pickle.load(f)
+            axarr[-1, i].plot(np.arange(db_qr_curv.shape[0]), db_qr_curv)
+            axarr[-1, i].set_title(
+                '%d) %s: %.6f' % (
+                    1 + db_best_qr_idx[i],
+                    db_best_qr_indivs[i],
+                    db_best_qr_scores[i]),
+                size='xx-small')
+            axarr[-1, i].set_ylim((0, 1))
+            axarr[-1, i].set_xlim((0, db_qr_curv.shape[0]))
+            axarr[-1, i].xaxis.set_visible(False)
+
+        grid = np.vstack(db_rows)
+
+        _, edges_buf = cv2.imencode('.png', grid)
+        with output_targets[qind][qenc]['separate-edges'].open('wb') as f:
+            f.write(edges_buf)
+
+        with output_targets[qind][qenc]['curvature'].open('wb') as f:
+            plt.savefig(f, bbox_inches='tight')
+        plt.clf()
+        plt.close()
