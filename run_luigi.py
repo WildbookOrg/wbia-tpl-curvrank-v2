@@ -849,7 +849,7 @@ class EvaluateIdentification(luigi.Task):
 
         simfunc = partial(
             ranking.dtw_alignment_cost,
-            weights=np.ones(4, dtype=np.float32),
+            weights=np.ones(len(self.curvature_scales), dtype=np.float32),
             window=self.window
         )
 
