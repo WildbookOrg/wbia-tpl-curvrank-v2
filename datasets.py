@@ -1,15 +1,16 @@
 import cv2
 import numpy as np
 import sqlite3
+from datetime import datetime
 from os import listdir
-from os.path import basename, isdir, isfile, join, splitext
+from os.path import basename, join, splitext
 
 
 def load_dataset(name):
     if name == 'nz':
         return load_nz_dataset()
     elif name == 'sdrp':
-        return load_sdrp_dataset([2014, 2015, 2016])
+        return load_sdrp_dataset([2013, 2014, 2015, 2016])
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -50,9 +51,13 @@ def load_sdrp_dataset(years):
     # inner join because we don't want sightings that are not in the catalog
     cur.execute(
         'select '
+        '  Image, '
         '  SurveyNum,'
         '  Sighting,'
-        '  Date, Alias, Image, ImageSide from IndivSighting '
+        '  Date, Alias, Image, luImageSide.ImageSide,'
+        '  luFocus.Focus, luContrast.Contrast, luPartial.Partial, '
+        '  luDistinctiveness.Distinctiveness '
+        'from IndivSighting '
         'inner join Sighting on '
         '  IndivSighting.SightingFID = Sighting.ID '
         'inner join Individuals on '
@@ -60,51 +65,32 @@ def load_sdrp_dataset(years):
         'inner join IndivImage on '
         '  IndivImage.IndivSightingFID = IndivSighting.ID '
         'inner join Survey on '
-        '  Sighting.SurveyFID = Survey.ID'
+        '  Sighting.SurveyFID = Survey.ID '
+        'inner join PhotographicQuality on '
+        '  PhotographicQuality.IndivImageFID = IndivImage.ID '
+        'inner join luFocus on '
+        '  PhotographicQuality.Focus = luFocus.Code '
+        'inner join luContrast on '
+        '  PhotographicQuality.Contrast = luContrast.Code '
+        'inner join luPartial on '
+        '  PhotographicQuality.Partial = luPartial.Code '
+        'inner join luImageSide on '
+        '  IndivImage.ImageSide = luImageSide.Code '
+        'left outer join luDistinctiveness on '
+        '  IndivSighting.Distinctiveness = luDistinctiveness.Code'
     )
 
-    # keep only images from individuals that are in the catalog
-    catalog_aliases = set()
-    for (_, _, _, alias, _, _) in cur.fetchall():
-        catalog_aliases.add(str(alias))
-
-    data_dir = '/media/sdrp/SDRP Data'
-    sighting_dir_list = []
-    for year in years:
-        sightings_dir = join(data_dir, '%s Dig Pics' % (year))
-        sighting_dirs = listdir(sightings_dir)
-        for sighting_dir in sighting_dirs:
-            sighting_dir_list.append(
-                join(data_dir, sightings_dir, sighting_dir)
-            )
-
+    data_dir = '/media/sdrp/SDRP Data/FinBase/Images'
     data_list = []
-    for sighting_dir in sighting_dir_list:
-        if not isdir(sighting_dir):
-            continue
-        fname_list = listdir(sighting_dir)
-        for fname in fname_list:
-            try:
-                alias, _, survey, sighting, date, _ = fname.strip().split(' ')
-            except ValueError:
-                continue
-
-            if survey.lower().startswith('s'):
-                survey = survey[1:]
-            if sighting.lower().startswith('s'):
-                sighting = sighting[1:]
-
-            image_filepath = join(sighting_dir, fname)
-            assert isfile(image_filepath), 'not a file: %s' % (image_filepath)
-            # NOTE: we only use left-view images for the moment
-            # we remove individuals that are not in the catalog to get rid of
-            # "possible"-tagged images, e.g., "DUposs6512"
-            if '(L)' in fname and alias in catalog_aliases:
-                data_list.append((
-                    image_filepath,
-                    alias,
-                    '%s-%s' % (survey, sighting),
-                ))
+    for (fname, survey, sighting, date, alias, image, side,
+            focus, contrast, partial, dist) in cur.fetchall():
+        date = datetime.strptime(date, '%m/%d/%y %H:%M:%S')
+        if date.year in years and side == 'Left':
+            data_list.append((
+                join(data_dir, fname),
+                alias,
+                '%s-%s' % (survey, sighting)
+            ))
 
     return data_list
 
