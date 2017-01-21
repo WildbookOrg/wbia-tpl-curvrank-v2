@@ -21,8 +21,8 @@ class PrepareData(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__,)
         return {
-            'csv': luigi.LocalTarget(join(basedir, '%s3.csv' % self.dataset)),
-            'pkl': luigi.LocalTarget(join(basedir, '%s3.pickle' % self.dataset))
+            'csv': luigi.LocalTarget(join(basedir, '%s.csv' % self.dataset)),
+            'pkl': luigi.LocalTarget(join(basedir, '%s.pickle' % self.dataset))
         }
 
     def run(self):
