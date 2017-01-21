@@ -43,10 +43,12 @@ class EncounterStats(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
 
     def requires(self):
-        return [PrepareData(dataset=self.dataset)]
+        return {
+            'PrepareData': PrepareData(dataset=self.dataset)
+        }
 
     def complete(self):
-        if not exists(self.requires()[0].output().path):
+        if not exists(self.requires()['PrepareData'].output()['csv'].path):
             return False
         else:
             return all(map(
@@ -62,17 +64,13 @@ class EncounterStats(luigi.Task):
 
     def run(self):
         import matplotlib.pyplot as plt
-        csv_fpath = self.requires()[0].output().path
-        # hack for when the csv file doesn't exist
-        if not exists(csv_fpath):
-            self.requires()[0].run()
-        df = pd.read_csv(
-            csv_fpath, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
+
+        prepare_data_target = self.requires()['PrepareData'].output()
+        with prepare_data_target['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
 
         ind_enc_count_dict = {}
-        for img, ind, enc in df.values:
+        for img, ind, enc in prepare_data_filepaths:
             if ind not in ind_enc_count_dict:
                 ind_enc_count_dict[ind] = {}
             if enc not in ind_enc_count_dict[ind]:
@@ -445,7 +443,7 @@ class Segmentation(luigi.Task):
                     pickle.dump(segm_refn, f4, pickle.HIGHEST_PROTOCOL)
 
 
-class FindKeypoints(luigi.Task):
+class Keypoints(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
@@ -529,7 +527,7 @@ class ExtractOutline(luigi.Task):
                 imsize=self.imsize,
                 batch_size=self.batch_size,
                 scale=self.scale),
-            'FindKeypoints': FindKeypoints(
+            'Keypoints': Keypoints(
                 dataset=self.dataset,
                 imsize=self.imsize,
                 batch_size=self.batch_size),
@@ -560,7 +558,7 @@ class ExtractOutline(luigi.Task):
         output = self.output()
         localization_targets = self.requires()['Localization'].output()
         segmentation_targets = self.requires()['Segmentation'].output()
-        keypoints_targets = self.requires()['FindKeypoints'].output()
+        keypoints_targets = self.requires()['Keypoints'].output()
         image_filepaths = segmentation_targets.keys()
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['outline-visual'].path) or
@@ -652,7 +650,7 @@ class SeparateEdges(luigi.Task):
         pool.map(partial_separate_edges, to_process)
 
 
-class ComputeBlockCurvature(luigi.Task):
+class BlockCurvature(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
@@ -786,7 +784,7 @@ class SeparateDatabaseQueries(luigi.Task):
             pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
 
 
-class EvaluateIdentification(luigi.Task):
+class Identification(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
@@ -810,7 +808,7 @@ class EvaluateIdentification(luigi.Task):
         return {
             'PrepareData': PrepareData(
                 dataset=self.dataset),
-            'ComputeBlockCurvature': ComputeBlockCurvature(
+            'BlockCurvature': BlockCurvature(
                 dataset=self.dataset,
                 imsize=self.imsize,
                 batch_size=self.batch_size,
@@ -853,7 +851,7 @@ class EvaluateIdentification(luigi.Task):
         import dorsal_utils
         import ranking
         from workers import identify_encounters
-        curv_targets = self.requires()['ComputeBlockCurvature'].output()
+        curv_targets = self.requires()['BlockCurvature'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_fpath_dict_target = db_qr_target.output()['database']
         qr_fpath_dict_target = db_qr_target.output()['queries']
@@ -935,7 +933,7 @@ class EvaluateIdentification(luigi.Task):
         #    partial_identify_encounters(qind)
 
 
-class SummarizeResults(luigi.Task):
+class Results(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
@@ -964,7 +962,7 @@ class SummarizeResults(luigi.Task):
                 batch_size=self.batch_size,
                 scale=self.scale,
                 num_db_encounters=self.num_db_encounters),
-            'EvaluateIdentification': EvaluateIdentification(
+            'Identification': Identification(
                 dataset=self.dataset,
                 imsize=self.imsize,
                 batch_size=self.batch_size,
@@ -995,7 +993,7 @@ class SummarizeResults(luigi.Task):
 
     def run(self):
         from collections import defaultdict
-        evaluation_targets = self.requires()['EvaluateIdentification'].output()
+        evaluation_targets = self.requires()['Identification'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
         with db_qr_output['database'].open('rb') as f:
             db_dict = pickle.load(f)
@@ -1071,7 +1069,7 @@ class ParameterSearch(luigi.Task):
 
     def requires(self):
         return [
-            EvaluateIdentification(
+            Identification(
                 dataset=self.dataset,
                 curv_length=self.curv_length,
                 oriented=self.oriented,
@@ -1221,21 +1219,21 @@ class VisualizeMisidentifications(luigi.Task):
                                     imsize=self.imsize,
                                     batch_size=self.batch_size,
                                     scale=self.scale),
-            ComputeBlockCurvature(dataset=self.dataset,
-                                  imsize=self.imsize,
-                                  batch_size=self.batch_size,
-                                  scale=self.scale,
-                                  oriented=self.oriented,
-                                  curvature_scales=self.curvature_scales),
-            EvaluateIdentification(dataset=self.dataset,
-                                   imsize=self.imsize,
-                                   batch_size=self.batch_size,
-                                   scale=self.scale,
-                                   window=self.window,
-                                   curv_length=self.curv_length,
-                                   curvature_scales=self.curvature_scales,
-                                   oriented=self.oriented,
-                                   normalize=self.normalize)
+            BlockCurvature(dataset=self.dataset,
+                           imsize=self.imsize,
+                           batch_size=self.batch_size,
+                           scale=self.scale,
+                           oriented=self.oriented,
+                           curvature_scales=self.curvature_scales),
+            Identification(dataset=self.dataset,
+                           imsize=self.imsize,
+                           batch_size=self.batch_size,
+                           scale=self.scale,
+                           window=self.window,
+                           curv_length=self.curv_length,
+                           curvature_scales=self.curvature_scales,
+                           oriented=self.oriented,
+                           normalize=self.normalize)
         ]
 
     def output(self):
