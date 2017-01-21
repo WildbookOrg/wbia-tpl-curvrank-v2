@@ -85,6 +85,7 @@ def load_sdrp_dataset(years):
     for (fname, survey, sighting, date, alias, image, side,
             focus, contrast, partial, dist) in cur.fetchall():
         date = datetime.strptime(date, '%m/%d/%y %H:%M:%S')
+        # we only use left-view images for now
         if date.year in years and side == 'Left':
             data_list.append((
                 join(data_dir, fname),
