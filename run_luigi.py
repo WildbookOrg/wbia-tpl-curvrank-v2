@@ -19,20 +19,24 @@ class PrepareData(luigi.Task):
         return []
 
     def output(self):
-        return luigi.LocalTarget(
-            join('data', self.dataset, self.__class__.__name__,
-                 '%s.csv' % self.dataset)
-        )
+        basedir = join('data', self.dataset, self.__class__.__name__,)
+        return {
+            'csv': luigi.LocalTarget(join(basedir, '%s3.csv' % self.dataset)),
+            'pkl': luigi.LocalTarget(join(basedir, '%s3.pickle' % self.dataset))
+        }
 
     def run(self):
         data_list = datasets.load_dataset(self.dataset)
 
+        output = self.output()
         print('%d data tuples returned' % (len(data_list)))
 
-        with self.output().open('w') as f:
+        with output['csv'].open('w') as f:
             f.write('impath,individual,encounter\n')
             for img_fpath, indiv_name, enc_name in data_list:
                 f.write('%s,%s,%s\n' % (img_fpath, indiv_name, enc_name))
+        with output['pkl'].open('wb') as f:
+            pickle.dump(data_list, f, pickle.HIGHEST_PROTOCOL)
 
 
 class EncounterStats(luigi.Task):
@@ -112,15 +116,17 @@ class EncounterStats(luigi.Task):
             plt.savefig(f, bbox_inches='tight')
 
 
-class PreprocessImages(luigi.Task):
+class Preprocess(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
 
     def requires(self):
-        return [PrepareData(dataset=self.dataset)]
+        return {'PrepareData': PrepareData(dataset=self.dataset)}
 
     def complete(self):
-        if not exists(self.requires()[0].output().path):
+        dependency_targets = self.requires()['PrepareData'].output()
+        if not exists(dependency_targets['csv'].path) or\
+                not exists(dependency_targets['pkl'].path):
             return False
         else:
             return all(map(
@@ -129,19 +135,13 @@ class PreprocessImages(luigi.Task):
             ))
 
     def output(self):
-        csv_fpath = self.requires()[0].output().path
-        # hack for when the csv file doesn't exist
-        if not exists(csv_fpath):
-            self.requires()[0].run()
-        df = pd.read_csv(
-            csv_fpath, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
-        image_filepaths = df['impath'].values
+        prepare_data_target = self.requires()['PrepareData'].output()
+        with prepare_data_target['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
 
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
-        for fpath in image_filepaths:
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -184,12 +184,20 @@ class Localization(luigi.Task):
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
-        return [PreprocessImages(dataset=self.dataset, imsize=self.imsize)]
+        return {
+            'PrepareData': PrepareData(dataset=self.dataset),
+            'Preprocess': Preprocess(
+                dataset=self.dataset, imsize=self.imsize)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname =  splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -230,7 +238,7 @@ class Localization(luigi.Task):
         localization_func = theano_funcs.create_localization_infer_func(layers)
 
         output = self.output()
-        preprocess_images_targets = self.requires()[0].output()
+        preprocess_images_targets = self.requires()['Preprocess'].output()
         image_filepaths = preprocess_images_targets.keys()
 
         # we don't parallelize this function because it uses the gpu
@@ -308,14 +316,25 @@ class Segmentation(luigi.Task):
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
-        return [Localization(dataset=self.dataset,
-                             imsize=self.imsize,
-                             batch_size=self.batch_size,)]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset,
+            ),
+            'Localization': Localization(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+            )
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -355,7 +374,7 @@ class Segmentation(luigi.Task):
         segm_func = theano_funcs.create_segmentation_func(layers_segm)
 
         output = self.output()
-        localization_targets = self.requires()[0].output()
+        localization_targets = self.requires()['Localization'].output()
         image_filepaths = localization_targets.keys()
 
         to_process = []
@@ -432,17 +451,28 @@ class FindKeypoints(luigi.Task):
     batch_size = luigi.IntParameter(default=32)
 
     def requires(self):
-        return [Localization(dataset=self.dataset,
-                             imsize=self.imsize,
-                             batch_size=self.batch_size),
-                Segmentation(dataset=self.dataset,
-                             imsize=self.imsize,
-                             batch_size=self.batch_size)]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset,
+            ),
+            'Localization': Localization(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size),
+            'Segmentation': Segmentation(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size),
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -458,8 +488,8 @@ class FindKeypoints(luigi.Task):
     def run(self):
         from workers import find_keypoints
         output = self.output()
-        localization_targets = self.requires()[0].output()
-        segmentation_targets = self.requires()[1].output()
+        localization_targets = self.requires()['Localization'].output()
+        segmentation_targets = self.requires()['Segmentation'].output()
         image_filepaths = segmentation_targets.keys()
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['keypoints-visual'].path) or
@@ -486,24 +516,33 @@ class ExtractOutline(luigi.Task):
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
-        return [
-            Localization(dataset=self.dataset,
-                         imsize=self.imsize,
-                         batch_size=self.batch_size,
-                         scale=self.scale),
-            Segmentation(dataset=self.dataset,
-                         imsize=self.imsize,
-                         batch_size=self.batch_size,
-                         scale=self.scale),
-            FindKeypoints(dataset=self.dataset,
-                          imsize=self.imsize,
-                          batch_size=self.batch_size),
-        ]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset),
+            'Localization': Localization(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale),
+            'Segmentation': Segmentation(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale),
+            'FindKeypoints': FindKeypoints(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size),
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -519,9 +558,9 @@ class ExtractOutline(luigi.Task):
     def run(self):
         from workers import extract_outline
         output = self.output()
-        localization_targets = self.requires()[0].output()
-        segmentation_targets = self.requires()[1].output()
-        keypoints_targets = self.requires()[2].output()
+        localization_targets = self.requires()['Localization'].output()
+        segmentation_targets = self.requires()['Segmentation'].output()
+        keypoints_targets = self.requires()['FindKeypoints'].output()
         image_filepaths = segmentation_targets.keys()
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['outline-visual'].path) or
@@ -550,19 +589,29 @@ class SeparateEdges(luigi.Task):
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
-        return [Localization(dataset=self.dataset,
-                             imsize=self.imsize,
-                             batch_size=self.batch_size,
-                             scale=self.scale),
-                ExtractOutline(dataset=self.dataset,
-                               imsize=self.imsize,
-                               batch_size=self.batch_size,
-                               scale=self.scale)]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset),
+            'Localization': Localization(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale),
+            'ExtractOutline': ExtractOutline(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -579,8 +628,8 @@ class SeparateEdges(luigi.Task):
 
     def run(self):
         from workers import separate_edges
-        localization_targets = self.requires()[0].output()
-        extract_outline_targets = self.requires()[1].output()
+        localization_targets = self.requires()['Localization'].output()
+        extract_outline_targets = self.requires()['ExtractOutline'].output()
         output = self.output()
         input_filepaths = extract_outline_targets.keys()
 
@@ -619,20 +668,29 @@ class ComputeBlockCurvature(luigi.Task):
         )
 
     def requires(self):
-        return [SeparateEdges(dataset=self.dataset,
-                              imsize=self.imsize,
-                              batch_size=self.batch_size,
-                              scale=self.scale)]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset),
+            'SeparateEdges': SeparateEdges(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
         else:
             curvdir = join('standard', curvdir)
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _ in prepare_data_filepaths:
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
@@ -644,7 +702,7 @@ class ComputeBlockCurvature(luigi.Task):
 
     def run(self):
         from workers import compute_block_curvature
-        separate_edges_targets = self.requires()[0].output()
+        separate_edges_targets = self.requires()['SeparateEdges'].output()
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
 
@@ -674,13 +732,15 @@ class SeparateDatabaseQueries(luigi.Task):
     num_db_encounters = luigi.IntParameter(default=10)
 
     def requires(self):
-        return [
-            PrepareData(dataset=self.dataset),
-            SeparateEdges(dataset=self.dataset,
-                          imsize=self.imsize,
-                          batch_size=self.batch_size,
-                          scale=self.scale)
-        ]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset),
+            'SeparateEdges': SeparateEdges(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -692,12 +752,14 @@ class SeparateDatabaseQueries(luigi.Task):
         }
 
     def run(self):
-        df = pd.read_csv(
-            self.requires()[0].output().path, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
+        prepare_data_targets = self.requires()['PrepareData'].output()
+        with prepare_data_targets['pkl'].open('rb') as f:
+            prepare_data_filepaths = pickle.load(f)
+
+        filepaths, individuals, encounters = zip(*prepare_data_filepaths)
+
         fname_trailing_edge_dict = {}
-        trailing_edge_dict = self.requires()[1].output()
+        trailing_edge_dict = self.requires()['SeparateEdges'].output()
         trailing_edge_filepaths = trailing_edge_dict.keys()
         for fpath in tqdm(trailing_edge_filepaths,
                           total=len(trailing_edge_filepaths), leave=False):
@@ -711,8 +773,7 @@ class SeparateDatabaseQueries(luigi.Task):
             fname_trailing_edge_dict[fname] = fpath
 
         db_dict, qr_dict = datasets.separate_database_queries(
-            self.dataset, df['impath'].values,
-            df['individual'].values, df['encounter'].values,
+            self.dataset, filepaths, individuals, encounters,
             fname_trailing_edge_dict, num_db_encounters=self.num_db_encounters
         )
 
@@ -746,19 +807,22 @@ class EvaluateIdentification(luigi.Task):
         )
 
     def requires(self):
-        return [
-            PrepareData(dataset=self.dataset),
-            ComputeBlockCurvature(dataset=self.dataset,
-                                  imsize=self.imsize,
-                                  batch_size=self.batch_size,
-                                  scale=self.scale,
-                                  oriented=self.oriented,
-                                  curvature_scales=self.curvature_scales),
-            SeparateDatabaseQueries(dataset=self.dataset,
-                                    imsize=self.imsize,
-                                    batch_size=self.batch_size,
-                                    scale=self.scale)
-        ]
+        return {
+            'PrepareData': PrepareData(
+                dataset=self.dataset),
+            'ComputeBlockCurvature': ComputeBlockCurvature(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale,
+                oriented=self.oriented,
+                curvature_scales=self.curvature_scales),
+            'SeparateDatabaseQueries': SeparateDatabaseQueries(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__ + '-par')
@@ -769,7 +833,8 @@ class EvaluateIdentification(luigi.Task):
             curvdir = join('standard', curvdir)
 
         # query dict tells us which encounters become result objects
-        with self.requires()[2].output()['queries'].open('rb') as f:
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        with db_qr_target.output()['queries'].open('rb') as f:
             qr_curv_dict = pickle.load(f)
 
         output = {}
@@ -788,9 +853,10 @@ class EvaluateIdentification(luigi.Task):
         import dorsal_utils
         import ranking
         from workers import identify_encounters
-        curv_targets = self.requires()[1].output()
-        db_fpath_dict_target = self.requires()[2].output()['database']
-        qr_fpath_dict_target = self.requires()[2].output()['queries']
+        curv_targets = self.requires()['ComputeBlockCurvature'].output()
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        db_fpath_dict_target = db_qr_target.output()['database']
+        qr_fpath_dict_target = db_qr_target.output()['queries']
 
         with db_fpath_dict_target.open('rb') as f:
             db_fpath_dict = pickle.load(f)
@@ -891,22 +957,24 @@ class SummarizeResults(luigi.Task):
         )
 
     def requires(self):
-        return [
-            SeparateDatabaseQueries(dataset=self.dataset,
-                                    imsize=self.imsize,
-                                    batch_size=self.batch_size,
-                                    scale=self.scale,
-                                    num_db_encounters=self.num_db_encounters),
-            EvaluateIdentification(dataset=self.dataset,
-                                   imsize=self.imsize,
-                                   batch_size=self.batch_size,
-                                   scale=self.scale,
-                                   window=self.window,
-                                   curv_length=self.curv_length,
-                                   curvature_scales=self.curvature_scales,
-                                   oriented=self.oriented,
-                                   normalize=self.normalize)
-        ]
+        return {
+            'SeparateDatabaseQueries': SeparateDatabaseQueries(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale,
+                num_db_encounters=self.num_db_encounters),
+            'EvaluateIdentification': EvaluateIdentification(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale,
+                window=self.window,
+                curv_length=self.curv_length,
+                curvature_scales=self.curvature_scales,
+                oriented=self.oriented,
+                normalize=self.normalize)
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -927,9 +995,9 @@ class SummarizeResults(luigi.Task):
 
     def run(self):
         from collections import defaultdict
-        evaluation_targets = self.requires()[1].output()
-        separate_db_queries_targets = self.requires()[0].output()
-        with separate_db_queries_targets['database'].open('rb') as f:
+        evaluation_targets = self.requires()['EvaluateIdentification'].output()
+        db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
+        with db_qr_output['database'].open('rb') as f:
             db_dict = pickle.load(f)
         db_indivs = db_dict.keys()
         indiv_rank_indices = defaultdict(list)
