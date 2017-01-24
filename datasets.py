@@ -38,6 +38,7 @@ def load_nz_dataset():
                         img_fpath,
                         indiv_name,
                         enc_name,
+                        'Left',  # all images in this dataset are left-views
                     ))
 
     return data_list
@@ -104,11 +105,12 @@ def load_sdrp_dataset(years):
         #if distinct_rating not in ['D1', 'D2']:
         #    continue
         # we only use left-view images for now
-        if date.year in years and side == 'Left':
+        if date.year in years:
             data_list.append((
                 join(data_dir, fname),
                 alias,
-                '%s-%s' % (survey, sighting)
+                '%s-%s' % (survey, sighting),
+                side,
             ))
 
     return data_list
