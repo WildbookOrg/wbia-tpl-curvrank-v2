@@ -9,11 +9,22 @@ matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
 
 
-def preprocess_images(fpath, imsize, output_targets):
+def preprocess_images_star(fpath_side, imsize, output_targets):
+    return preprocess_images(
+        *fpath_side,
+        imsize=imsize, output_targets=output_targets
+    )
+
+
+def preprocess_images(fpath, side, imsize, output_targets):
     resz_target = output_targets[fpath]['resized']
     trns_target = output_targets[fpath]['transform']
 
     img = cv2.imread(fpath)
+    # mirror images marked as "Right" to simulate a left-view
+    if side.lower() == 'right':
+        img = img[:, ::-1, :]
+
     resz, M = imutils.center_pad_with_transform(img, imsize)
     _, resz_buf = cv2.imencode('.png', resz)
 
