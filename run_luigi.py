@@ -823,7 +823,7 @@ class Identification(luigi.Task):
         }
 
     def output(self):
-        basedir = join('data', self.dataset, self.__class__.__name__ + '-par')
+        basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
