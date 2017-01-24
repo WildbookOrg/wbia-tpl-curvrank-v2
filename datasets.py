@@ -51,12 +51,13 @@ def load_sdrp_dataset(years):
     # inner join because we don't want sightings that are not in the catalog
     cur.execute(
         'select '
-        '  Image, '
-        '  SurveyNum,'
-        '  Sighting,'
-        '  Date, Alias, Image, luImageSide.ImageSide,'
-        '  luFocus.Focus, luContrast.Contrast, luPartial.Partial, '
-        '  luDistinctiveness.Distinctiveness '
+        '  Image, SurveyNum, Sighting, Date, Alias, Image, '
+        '  luImageSide.ImageSide, luDistinctiveness.Distinctiveness, '
+        '  luFocus.Code, luFocus.Focus, '
+        '  luContrast.Code, luContrast.Contrast, '
+        '  luAngle.Code, luAngle.Angle, '
+        '  luPartial.Code, luPartial.Partial, '
+        '  luDistance.Code, luDistance.Distance '
         'from IndivSighting '
         'inner join Sighting on '
         '  IndivSighting.SightingFID = Sighting.ID '
@@ -72,8 +73,12 @@ def load_sdrp_dataset(years):
         '  PhotographicQuality.Focus = luFocus.Code '
         'inner join luContrast on '
         '  PhotographicQuality.Contrast = luContrast.Code '
+        'inner join luAngle on '
+        '  PhotographicQuality.Angle = luAngle.Code '
         'inner join luPartial on '
         '  PhotographicQuality.Partial = luPartial.Code '
+        'inner join luDistance on '
+        '  PhotographicQuality.Distance = luDistance.Code '
         'inner join luImageSide on '
         '  IndivImage.ImageSide = luImageSide.Code '
         'left outer join luDistinctiveness on '
@@ -82,9 +87,18 @@ def load_sdrp_dataset(years):
 
     data_dir = '/media/sdrp/SDRP Data/FinBase/Images'
     data_list = []
-    for (fname, survey, sighting, date, alias, image, side,
-            focus, contrast, partial, dist) in cur.fetchall():
+    for (fname, survey, sighting, date, alias, image, side, distinct,
+            focus_code, focus_text, contrast_code, contrast_text,
+            angle_code, angle_text, partial_code, partial_text,
+            distance_code, distance_text) in cur.fetchall():
+
         date = datetime.strptime(date, '%m/%d/%y %H:%M:%S')
+        #quality_score = (focus_code + contrast_code + angle_code +
+        #                 partial_code + distance_code)
+        #if quality_score > 7:
+        #    continue
+        #if quality_score > 11:
+        #    continue
         # we only use left-view images for now
         if date.year in years and side == 'Left':
             data_list.append((
