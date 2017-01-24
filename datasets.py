@@ -52,7 +52,8 @@ def load_sdrp_dataset(years):
     cur.execute(
         'select '
         '  Image, SurveyNum, Sighting, Date, Alias, Image, '
-        '  luImageSide.ImageSide, luDistinctiveness.Distinctiveness, '
+        '  luImageSide.ImageSide, '
+        '  luDistinctiveness.Rating, luDistinctiveness.Distinctiveness, '
         '  luFocus.Code, luFocus.Focus, '
         '  luContrast.Code, luContrast.Contrast, '
         '  luAngle.Code, luAngle.Angle, '
@@ -87,7 +88,8 @@ def load_sdrp_dataset(years):
 
     data_dir = '/media/sdrp/SDRP Data/FinBase/Images'
     data_list = []
-    for (fname, survey, sighting, date, alias, image, side, distinct,
+    for (fname, survey, sighting, date, alias, image, side,
+            distinct_rating, distinct_text,
             focus_code, focus_text, contrast_code, contrast_text,
             angle_code, angle_text, partial_code, partial_text,
             distance_code, distance_text) in cur.fetchall():
@@ -98,6 +100,8 @@ def load_sdrp_dataset(years):
         #if quality_score > 7:
         #    continue
         #if quality_score > 11:
+        #    continue
+        #if distinct_rating not in ['D1', 'D2']:
         #    continue
         # we only use left-view images for now
         if date.year in years and side == 'Left':
