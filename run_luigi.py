@@ -33,10 +33,16 @@ class PrepareData(luigi.Task):
 
         with output['csv'].open('w') as f:
             f.write('impath,individual,encounter\n')
-            for img_fpath, indiv_name, enc_name in data_list:
-                f.write('%s,%s,%s\n' % (img_fpath, indiv_name, enc_name))
+            for img_fpath, indiv_name, enc_name, side in data_list:
+                f.write('%s,%s,%s,%s\n' % (
+                    img_fpath, indiv_name, enc_name, side)
+                )
         with output['pkl'].open('wb') as f:
             pickle.dump(data_list, f, pickle.HIGHEST_PROTOCOL)
+
+    def get_input_list(self):
+        with self.output()['pkl'].open('rb') as f:
+            return pickle.load(f)
 
 
 class EncounterStats(luigi.Task):
@@ -65,12 +71,10 @@ class EncounterStats(luigi.Task):
     def run(self):
         import matplotlib.pyplot as plt
 
-        prepare_data_target = self.requires()['PrepareData'].output()
-        with prepare_data_target['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         ind_enc_count_dict = {}
-        for img, ind, enc in prepare_data_filepaths:
+        for img, ind, enc, _  in input_list:
             if ind not in ind_enc_count_dict:
                 ind_enc_count_dict[ind] = {}
             if enc not in ind_enc_count_dict[ind]:
@@ -133,13 +137,11 @@ class Preprocess(luigi.Task):
             ))
 
     def output(self):
-        prepare_data_target = self.requires()['PrepareData'].output()
-        with prepare_data_target['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -153,19 +155,19 @@ class Preprocess(luigi.Task):
         return outputs
 
     def run(self):
-        from workers import preprocess_images
+        from workers import preprocess_images_star
 
         output = self.output()
-        image_filepaths = output.keys()
+        input_list = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [fpath for fpath in image_filepaths if
+        to_process = [(fpath, side) for fpath, _, _, side in input_list if
                       not exists(output[fpath]['resized'].path) or
                       not exists(output[fpath]['transform'].path)]
 
         print('%d of %d images to process' % (
-            len(to_process), len(image_filepaths)))
+            len(to_process), len(input_list)))
         partial_preprocess_images = partial(
-            preprocess_images,
+            preprocess_images_star,
             imsize=self.imsize,
             output_targets=output,
         )
@@ -190,12 +192,11 @@ class Localization(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname =  splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -236,17 +237,17 @@ class Localization(luigi.Task):
         localization_func = theano_funcs.create_localization_infer_func(layers)
 
         output = self.output()
+        input_list = self.requires()['PrepareData'].get_input_list()
         preprocess_images_targets = self.requires()['Preprocess'].output()
-        image_filepaths = preprocess_images_targets.keys()
 
         # we don't parallelize this function because it uses the gpu
-        to_process = [fpath for fpath in image_filepaths if
+        to_process = [(fpath, side) for fpath, _, _, side in input_list if
                       not exists(output[fpath]['localization'].path) or
                       not exists(output[fpath]['localization-full'].path) or
                       not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
         print('%d of %d images to process' % (
-            len(to_process), len(image_filepaths)))
+            len(to_process), len(input_list)))
 
         num_batches = (
             len(to_process) + self.batch_size - 1) / self.batch_size
@@ -262,7 +263,7 @@ class Localization(luigi.Task):
             )
 
             for i, idx in enumerate(idx_range):
-                fpath = to_process[idx]
+                fpath, side = to_process[idx]
                 impath = preprocess_images_targets[fpath]['resized'].path
                 img = cv2.imread(impath)
                 tpath = preprocess_images_targets[fpath]['transform'].path
@@ -273,7 +274,7 @@ class Localization(luigi.Task):
 
             L_batch_loc, X_batch_loc = localization_func(X_batch)
             for i, idx in enumerate(idx_range):
-                fpath = to_process[idx]
+                fpath, side = to_process[idx]
                 loc_lr_target = output[fpath]['localization']
                 loc_hr_target = output[fpath]['localization-full']
                 mask_target = output[fpath]['mask']
@@ -287,6 +288,8 @@ class Localization(luigi.Task):
                 img_loc_lr = (255. * X_batch_loc[i]).astype(
                     np.uint8).transpose(1, 2, 0)
                 img_orig = cv2.imread(fpath)
+                if side.lower() == 'right':
+                    img_orig = img_orig[:, ::-1, :]
                 # don't need to store the mask, reconstruct it here
                 msk_orig = np.ones_like(img_orig).astype(np.float32)
                 img_loc_hr, mask_loc_hr = imutils.refine_localization(
@@ -327,12 +330,10 @@ class Segmentation(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -465,12 +466,11 @@ class Keypoints(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -535,12 +535,10 @@ class ExtractOutline(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -604,12 +602,11 @@ class SeparateEdges(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -678,9 +675,8 @@ class BlockCurvature(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
+
+        input_list = self.requires()['PrepareData'].get_input_list()
 
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
@@ -688,7 +684,7 @@ class BlockCurvature(luigi.Task):
         else:
             curvdir = join('standard', curvdir)
         outputs = {}
-        for fpath, _, _ in prepare_data_filepaths:
+        for fpath, _, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
@@ -750,11 +746,8 @@ class SeparateDatabaseQueries(luigi.Task):
         }
 
     def run(self):
-        prepare_data_targets = self.requires()['PrepareData'].output()
-        with prepare_data_targets['pkl'].open('rb') as f:
-            prepare_data_filepaths = pickle.load(f)
-
-        filepaths, individuals, encounters = zip(*prepare_data_filepaths)
+        input_list = self.requires()['PrepareData'].get_input_list()
+        filepaths, individuals, encounters, _ = zip(*input_list)
 
         fname_trailing_edge_dict = {}
         trailing_edge_dict = self.requires()['SeparateEdges'].output()
