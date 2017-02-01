@@ -904,9 +904,17 @@ class Identification(luigi.Task):
             np.min(qr_curvs_list))
         )
 
+        weights = 0.5 * np.ones(128, dtype=np.float32)
+        weights[0:96] = 1.
+        weights[96:128] = 0.
         simfunc = partial(
             ranking.dtw_alignment_cost,
-            weights=np.ones(len(self.curvature_scales), dtype=np.float32),
+            #weights=np.ones(len(self.curvature_scales), dtype=np.float32),
+            weights=weights,
+            #weights=np.array([
+            #    0.94270844, 0.31614931, 0.0960854,  0.04602188],
+            #    dtype=np.float32
+            #),
             window=self.window
         )
 
