@@ -33,7 +33,7 @@ extern "C" void weighted_chi_square(float* x1, float* x2, float* w,
           std::min(costs(i - 1, j), costs(i - 1, j - 1)));
     }
   }
-} 
+}
 
 extern "C" void euclidean(float* x1, float* x2, float* w,
                           int m, int n, int window,
@@ -57,4 +57,4 @@ extern "C" void euclidean(float* x1, float* x2, float* w,
           std::min(costs(i - 1, j), costs(i - 1, j - 1)));
     }
   }
-} 
+}
