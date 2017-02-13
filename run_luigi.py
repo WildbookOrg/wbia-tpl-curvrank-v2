@@ -904,17 +904,16 @@ class Identification(luigi.Task):
             np.min(qr_curvs_list))
         )
 
-        weights = 0.5 * np.ones(128, dtype=np.float32)
-        weights[0:96] = 1.
-        weights[96:128] = 0.
+        # for spatial weights in chi square distance
+        #weights = np.full(
+        #    (self.curv_length, len(self.curvature_scales)), 0.5,
+        #    dtype=np.float32
+        #)
+        # for scale weights in euclidean distance
+        weights = np.ones((1, len(self.curvature_scales)), dtype=np.float32)
         simfunc = partial(
             ranking.dtw_alignment_cost,
-            #weights=np.ones(len(self.curvature_scales), dtype=np.float32),
             weights=weights,
-            #weights=np.array([
-            #    0.94270844, 0.31614931, 0.0960854,  0.04602188],
-            #    dtype=np.float32
-            #),
             window=self.window
         )
 
