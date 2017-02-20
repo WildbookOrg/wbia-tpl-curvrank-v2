@@ -153,15 +153,19 @@ def compute_block_curvature(fpath, scales, oriented,
             curv = dorsal_utils.oriented_curvature(trailing_edge, scales)
         else:
             curv = dorsal_utils.block_curvature(trailing_edge, scales)
+    # write the failures too or it seems like the task did not complete
     else:
         curv = None
 
     curv_targets = output_targets[fpath]
-    # write the failures too or it seems like the task did not complete
-    for scale in scales:
+    # store each scale (column) of the curvature matrix separately
+    for j, scale in enumerate(scales):
         curv_target = curv_targets[scale]['curvature']
         with curv_target.open('wb') as f1:
-            pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
+            if curv is not None:
+                pickle.dump(curv[:, j], f1, pickle.HIGHEST_PROTOCOL)
+            else:
+                pickle.dump(None, f1, pickle.HIGHEST_PROTOCOL)
 
 
 def visualize_individuals(fpath, input_targets, output_targets):

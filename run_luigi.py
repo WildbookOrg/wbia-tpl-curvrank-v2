@@ -685,7 +685,7 @@ class BlockCurvature(luigi.Task):
 
         outputs = {}
         for fpath, indiv, _, _ in input_list:
-            indivdir = join(basedir, indiv)
+            fname = splitext(basename(fpath))[0]
             if fpath not in outputs:
                 outputs[fpath] = {}
             for s in self.curvature_scales:
@@ -694,7 +694,7 @@ class BlockCurvature(luigi.Task):
                 pkl_fname = '%.3f.pickle' % s
                 outputs[fpath][s] = {
                     'curvature': luigi.LocalTarget(
-                        join(indivdir, pkl_fname)),
+                        join(basedir, fname, pkl_fname)),
                 }
 
         return outputs
@@ -722,10 +722,10 @@ class BlockCurvature(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
-        for fpath in tqdm(to_process, total=len(to_process)):
-            partial_compute_block_curvature(fpath)
-        #pool = mp.Pool(processes=32)
-        #pool.map(partial_compute_block_curvature, to_process)
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_compute_block_curvature(fpath)
+        pool = mp.Pool(processes=32)
+        pool.map(partial_compute_block_curvature, to_process)
 
 
 class SeparateDatabaseQueries(luigi.Task):
@@ -872,13 +872,22 @@ class Identification(luigi.Task):
             if dind not in db_curv_dict:
                 db_curv_dict[dind] = []
             for fpath in db_fpath_dict[dind]:
-                with curv_targets[fpath]['curvature'].open('rb') as f:
-                    curv = pickle.load(f)
-                if self.normalize:
-                    curv -= curv.mean(axis=0)
-                    curv /= curv.std(axis=0)
-                curv = dorsal_utils.resampleNd(curv, self.curv_length)
-                db_curv_dict[dind].append(curv)
+                # load each scale separately into the curvature matrix
+                curv_matrix = np.empty(
+                    (self.curv_length, len(self.curvature_scales)),
+                    dtype=np.float32
+                )
+                for sidx, s in enumerate(self.curvature_scales):
+                    curv_target = curv_targets[fpath][s]['curvature']
+                    with curv_target.open('rb') as f:
+                        curv = pickle.load(f)
+                    if self.normalize:
+                        curv -= curv.mean(axis=0)
+                        curv /= curv.std(axis=0)
+                    curv_matrix[:, sidx] = dorsal_utils.resample(
+                        curv, self.curv_length
+                    )
+                db_curv_dict[dind].append(curv_matrix)
 
         qr_curv_dict = {}
         print('loading curvature vectors for %d query individuals' % (
@@ -890,13 +899,21 @@ class Identification(luigi.Task):
                 if qenc not in qr_curv_dict[qind]:
                     qr_curv_dict[qind][qenc] = []
                 for fpath in qr_fpath_dict[qind][qenc]:
-                    with curv_targets[fpath]['curvature'].open('rb') as f:
-                        curv = pickle.load(f)
-                    if self.normalize:
-                        curv -= curv.mean(axis=0)
-                        curv /= curv.std(axis=0)
-                    curv = dorsal_utils.resampleNd(curv, self.curv_length)
-                    qr_curv_dict[qind][qenc].append(curv)
+                    curv_matrix = np.empty(
+                        (self.curv_length, len(self.curvature_scales)),
+                        dtype=np.float32
+                    )
+                    for sidx, s in enumerate(self.curvature_scales):
+                        curv_target = curv_targets[fpath][s]['curvature']
+                        with curv_target.open('rb') as f:
+                            curv = pickle.load(f)
+                        if self.normalize:
+                            curv -= curv.mean(axis=0)
+                            curv /= curv.std(axis=0)
+                        curv_matrix[:, sidx] = dorsal_utils.resample(
+                            curv, self.curv_length
+                        )
+                    qr_curv_dict[qind][qenc].append(curv_matrix)
 
         db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
         qr_curvs_list = []
