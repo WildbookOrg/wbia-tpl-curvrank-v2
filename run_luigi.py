@@ -706,7 +706,7 @@ class BlockCurvature(luigi.Task):
         return to_process
 
     def complete(self):
-        to_process = []
+        to_process = self.get_incomplete()
         return not bool(to_process)
 
     def output(self):
