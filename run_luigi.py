@@ -843,6 +843,7 @@ class Identification(luigi.Task):
     def run(self):
         import dorsal_utils
         import ranking
+        from scipy.interpolate import BPoly
         from workers import identify_encounters
         curv_targets = self.requires()['BlockCurvature'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
@@ -904,13 +905,19 @@ class Identification(luigi.Task):
             np.min(qr_curvs_list))
         )
 
-        # for spatial weights in chi square distance
-        #weights = np.full(
-        #    (self.curv_length, len(self.curvature_scales)), 0.5,
-        #    dtype=np.float32
-        #)
-        # for scale weights in euclidean distance
-        weights = np.ones((1, len(self.curvature_scales)), dtype=np.float32)
+        # coefficients for the sum of polynomials
+        coeffs = np.array([0.0960, 0.6537, 1.0000, 0.7943, 1.0000,
+                           0.3584, 0.4492, 0.0000, 0.4157, 0.0626])
+        coeffs = coeffs.reshape(coeffs.shape[0], 1)
+        def bernstein_poly(x, coeffs):
+            interval = np.array([0, 1])
+            f = BPoly(coeffs, interval, extrapolate=False)
+
+            return f(x)
+
+        # coefficients to weights on the interval [0, 1]
+        weights = bernstein_poly(np.linspace(0, 1, 128), coeffs)
+        weights = weights.reshape(-1, 1).astype(np.float32)
         simfunc = partial(
             ranking.dtw_alignment_cost,
             weights=weights,
