@@ -140,9 +140,18 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
         pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
 
 
+def compute_curvature_star(fpath_scales, oriented,
+                           input_targets, output_targets):
+    return compute_curvature(
+        *fpath_scales,
+        oriented=oriented,
+        input_targets=input_targets, output_targets=output_targets
+    )
+
+
 #input_targets: extract_high_resolution_outline_targets
-def compute_block_curvature(fpath, scales, oriented,
-                            input_targets, output_targets):
+def compute_curvature(fpath, scales, oriented,
+                      input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f)
@@ -159,8 +168,7 @@ def compute_block_curvature(fpath, scales, oriented,
         curv = None
 
     curv_target = output_targets[fpath]['curvature']
-    with curv_target.open('w') as f:
-        h5f = h5py.File(f.name)
+    with curv_target.open('a') as h5f:
         # store each scale (column) of the curvature matrix separately
         for j, scale in enumerate(scales):
             if curv is not None:

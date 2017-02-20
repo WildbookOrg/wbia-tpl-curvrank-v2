@@ -13,6 +13,11 @@ from tqdm import tqdm
 from os.path import basename, exists, join, splitext
 
 
+class HDF5LocalTarget(luigi.LocalTarget):
+    def open(self, mode):
+        return h5py.File(self.path, mode)
+
+
 class PrepareData(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
 
@@ -674,6 +679,36 @@ class BlockCurvature(luigi.Task):
                 scale=self.scale)
         }
 
+    def get_incomplete(self):
+        separate_edges_targets = self.requires()['SeparateEdges'].output()
+        output = self.output()
+        input_filepaths = separate_edges_targets.keys()
+
+        # an images is incomplete if:
+        # 1) no hdf5 file exists for it, or
+        # 2) the hdf5 file exsists, but some scales are missing
+        to_process = []
+        for fpath in input_filepaths:
+            target = output[fpath]['curvature']
+            if target.exists():
+                with target.open('r') as h5f:
+                    scales_computed = h5f.keys()
+                scales_to_compute = []
+                for scale in self.curvature_scales:
+                    # only compute the missing scales
+                    if '%.3f' % scale not in scales_computed:
+                        scales_to_compute.append(scale)
+                if scales_to_compute:
+                    to_process.append((fpath, tuple(scales_to_compute)))
+            else:
+                to_process.append((fpath, tuple(self.curvature_scales)))
+
+        return to_process
+
+    def complete(self):
+        to_process = []
+        return not bool(to_process)
+
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
 
@@ -690,32 +725,25 @@ class BlockCurvature(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             for s in self.curvature_scales:
                 outputs[fpath] = {
-                    'curvature': luigi.LocalTarget(
+                    'curvature': HDF5LocalTarget(
                         join(basedir, h5py_fname)),
                 }
 
         return outputs
 
     def run(self):
-        from workers import compute_block_curvature
+        from workers import compute_curvature_star
         separate_edges_targets = self.requires()['SeparateEdges'].output()
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
 
-        #to_process = [
-        #    fpath for fpath in input_filepaths for s in self.curvature_scales
-        #    if not exists(output[fpath][s]['curvature'].path)
-        #]
-        to_process = input_filepaths
-        print('%d of %d scales to process (for %d images)' % (
-            len(to_process),
-            len(self.curvature_scales) * len(input_filepaths),
-            len(input_filepaths))
+        to_process = self.get_incomplete()
+        print('%d of %d images to process' % (
+            len(to_process), len(input_filepaths))
         )
 
         partial_compute_block_curvature = partial(
-            compute_block_curvature,
-            scales=self.curvature_scales,
+            compute_curvature_star,
             oriented=self.oriented,
             input_targets=separate_edges_targets,
             output_targets=output,
@@ -876,16 +904,15 @@ class Identification(luigi.Task):
                     dtype=np.float32
                 )
                 curv_target = curv_targets[fpath]['curvature']
-                with curv_target.open('rb') as f:
-                    h5f = h5py.File(f.name)
-                for sidx, s in enumerate(self.curvature_scales):
-                    curv = h5f['%.3f' % s][:]
-                    if self.normalize:
-                        curv -= curv.mean(axis=0)
-                        curv /= curv.std(axis=0)
-                    curv_matrix[:, sidx] = dorsal_utils.resample(
-                        curv, self.curv_length
-                    )
+                with curv_target.open('r') as h5f:
+                    for sidx, s in enumerate(self.curvature_scales):
+                        curv = h5f['%.3f' % s][:]
+                        if self.normalize:
+                            curv -= curv.mean(axis=0)
+                            curv /= curv.std(axis=0)
+                        curv_matrix[:, sidx] = dorsal_utils.resample(
+                            curv, self.curv_length
+                        )
                 db_curv_dict[dind].append(curv_matrix)
 
         qr_curv_dict = {}
@@ -903,16 +930,15 @@ class Identification(luigi.Task):
                         dtype=np.float32
                     )
                     curv_target = curv_targets[fpath]['curvature']
-                    with curv_target.open('rb') as f:
-                        h5f = h5py.File(f.name)
-                    for sidx, s in enumerate(self.curvature_scales):
-                        curv = h5f['%.3f' % s][:]
-                        if self.normalize:
-                            curv -= curv.mean(axis=0)
-                            curv /= curv.std(axis=0)
-                        curv_matrix[:, sidx] = dorsal_utils.resample(
-                            curv, self.curv_length
-                        )
+                    with curv_target.open('r') as h5f:
+                        for sidx, s in enumerate(self.curvature_scales):
+                            curv = h5f['%.3f' % s][:]
+                            if self.normalize:
+                                curv -= curv.mean(axis=0)
+                                curv /= curv.std(axis=0)
+                            curv_matrix[:, sidx] = dorsal_utils.resample(
+                                curv, self.curv_length
+                            )
                     qr_curv_dict[qind][qenc].append(curv_matrix)
 
         db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
