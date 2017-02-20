@@ -1,6 +1,7 @@
 import affine
 import cv2
 import cPickle as pickle
+import h5py
 import numpy as np
 import dorsal_utils
 import imutils
@@ -157,15 +158,15 @@ def compute_block_curvature(fpath, scales, oriented,
     else:
         curv = None
 
-    curv_targets = output_targets[fpath]
-    # store each scale (column) of the curvature matrix separately
-    for j, scale in enumerate(scales):
-        curv_target = curv_targets[scale]['curvature']
-        with curv_target.open('wb') as f1:
+    curv_target = output_targets[fpath]['curvature']
+    with curv_target.open('w') as f:
+        h5f = h5py.File(f.name)
+        # store each scale (column) of the curvature matrix separately
+        for j, scale in enumerate(scales):
             if curv is not None:
-                pickle.dump(curv[:, j], f1, pickle.HIGHEST_PROTOCOL)
+                h5f.create_dataset('%.3f' % scale, data=curv[:, j])
             else:
-                pickle.dump(None, f1, pickle.HIGHEST_PROTOCOL)
+                h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
 def visualize_individuals(fpath, input_targets, output_targets):

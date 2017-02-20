@@ -1,5 +1,6 @@
 import cPickle as pickle
 import cv2
+import h5py
 import pandas as pd
 import luigi
 import datasets
@@ -686,15 +687,11 @@ class BlockCurvature(luigi.Task):
         outputs = {}
         for fpath, indiv, _, _ in input_list:
             fname = splitext(basename(fpath))[0]
-            if fpath not in outputs:
-                outputs[fpath] = {}
+            h5py_fname = '%s.h5py' % fname
             for s in self.curvature_scales:
-                if s not in outputs[fpath]:
-                    outputs[fpath][s] = {}
-                pkl_fname = '%.3f.pickle' % s
-                outputs[fpath][s] = {
+                outputs[fpath] = {
                     'curvature': luigi.LocalTarget(
-                        join(basedir, fname, pkl_fname)),
+                        join(basedir, h5py_fname)),
                 }
 
         return outputs
@@ -705,10 +702,11 @@ class BlockCurvature(luigi.Task):
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
 
-        to_process = [
-            fpath for fpath in input_filepaths for s in self.curvature_scales
-            if not exists(output[fpath][s]['curvature'].path)
-        ]
+        #to_process = [
+        #    fpath for fpath in input_filepaths for s in self.curvature_scales
+        #    if not exists(output[fpath][s]['curvature'].path)
+        #]
+        to_process = input_filepaths
         print('%d of %d scales to process (for %d images)' % (
             len(to_process),
             len(self.curvature_scales) * len(input_filepaths),
@@ -877,10 +875,11 @@ class Identification(luigi.Task):
                     (self.curv_length, len(self.curvature_scales)),
                     dtype=np.float32
                 )
+                curv_target = curv_targets[fpath]['curvature']
+                with curv_target.open('rb') as f:
+                    h5f = h5py.File(f.name)
                 for sidx, s in enumerate(self.curvature_scales):
-                    curv_target = curv_targets[fpath][s]['curvature']
-                    with curv_target.open('rb') as f:
-                        curv = pickle.load(f)
+                    curv = h5f['%.3f' % s][:]
                     if self.normalize:
                         curv -= curv.mean(axis=0)
                         curv /= curv.std(axis=0)
@@ -903,10 +902,11 @@ class Identification(luigi.Task):
                         (self.curv_length, len(self.curvature_scales)),
                         dtype=np.float32
                     )
+                    curv_target = curv_targets[fpath]['curvature']
+                    with curv_target.open('rb') as f:
+                        h5f = h5py.File(f.name)
                     for sidx, s in enumerate(self.curvature_scales):
-                        curv_target = curv_targets[fpath][s]['curvature']
-                        with curv_target.open('rb') as f:
-                            curv = pickle.load(f)
+                        curv = h5f['%.3f' % s][:]
                         if self.normalize:
                             curv -= curv.mean(axis=0)
                             curv /= curv.std(axis=0)
