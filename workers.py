@@ -156,10 +156,12 @@ def compute_block_curvature(fpath, scales, oriented,
     else:
         curv = None
 
-    curv_target = output_targets[fpath]['curvature']
+    curv_targets = output_targets[fpath]
     # write the failures too or it seems like the task did not complete
-    with curv_target.open('wb') as f1:
-        pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
+    for scale in scales:
+        curv_target = curv_targets[scale]['curvature']
+        with curv_target.open('wb') as f1:
+            pickle.dump(curv, f1, pickle.HIGHEST_PROTOCOL)
 
 
 def visualize_individuals(fpath, input_targets, output_targets):

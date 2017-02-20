@@ -678,19 +678,24 @@ class BlockCurvature(luigi.Task):
 
         input_list = self.requires()['PrepareData'].get_input_list()
 
-        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
-            curvdir = join('oriented', curvdir)
+            basedir = join(basedir, 'oriented')
         else:
-            curvdir = join('standard', curvdir)
+            basedir = join(basedir, 'standard')
+
         outputs = {}
-        for fpath, _, _, _ in input_list:
-            fname = splitext(basename(fpath))[0]
-            pkl_fname = '%s.pickle' % fname
-            outputs[fpath] = {
-                'curvature': luigi.LocalTarget(
-                    join(basedir, curvdir, pkl_fname)),
-            }
+        for fpath, indiv, _, _ in input_list:
+            indivdir = join(basedir, indiv)
+            if fpath not in outputs:
+                outputs[fpath] = {}
+            for s in self.curvature_scales:
+                if s not in outputs[fpath]:
+                    outputs[fpath][s] = {}
+                pkl_fname = '%.3f.pickle' % s
+                outputs[fpath][s] = {
+                    'curvature': luigi.LocalTarget(
+                        join(indivdir, pkl_fname)),
+                }
 
         return outputs
 
@@ -700,10 +705,15 @@ class BlockCurvature(luigi.Task):
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
 
-        to_process = [fpath for fpath in input_filepaths if
-                      not exists(output[fpath]['curvature'].path)]
-        print('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        to_process = [
+            fpath for fpath in input_filepaths for s in self.curvature_scales
+            if not exists(output[fpath][s]['curvature'].path)
+        ]
+        print('%d of %d scales to process (for %d images)' % (
+            len(to_process),
+            len(self.curvature_scales) * len(input_filepaths),
+            len(input_filepaths))
+        )
 
         partial_compute_block_curvature = partial(
             compute_block_curvature,
@@ -712,10 +722,10 @@ class BlockCurvature(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
-        #    partial_compute_block_curvature(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_compute_block_curvature, to_process)
+        for fpath in tqdm(to_process, total=len(to_process)):
+            partial_compute_block_curvature(fpath)
+        #pool = mp.Pool(processes=32)
+        #pool.map(partial_compute_block_curvature, to_process)
 
 
 class SeparateDatabaseQueries(luigi.Task):
