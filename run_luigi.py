@@ -862,6 +862,7 @@ class Identification(luigi.Task):
     normalize = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
     cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
+    spatial_weights = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -989,8 +990,13 @@ class Identification(luigi.Task):
 
             return f(x)
 
-        # coefficients to weights on the interval [0, 1]
-        weights = bernstein_poly(np.linspace(0, 1, self.curv_length), coeffs)
+        if self.spatial_weights:
+            # coefficients to weights on the interval [0, 1]
+            weights = bernstein_poly(
+                np.linspace(0, 1, self.curv_length), coeffs
+            )
+        else:
+            weights = np.ones(self.curv_length, dtype=np.float32)
         weights = weights.reshape(-1, 1).astype(np.float32)
 
         # set the appropriate distance measure for time-warping alignment
@@ -1041,6 +1047,7 @@ class Results(luigi.Task):
     normalize = luigi.BoolParameter(default=False)
     num_db_encounters = luigi.IntParameter(default=10)
     cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
+    spatial_weights = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -1070,7 +1077,8 @@ class Results(luigi.Task):
                 curvature_scales=self.curvature_scales,
                 oriented=self.oriented,
                 normalize=self.normalize,
-                cost_func=self.cost_func),
+                cost_func=self.cost_func,
+                spatial_weights=self.spatial_weights),
         }
 
     def output(self):
