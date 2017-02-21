@@ -184,8 +184,12 @@ class Preprocess(luigi.Task):
         )
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_preprocess_images(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_preprocess_images, to_process)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_preprocess_images, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 class Localization(luigi.Task):
@@ -514,8 +518,12 @@ class Keypoints(luigi.Task):
         )
         #for fpath in tqdm(to_process, total=len(image_filepaths)):
         #    partial_find_keypoints(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_find_keypoints, to_process)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_find_keypoints, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 class ExtractOutline(luigi.Task):
@@ -585,8 +593,12 @@ class ExtractOutline(luigi.Task):
         )
         #for fpath in tqdm(to_process, total=len(image_filepaths)):
         #    partial_extract_outline(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_extract_outline, to_process)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_extract_outline, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 class SeparateEdges(luigi.Task):
@@ -654,8 +666,12 @@ class SeparateEdges(luigi.Task):
         )
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_separate_edges(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_separate_edges, to_process)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_separate_edges, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 class BlockCurvature(luigi.Task):
@@ -664,6 +680,8 @@ class BlockCurvature(luigi.Task):
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
     oriented = luigi.BoolParameter(default=False)
+    serial = luigi.BoolParameter(default=False)
+
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
             default=(0.06, 0.10, 0.14, 0.18)
@@ -753,10 +771,16 @@ class BlockCurvature(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
-        #    partial_compute_block_curvature(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_compute_block_curvature, to_process)
+        if self.serial:
+            for fpath in tqdm(to_process, total=len(to_process)):
+                partial_compute_block_curvature(fpath)
+        else:
+            try:
+                pool = mp.Pool(processes=32)
+                pool.map(partial_compute_block_curvature, to_process)
+            finally:
+                pool.close()
+                pool.join()
 
 
 class SeparateDatabaseQueries(luigi.Task):
@@ -827,6 +851,7 @@ class Identification(luigi.Task):
     curv_length = luigi.IntParameter(default=128)
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
+    serial = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -848,7 +873,8 @@ class Identification(luigi.Task):
                 batch_size=self.batch_size,
                 scale=self.scale,
                 oriented=self.oriented,
-                curvature_scales=self.curvature_scales),
+                curvature_scales=self.curvature_scales,
+                serial=self.serial),
             'SeparateDatabaseQueries': SeparateDatabaseQueries(
                 dataset=self.dataset,
                 imsize=self.imsize,
@@ -971,10 +997,17 @@ class Identification(luigi.Task):
             simfunc=simfunc,
             output_targets=output,
         )
-        pool = mp.Pool(processes=32)
-        pool.map(partial_identify_encounters, qindivs)
-        #for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-        #    partial_identify_encounters(qind)
+
+        if self.serial:
+            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
+                partial_identify_encounters(qind)
+        else:
+            try:
+                pool = mp.Pool(processes=32)
+                pool.map(partial_identify_encounters, qindivs)
+            finally:
+                pool.close()
+                pool.join()
 
 
 class Results(luigi.Task):
@@ -1227,8 +1260,12 @@ class VisualizeIndividuals(luigi.Task):
 
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_visualize_individuals(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_visualize_individuals, to_process)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_visualize_individuals, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 class VisualizeMisidentifications(luigi.Task):
@@ -1331,8 +1368,12 @@ class VisualizeMisidentifications(luigi.Task):
 
         #for qind in qindivs:
         #    partial_visualize_misidentifications(qind)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_visualize_misidentifications, qindivs)
+        try:
+            pool = mp.Pool(processes=32)
+            pool.map(partial_visualize_misidentifications, qindivs)
+        finally:
+            pool.close()
+            pool.join()
 
 
 if __name__ == '__main__':
