@@ -5,6 +5,7 @@ import pandas as pd
 import luigi
 import datasets
 import model
+import logging
 import multiprocessing as mp
 import numpy as np
 
@@ -12,6 +13,9 @@ from functools import partial
 from time import time
 from tqdm import tqdm
 from os.path import basename, exists, join, splitext
+
+
+logger = logging.getLogger('luigi-interface')
 
 
 class HDF5LocalTarget(luigi.LocalTarget):
@@ -41,7 +45,7 @@ class PrepareData(luigi.Task):
         data_list = datasets.load_dataset(self.dataset)
 
         output = self.output()
-        print('%d data tuples returned' % (len(data_list)))
+        logger.info('%d data tuples returned' % (len(data_list)))
 
         with output['csv'].open('w') as f:
             f.write('impath,individual,encounter\n')
@@ -96,7 +100,7 @@ class EncounterStats(luigi.Task):
         individuals_to_remove = []
         for ind in ind_enc_count_dict:
             if len(ind_enc_count_dict[ind]) == 1:
-                print('%s has only 1 encounter' % (ind))
+                logger.info('%s has only 1 encounter' % (ind))
                 individuals_to_remove.append(ind)
 
         for ind in individuals_to_remove:
@@ -176,7 +180,7 @@ class Preprocess(luigi.Task):
                       not exists(output[fpath]['resized'].path) or
                       not exists(output[fpath]['transform'].path)]
 
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(input_list)))
         partial_preprocess_images = partial(
             preprocess_images_star,
@@ -235,21 +239,21 @@ class Localization(luigi.Task):
         import theano_funcs
         height, width = 256, 256
 
-        print('building localization model')
+        logger.info('Building localization model')
         layers = localization.build_model(
             (None, 3, height, width), downsample=1)
 
         localization_weightsfile = join(
             'data', 'weights', 'weights_localization.pickle'
         )
-        print('loading weights for the localization network from %s' % (
+        logger.info('Loading weights for the localization network from %s' % (
             localization_weightsfile))
         model.load_weights([
             layers['trans'], layers['loc']],
             localization_weightsfile
         )
 
-        print('compiling theano functions for localization')
+        logger.info('Compiling theano functions for localization')
         localization_func = theano_funcs.create_localization_infer_func(layers)
 
         output = self.output()
@@ -262,12 +266,12 @@ class Localization(luigi.Task):
                       not exists(output[fpath]['localization-full'].path) or
                       not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(input_list)))
 
         num_batches = (
             len(to_process) + self.batch_size - 1) / self.batch_size
-        print('%d batches to process' % (num_batches))
+        logger.info('%d batches to process' % (num_batches))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
                               min((i + 1) * self.batch_size, len(to_process)))
@@ -374,18 +378,18 @@ class Segmentation(luigi.Task):
         height, width = 256, 256
         input_shape = (None, 3, height, width)
 
-        print('building segmentation model with input shape %r' % (
+        logger.info('Building segmentation model with input shape %r' % (
             input_shape,))
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
             'data', 'weights', 'weights_segmentation.pickle'
         )
-        print('loading weights for the segmentation network from %s' % (
+        logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
         model.load_weights(layers_segm['seg_out'], segmentation_weightsfile)
 
-        print('compiling theano functions for segmentation')
+        logger.info('Compiling theano functions for segmentation')
         segm_func = theano_funcs.create_segmentation_func(layers_segm)
 
         output = self.output()
@@ -404,12 +408,12 @@ class Segmentation(luigi.Task):
                     or not exists(seg_full_data_fpath):
                 to_process.append(fpath)
 
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
         num_batches = (
             len(to_process) + self.batch_size - 1) / self.batch_size
-        print('%d batches to process' % (num_batches))
+        logger.info('%d batches to process' % (num_batches))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
                               min((i + 1) * self.batch_size, len(to_process)))
@@ -508,7 +512,7 @@ class Keypoints(luigi.Task):
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['keypoints-visual'].path) or
                       not exists(output[fpath]['keypoints-coords'].path)]
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
         partial_find_keypoints = partial(
@@ -581,7 +585,7 @@ class ExtractOutline(luigi.Task):
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['outline-visual'].path) or
                       not exists(output[fpath]['outline-coords'].path)]
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
         partial_extract_outline = partial(
@@ -656,7 +660,7 @@ class SeparateEdges(luigi.Task):
                       not exists(output[fpath]['visual'].path) or
                       not exists(output[fpath]['leading-coords'].path) or
                       not exists(output[fpath]['trailing-coords'].path)]
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(input_filepaths)))
 
         partial_separate_edges = partial(
@@ -762,7 +766,7 @@ class BlockCurvature(luigi.Task):
         input_filepaths = separate_edges_targets.keys()
 
         to_process = self.get_incomplete()
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(input_filepaths))
         )
 
@@ -784,7 +788,7 @@ class BlockCurvature(luigi.Task):
                 pool.close()
                 pool.join()
         t_end = time()
-        print('task %s completed in %.3fs' % (
+        logger.info('%s completed in %.3fs' % (
             self.__class__.__name__, t_end - t_start))
 
 
@@ -839,10 +843,10 @@ class SeparateDatabaseQueries(luigi.Task):
         )
 
         output = self.output()
-        print('saving database with %d individuals' % (len(db_dict)))
+        logger.info('Saving database with %d individuals' % (len(db_dict)))
         with output['database'].open('wb') as f:
             pickle.dump(db_dict, f, pickle.HIGHEST_PROTOCOL)
-        print('saving queries with %d individuals' % (len(qr_dict)))
+        logger.info('Saving queries with %d individuals' % (len(qr_dict)))
         with output['queries'].open('wb') as f:
             pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
 
@@ -930,7 +934,7 @@ class Identification(luigi.Task):
             qr_fpath_dict = pickle.load(f)
 
         db_curv_dict = {}
-        print('loading curvature vectors for %d database individuals' % (
+        logger.info('Loading curvature vectors for %d database individuals' % (
             len(db_fpath_dict)))
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             if dind not in db_curv_dict:
@@ -943,7 +947,7 @@ class Identification(luigi.Task):
                 db_curv_dict[dind].append(curv_matrix)
 
         qr_curv_dict = {}
-        print('loading curvature vectors for %d query individuals' % (
+        logger.info('Loading curvature vectors for %d query individuals' % (
             len(qr_fpath_dict)))
         for qind in tqdm(qr_fpath_dict, total=len(qr_fpath_dict), leave=False):
             if qind not in qr_curv_dict:
@@ -964,12 +968,12 @@ class Identification(luigi.Task):
             for enc in qr_curv_dict[ind]:
                 qr_curvs_list.append(len(qr_curv_dict[ind][enc]))
 
-        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+        logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
             np.max(db_curvs_list),
             np.mean(db_curvs_list),
             np.min(db_curvs_list))
         )
-        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+        logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
             np.max(qr_curvs_list),
             np.mean(qr_curvs_list),
             np.min(qr_curvs_list))
@@ -1000,7 +1004,8 @@ class Identification(luigi.Task):
 
         output = self.output()
         qindivs = qr_curv_dict.keys()
-        print('running identification for %d individuals' % (len(qindivs)))
+        logger.info('Running identification for %d individuals' % (
+            len(qindivs)))
         partial_identify_encounters = partial(
             identify_encounters,
             qr_curv_dict=qr_curv_dict,
@@ -1021,7 +1026,7 @@ class Identification(luigi.Task):
                 pool.close()
                 pool.join()
         t_end = time()
-        print('task %s completed in %.3fs' % (
+        logger.info('%s completed in %.3fs' % (
             self.__class__.__name__, t_end - t_start))
 
 
@@ -1131,14 +1136,15 @@ class Results(luigi.Task):
         rank_indices = np.array(rank_indices)
         num_queries = rank_indices.shape[0]
         num_indivs = len(indiv_rank_indices)
-        print('accuracy scores:')
+        logger.info('Accuracy scores for k = %s:' % (
+            ', '.join(['%d' % k for k in topk_scores])))
         with self.output()[2].open('w') as f:
             f.write('topk,accuracy\n')
             for k in range(1, 1 + num_indivs):
                 topk = (100. / num_queries) * (rank_indices <= k).sum()
                 f.write('top-%d,%.6f\n' % (k, topk))
                 if k in topk_scores:
-                    print(' top-%d: %.2f%%' % (k, topk))
+                    logger.info(' top-%d: %.2f%%' % (k, topk))
 
 
 class ParameterSearch(luigi.Task):
@@ -1266,7 +1272,7 @@ class VisualizeIndividuals(luigi.Task):
         to_process = [fpath for fpath in image_filepaths if
                       not exists(output[fpath]['image'].path)]
 
-        print('%d of %d images to process' % (
+        logger.info('%d of %d images to process' % (
             len(to_process), len(image_filepaths)))
 
         partial_visualize_individuals = partial(
@@ -1285,7 +1291,7 @@ class VisualizeIndividuals(luigi.Task):
             pool.close()
             pool.join()
         t_end = time()
-        print('task %s completed in %.3fs' % (
+        logger.info('%s completed in %.3fs' % (
             self.__class__.__name__, t_end - t_start))
 
 
