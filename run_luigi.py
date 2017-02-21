@@ -14,7 +14,12 @@ from os.path import basename, exists, join, splitext
 
 
 class HDF5LocalTarget(luigi.LocalTarget):
+    def __init__(self, path):
+        super(HDF5LocalTarget, self).__init__(path)
+
     def open(self, mode):
+        if mode in ('a', 'w'):
+            self.makedirs()
         return h5py.File(self.path, mode)
 
 
