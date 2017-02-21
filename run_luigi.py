@@ -899,7 +899,7 @@ class Identification(luigi.Task):
         db_curv_dict = {}
         print('loading curvature vectors for %d database individuals' % (
             len(db_fpath_dict)))
-        for dind in db_fpath_dict:
+        for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             if dind not in db_curv_dict:
                 db_curv_dict[dind] = []
             for fpath in db_fpath_dict[dind]:
@@ -912,7 +912,7 @@ class Identification(luigi.Task):
         qr_curv_dict = {}
         print('loading curvature vectors for %d query individuals' % (
             len(qr_fpath_dict)))
-        for qind in qr_fpath_dict:
+        for qind in tqdm(qr_fpath_dict, total=len(qr_fpath_dict), leave=False):
             if qind not in qr_curv_dict:
                 qr_curv_dict[qind] = {}
             for qenc in qr_fpath_dict[qind]:
