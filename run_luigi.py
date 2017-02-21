@@ -9,6 +9,7 @@ import multiprocessing as mp
 import numpy as np
 
 from functools import partial
+from time import time
 from tqdm import tqdm
 from os.path import basename, exists, join, splitext
 
@@ -771,6 +772,7 @@ class BlockCurvature(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
+        t_start = time()
         if self.serial:
             for fpath in tqdm(to_process, total=len(to_process)):
                 partial_compute_block_curvature(fpath)
@@ -781,6 +783,9 @@ class BlockCurvature(luigi.Task):
             finally:
                 pool.close()
                 pool.join()
+        t_end = time()
+        print('task %s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class SeparateDatabaseQueries(luigi.Task):
@@ -852,6 +857,7 @@ class Identification(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
+    cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -886,9 +892,9 @@ class Identification(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
-            curvdir = join('oriented', curvdir)
+            curvdir = join('oriented', self.cost_func, curvdir)
         else:
-            curvdir = join('standard', curvdir)
+            curvdir = join('standard', self.cost_func, curvdir)
 
         # query dict tells us which encounters become result objects
         db_qr_target = self.requires()['SeparateDatabaseQueries']
@@ -909,7 +915,8 @@ class Identification(luigi.Task):
 
     def run(self):
         import dorsal_utils
-        import ranking
+        from pydtw import dtw_weighted_euclidean
+        from pydtw import dtw_weighted_chi_square
         from scipy.interpolate import BPoly
         from workers import identify_encounters
         curv_targets = self.requires()['BlockCurvature'].output()
@@ -981,11 +988,15 @@ class Identification(luigi.Task):
         # coefficients to weights on the interval [0, 1]
         weights = bernstein_poly(np.linspace(0, 1, self.curv_length), coeffs)
         weights = weights.reshape(-1, 1).astype(np.float32)
-        simfunc = partial(
-            ranking.dtw_alignment_cost,
-            weights=weights,
-            window=self.window
-        )
+
+        # set the appropriate distance measure for time-warping alignment
+        if self.cost_func == 'l2':
+            cost_func = dtw_weighted_euclidean
+        elif self.cost_func == 'chi2':
+            cost_func = dtw_weighted_chi_square
+        else:
+            assert False, 'bad cost func: %s' % (self.cost_func)
+        simfunc = partial(cost_func, weights=weights, window=self.window)
 
         output = self.output()
         qindivs = qr_curv_dict.keys()
@@ -998,6 +1009,7 @@ class Identification(luigi.Task):
             output_targets=output,
         )
 
+        t_start = time()
         if self.serial:
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 partial_identify_encounters(qind)
@@ -1008,6 +1020,9 @@ class Identification(luigi.Task):
             finally:
                 pool.close()
                 pool.join()
+        t_end = time()
+        print('task %s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class Results(luigi.Task):
@@ -1020,6 +1035,7 @@ class Results(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
     num_db_encounters = luigi.IntParameter(default=10)
+    cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -1048,16 +1064,17 @@ class Results(luigi.Task):
                 curv_length=self.curv_length,
                 curvature_scales=self.curvature_scales,
                 oriented=self.oriented,
-                normalize=self.normalize)
+                normalize=self.normalize,
+                cost_func=self.cost_func),
         }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
         if self.oriented:
-            curvdir = join('oriented', curvdir)
+            curvdir = join('oriented', self.cost_func, curvdir)
         else:
-            curvdir = join('standard', curvdir)
+            curvdir = join('standard', self.cost_func, curvdir)
 
         return [
             luigi.LocalTarget(
@@ -1258,6 +1275,7 @@ class VisualizeIndividuals(luigi.Task):
             output_targets=output
         )
 
+        t_start = time()
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_visualize_individuals(fpath)
         try:
@@ -1266,6 +1284,9 @@ class VisualizeIndividuals(luigi.Task):
         finally:
             pool.close()
             pool.join()
+        t_end = time()
+        print('task %s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class VisualizeMisidentifications(luigi.Task):
