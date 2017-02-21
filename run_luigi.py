@@ -689,7 +689,7 @@ class BlockCurvature(luigi.Task):
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
 
-        # an images is incomplete if:
+        # an image is incomplete if:
         # 1) no hdf5 file exists for it, or
         # 2) the hdf5 file exsists, but some scales are missing
         to_process = []
