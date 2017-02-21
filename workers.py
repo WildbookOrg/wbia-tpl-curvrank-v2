@@ -1,13 +1,14 @@
 import affine
 import cv2
 import cPickle as pickle
-import h5py
 import numpy as np
 import dorsal_utils
 import imutils
 import matplotlib
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
+
+from ranking import dtw_alignment_cost
 
 
 def preprocess_images_star(fpath_side, imsize, output_targets):
@@ -198,7 +199,7 @@ def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
         for dind in dindivs:
             dcurvs = db_curv_dict[dind]
             # mxn matrix: m query curvs, n db curvs for an individual
-            result_dict[dind] = simfunc(qcurvs, dcurvs)
+            result_dict[dind] = dtw_alignment_cost(qcurvs, dcurvs, simfunc)
 
         with output_targets[qind][qenc].open('wb') as f:
             pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
