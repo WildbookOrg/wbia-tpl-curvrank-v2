@@ -268,3 +268,18 @@ def reorient(points, theta, center):
         points_trans.ndim)
 
     return points_trans
+
+
+def load_curv_mat_from_h5py(target, scales, curv_length, normalize):
+    # each column represents a single scale
+    curv_matrix = np.empty((curv_length, len(scales)), dtype=np.float32)
+    with target.open('r') as h5f:
+        # load each scale separately into the curvature matrix
+        for sidx, s in enumerate(scales):
+            curv = h5f['%.3f' % s][:]
+            if normalize:
+                curv -= curv.mean(axis=0)
+                curv /= curv.std(axis=0)
+            curv_matrix[:, sidx] = resample(curv, curv_length)
+
+    return curv_matrix

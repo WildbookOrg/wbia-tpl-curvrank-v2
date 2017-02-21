@@ -903,21 +903,10 @@ class Identification(luigi.Task):
             if dind not in db_curv_dict:
                 db_curv_dict[dind] = []
             for fpath in db_fpath_dict[dind]:
-                # load each scale separately into the curvature matrix
-                curv_matrix = np.empty(
-                    (self.curv_length, len(self.curvature_scales)),
-                    dtype=np.float32
+                curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
+                    curv_targets[fpath]['curvature'],
+                    self.curvature_scales, self.curv_length, self.normalize
                 )
-                curv_target = curv_targets[fpath]['curvature']
-                with curv_target.open('r') as h5f:
-                    for sidx, s in enumerate(self.curvature_scales):
-                        curv = h5f['%.3f' % s][:]
-                        if self.normalize:
-                            curv -= curv.mean(axis=0)
-                            curv /= curv.std(axis=0)
-                        curv_matrix[:, sidx] = dorsal_utils.resample(
-                            curv, self.curv_length
-                        )
                 db_curv_dict[dind].append(curv_matrix)
 
         qr_curv_dict = {}
@@ -930,20 +919,10 @@ class Identification(luigi.Task):
                 if qenc not in qr_curv_dict[qind]:
                     qr_curv_dict[qind][qenc] = []
                 for fpath in qr_fpath_dict[qind][qenc]:
-                    curv_matrix = np.empty(
-                        (self.curv_length, len(self.curvature_scales)),
-                        dtype=np.float32
+                    curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
+                        curv_targets[fpath]['curvature'],
+                        self.curvature_scales, self.curv_length, self.normalize
                     )
-                    curv_target = curv_targets[fpath]['curvature']
-                    with curv_target.open('r') as h5f:
-                        for sidx, s in enumerate(self.curvature_scales):
-                            curv = h5f['%.3f' % s][:]
-                            if self.normalize:
-                                curv -= curv.mean(axis=0)
-                                curv /= curv.std(axis=0)
-                            curv_matrix[:, sidx] = dorsal_utils.resample(
-                                curv, self.curv_length
-                            )
                     qr_curv_dict[qind][qenc].append(curv_matrix)
 
         db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
