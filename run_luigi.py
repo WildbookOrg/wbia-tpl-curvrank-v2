@@ -953,7 +953,7 @@ class Identification(luigi.Task):
             return f(x)
 
         # coefficients to weights on the interval [0, 1]
-        weights = bernstein_poly(np.linspace(0, 1, 128), coeffs)
+        weights = bernstein_poly(np.linspace(0, 1, self.curv_length), coeffs)
         weights = weights.reshape(-1, 1).astype(np.float32)
         simfunc = partial(
             ranking.dtw_alignment_cost,
