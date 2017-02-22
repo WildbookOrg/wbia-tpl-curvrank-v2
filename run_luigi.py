@@ -286,7 +286,8 @@ class Localization(luigi.Task):
 
         num_batches = (
             len(to_process) + self.batch_size - 1) / self.batch_size
-        logger.info('%d batches to process' % (num_batches))
+        logger.info('%d batches of size %d to process' % (
+            num_batches, self.batch_size))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
                               min((i + 1) * self.batch_size, len(to_process)))
@@ -439,7 +440,8 @@ class Segmentation(luigi.Task):
         to_process = self.get_incomplete()
         num_batches = (
             len(to_process) + self.batch_size - 1) / self.batch_size
-        logger.info('%d batches to process' % (num_batches))
+        logger.info('%d batches of size %d to process' % (
+            num_batches, self.batch_size))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
             idx_range = range(i * self.batch_size,
                               min((i + 1) * self.batch_size, len(to_process)))
