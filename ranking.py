@@ -1,20 +1,6 @@
 import numpy as np
 
 
-def rank_individuals(query_vectors, database, simfunc):
-    dbindivs = database.keys()
-    scores = np.zeros(len(dbindivs), dtype=np.float32)
-    for i, dind in enumerate(dbindivs):
-        database_vectors = database[dind]
-        s = simfunc(query_vectors, database_vectors)
-        scores[i] = s
-
-    asc_scores_idx = np.argsort(scores)
-    ranking = [dbindivs[idx] for idx in asc_scores_idx]
-    scores = [scores[idx] for idx in asc_scores_idx]
-    return ranking, scores
-
-
 # query_vectorss:   curv mats representing a qr encounter
 # database_vectors: curv mats representing a db individual
 def dtw_alignment_cost(query_vectors, database_vectors, simfunc):
