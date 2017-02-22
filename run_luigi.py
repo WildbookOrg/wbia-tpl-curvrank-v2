@@ -3,6 +3,7 @@ import cv2
 import h5py
 import pandas as pd
 import luigi
+import costs
 import datasets
 import model
 import logging
@@ -861,7 +862,9 @@ class Identification(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
-    cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
+    cost_func = luigi.ChoiceParameter(
+        choices=costs.get_cost_func_dict().keys(), var_type=str
+    )
     spatial_weights = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
@@ -920,8 +923,6 @@ class Identification(luigi.Task):
 
     def run(self):
         import dorsal_utils
-        from pydtw import dtw_weighted_euclidean
-        from pydtw import dtw_weighted_chi_square
         from scipy.interpolate import BPoly
         from workers import identify_encounters
         curv_targets = self.requires()['BlockCurvature'].output()
@@ -998,15 +999,10 @@ class Identification(luigi.Task):
         else:
             weights = np.ones(self.curv_length, dtype=np.float32)
         weights = weights.reshape(-1, 1).astype(np.float32)
-
         # set the appropriate distance measure for time-warping alignment
-        if self.cost_func == 'l2':
-            cost_func = dtw_weighted_euclidean
-        elif self.cost_func == 'chi2':
-            cost_func = dtw_weighted_chi_square
-        else:
-            assert False, 'bad cost func: %s' % (self.cost_func)
-        simfunc = partial(cost_func, weights=weights, window=self.window)
+        cost_func = costs.get_cost_func(
+            self.cost_func, weights=weights, window=self.window
+        )
 
         output = self.output()
         qindivs = qr_curv_dict.keys()
@@ -1016,7 +1012,7 @@ class Identification(luigi.Task):
             identify_encounters,
             qr_curv_dict=qr_curv_dict,
             db_curv_dict=db_curv_dict,
-            simfunc=simfunc,
+            simfunc=cost_func,
             output_targets=output,
         )
 
@@ -1046,7 +1042,9 @@ class Results(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     normalize = luigi.BoolParameter(default=False)
     num_db_encounters = luigi.IntParameter(default=10)
-    cost_func = luigi.ChoiceParameter(choices=['l2', 'chi2'], var_type=str)
+    cost_func = luigi.ChoiceParameter(
+        choices=costs.get_cost_func_dict().keys(), var_type=str
+    )
     spatial_weights = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
