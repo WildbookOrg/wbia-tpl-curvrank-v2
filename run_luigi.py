@@ -174,6 +174,7 @@ class Preprocess(luigi.Task):
     def run(self):
         from workers import preprocess_images_star
 
+        t_start = time()
         output = self.output()
         input_list = self.requires()['PrepareData'].get_input_list()
 
@@ -196,6 +197,9 @@ class Preprocess(luigi.Task):
         finally:
             pool.close()
             pool.join()
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class Localization(luigi.Task):
@@ -238,8 +242,9 @@ class Localization(luigi.Task):
         import imutils
         import localization
         import theano_funcs
-        height, width = 256, 256
 
+        t_start = time()
+        height, width = 256, 256
         logger.info('Building localization model')
         layers = localization.build_model(
             (None, 3, height, width), downsample=1)
@@ -330,6 +335,10 @@ class Localization(luigi.Task):
                     pickle.dump(mask_loc_hr, f3, pickle.HIGHEST_PROTOCOL)
                     pickle.dump(lclz_trns, f4, pickle.HIGHEST_PROTOCOL)
 
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
+
 
 class Segmentation(luigi.Task):
     dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
@@ -376,6 +385,7 @@ class Segmentation(luigi.Task):
         import segmentation
         import theano_funcs
 
+        t_start = time()
         height, width = 256, 256
         input_shape = (None, 3, height, width)
 
@@ -463,6 +473,9 @@ class Segmentation(luigi.Task):
                     pickle.dump(segm, f2, pickle.HIGHEST_PROTOCOL)
                     f3.write(segm_refn_buf)
                     pickle.dump(segm_refn, f4, pickle.HIGHEST_PROTOCOL)
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class Keypoints(luigi.Task):
@@ -506,6 +519,7 @@ class Keypoints(luigi.Task):
 
     def run(self):
         from workers import find_keypoints
+        t_start = time()
         output = self.output()
         localization_targets = self.requires()['Localization'].output()
         segmentation_targets = self.requires()['Segmentation'].output()
@@ -530,6 +544,10 @@ class Keypoints(luigi.Task):
         finally:
             pool.close()
             pool.join()
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class ExtractOutline(luigi.Task):
@@ -578,6 +596,8 @@ class ExtractOutline(luigi.Task):
 
     def run(self):
         from workers import extract_outline
+
+        t_start = time()
         output = self.output()
         localization_targets = self.requires()['Localization'].output()
         segmentation_targets = self.requires()['Segmentation'].output()
@@ -605,6 +625,10 @@ class ExtractOutline(luigi.Task):
         finally:
             pool.close()
             pool.join()
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class SeparateEdges(luigi.Task):
@@ -652,6 +676,8 @@ class SeparateEdges(luigi.Task):
 
     def run(self):
         from workers import separate_edges
+
+        t_start = time()
         localization_targets = self.requires()['Localization'].output()
         extract_outline_targets = self.requires()['ExtractOutline'].output()
         output = self.output()
@@ -678,6 +704,10 @@ class SeparateEdges(luigi.Task):
         finally:
             pool.close()
             pool.join()
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class BlockCurvature(luigi.Task):
@@ -762,6 +792,8 @@ class BlockCurvature(luigi.Task):
 
     def run(self):
         from workers import compute_curvature_star
+
+        t_start = time()
         separate_edges_targets = self.requires()['SeparateEdges'].output()
         output = self.output()
         input_filepaths = separate_edges_targets.keys()
@@ -777,7 +809,7 @@ class BlockCurvature(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
-        t_start = time()
+
         if self.serial:
             for fpath in tqdm(to_process, total=len(to_process)):
                 partial_compute_block_curvature(fpath)
@@ -788,6 +820,7 @@ class BlockCurvature(luigi.Task):
             finally:
                 pool.close()
                 pool.join()
+
         t_end = time()
         logger.info('%s completed in %.3fs' % (
             self.__class__.__name__, t_end - t_start))
@@ -821,6 +854,7 @@ class SeparateDatabaseQueries(luigi.Task):
         }
 
     def run(self):
+        t_start = time()
         input_list = self.requires()['PrepareData'].get_input_list()
         filepaths, individuals, encounters, _ = zip(*input_list)
 
@@ -850,6 +884,10 @@ class SeparateDatabaseQueries(luigi.Task):
         logger.info('Saving queries with %d individuals' % (len(qr_dict)))
         with output['queries'].open('wb') as f:
             pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class Identification(luigi.Task):
@@ -1006,8 +1044,11 @@ class Identification(luigi.Task):
 
         output = self.output()
         qindivs = qr_curv_dict.keys()
-        logger.info('Running identification for %d individuals' % (
-            len(qindivs)))
+        logger.info(
+            'Running identification for %d individuals using'
+            'cost function = %s and spatial weights = %s' % (
+                len(qindivs), self.cost_func, self.spatial_weights)
+        )
         partial_identify_encounters = partial(
             identify_encounters,
             qr_curv_dict=qr_curv_dict,
@@ -1104,6 +1145,7 @@ class Results(luigi.Task):
             db_dict = pickle.load(f)
         db_indivs = db_dict.keys()
         indiv_rank_indices = defaultdict(list)
+        t_start = time()
         with self.output()[0].open('w') as f:
             for qind in tqdm(evaluation_targets, leave=False):
                 for qenc in evaluation_targets[qind]:
@@ -1151,6 +1193,10 @@ class Results(luigi.Task):
                 f.write('top-%d,%.6f\n' % (k, topk))
                 if k in topk_scores:
                     logger.info(' top-%d: %.2f%%' % (k, topk))
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 class ParameterSearch(luigi.Task):
