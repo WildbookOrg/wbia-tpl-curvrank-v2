@@ -58,6 +58,8 @@ class PrepareData(luigi.Task):
             pickle.dump(data_list, f, pickle.HIGHEST_PROTOCOL)
 
     def get_input_list(self):
+        if not exists(self.output()['csv'].path):
+            self.run()
         with self.output()['pkl'].open('rb') as f:
             return pickle.load(f)
 
@@ -88,10 +90,10 @@ class EncounterStats(luigi.Task):
     def run(self):
         import matplotlib.pyplot as plt
 
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         ind_enc_count_dict = {}
-        for img, ind, enc, _  in input_list:
+        for img, ind, enc, _  in input_filepaths:
             if ind not in ind_enc_count_dict:
                 ind_enc_count_dict[ind] = {}
             if enc not in ind_enc_count_dict[ind]:
@@ -148,23 +150,23 @@ class Preprocess(luigi.Task):
 
     def get_incomplete(self):
         output = self.output()
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [(fpath, side) for fpath, _, _, side in input_list if
+        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
                       not exists(output[fpath]['resized'].path) or
                       not exists(output[fpath]['transform'].path)]
 
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_list)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths)))
 
         return to_process
 
     def output(self):
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         basedir = join('data', self.dataset, self.__class__.__name__)
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -217,24 +219,25 @@ class Localization(luigi.Task):
 
     def get_incomplete(self):
         output = self.output()
-        input_list = self.requires()['PrepareData'].get_input_list()
-        to_process = [(fpath, side) for fpath, _, _, side in input_list if
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
                       not exists(output[fpath]['localization'].path) or
                       not exists(output[fpath]['localization-full'].path) or
                       not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_list)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
 
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname =  splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -368,7 +371,7 @@ class Segmentation(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
         to_process = []
-        for fpath in input_filepaths:
+        for fpath, _, _, _ in input_filepaths:
             seg_img_fpath = output[fpath]['segmentation-image'].path
             seg_data_fpath = output[fpath]['segmentation-data'].path
             seg_full_img_fpath = output[fpath]['segmentation-full-image'].path
@@ -379,17 +382,18 @@ class Segmentation(luigi.Task):
                     or not exists(seg_full_data_fpath):
                 to_process.append(fpath)
 
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -512,21 +516,22 @@ class Keypoints(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath in input_filepaths if
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
                       not exists(output[fpath]['keypoints-visual'].path) or
                       not exists(output[fpath]['keypoints-coords'].path)]
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
 
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -596,20 +601,21 @@ class ExtractOutline(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath in input_filepaths if
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
                       not exists(output[fpath]['outline-visual'].path) or
                       not exists(output[fpath]['outline-coords'].path)]
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -680,22 +686,23 @@ class SeparateEdges(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [fpath for fpath in input_filepaths if
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
                       not exists(output[fpath]['visual'].path) or
                       not exists(output[fpath]['leading-coords'].path) or
                       not exists(output[fpath]['trailing-coords'].path)]
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
 
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         outputs = {}
-        for fpath, _, _, _ in input_list:
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
@@ -768,15 +775,14 @@ class BlockCurvature(luigi.Task):
         }
 
     def get_incomplete(self):
-        separate_edges_targets = self.requires()['SeparateEdges'].output()
         output = self.output()
-        input_filepaths = separate_edges_targets.keys()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         # an image is incomplete if:
         # 1) no hdf5 file exists for it, or
         # 2) the hdf5 file exsists, but some scales are missing
         to_process = []
-        for fpath in input_filepaths:
+        for fpath, _, _, _ in input_filepaths:
             target = output[fpath]['curvature']
             if target.exists():
                 with target.open('r') as h5f:
@@ -791,8 +797,8 @@ class BlockCurvature(luigi.Task):
             else:
                 to_process.append((fpath, tuple(self.curvature_scales)))
 
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(input_filepaths))
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -804,7 +810,7 @@ class BlockCurvature(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
 
-        input_list = self.requires()['PrepareData'].get_input_list()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         if self.oriented:
             basedir = join(basedir, 'oriented')
@@ -812,7 +818,7 @@ class BlockCurvature(luigi.Task):
             basedir = join(basedir, 'standard')
 
         outputs = {}
-        for fpath, indiv, _, _ in input_list:
+        for fpath, indiv, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             h5py_fname = '%s.h5py' % fname
             for s in self.curvature_scales:
@@ -883,8 +889,8 @@ class SeparateDatabaseQueries(luigi.Task):
 
     def run(self):
         t_start = time()
-        input_list = self.requires()['PrepareData'].get_input_list()
-        filepaths, individuals, encounters, _ = zip(*input_list)
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+        filepaths, individuals, encounters, _ = zip(*input_filepaths)
 
         fname_trailing_edge_dict = {}
         trailing_edge_dict = self.requires()['SeparateEdges'].output()
@@ -961,6 +967,16 @@ class Identification(luigi.Task):
                 batch_size=self.batch_size,
                 scale=self.scale)
         }
+
+    def complete(self):
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        if not exists(db_qr_target.output()['queries'].path):
+            return False
+        else:
+            return all(map(
+                lambda output: output.exists(),
+                luigi.task.flatten(self.output())
+            ))
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -1115,6 +1131,7 @@ class Results(luigi.Task):
         choices=costs.get_cost_func_dict().keys(), var_type=str
     )
     spatial_weights = luigi.BoolParameter(default=False)
+    serial = luigi.BoolParameter(default=False)
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -1145,7 +1162,8 @@ class Results(luigi.Task):
                 oriented=self.oriented,
                 normalize=self.normalize,
                 cost_func=self.cost_func,
-                spatial_weights=self.spatial_weights),
+                spatial_weights=self.spatial_weights,
+                serial=self.serial),
         }
 
     def output(self):
@@ -1349,7 +1367,7 @@ class VisualizeIndividuals(luigi.Task):
         separate_edges_targets = self.requires()[1].output()
         image_filepaths = separate_edges_targets.keys()
 
-        to_process = [fpath for fpath in image_filepaths if
+        to_process = [fpath for fpath, _, _, _ in image_filepaths if
                       not exists(output[fpath]['image'].path)]
 
         logger.info('%d of %d images to process' % (
