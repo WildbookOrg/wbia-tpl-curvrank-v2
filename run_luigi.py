@@ -11,6 +11,7 @@ import multiprocessing as mp
 import numpy as np
 
 from functools import partial
+from luigi.util import inherits
 from time import time
 from tqdm import tqdm
 from os.path import basename, exists, join, splitext
@@ -137,12 +138,12 @@ class EncounterStats(luigi.Task):
             plt.savefig(f, bbox_inches='tight')
 
 
+@inherits(PrepareData)
 class Preprocess(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
     imsize = luigi.IntParameter(default=256)
 
     def requires(self):
-        return {'PrepareData': PrepareData(dataset=self.dataset)}
+        return {'PrepareData': self.clone(PrepareData)}
 
     def complete(self):
         to_process = self.get_incomplete()
@@ -204,17 +205,16 @@ class Preprocess(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(Preprocess)
 class Localization(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(dataset=self.dataset),
-            'Preprocess': Preprocess(
-                dataset=self.dataset, imsize=self.imsize)
+            'PrepareData': self.clone(PrepareData),
+            'Preprocess': self.clone(Preprocess),
         }
 
     def get_incomplete(self):
@@ -350,22 +350,16 @@ class Localization(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(Localization)
 class Segmentation(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
     batch_size = luigi.IntParameter(default=32)
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset,
-            ),
-            'Localization': Localization(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-            )
+            'PrepareData': self.clone(PrepareData),
+            'Localization': self.clone(Localization),
         }
 
     def get_incomplete(self):
@@ -495,24 +489,16 @@ class Segmentation(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(Localization)
+@inherits(Segmentation)
 class Keypoints(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset,
-            ),
-            'Localization': Localization(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size),
-            'Segmentation': Segmentation(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size),
+            'PrepareData': self.clone(PrepareData),
+            'Localization': self.clone(Localization),
+            'Segmentation': self.clone(Segmentation),
         }
 
     def get_incomplete(self):
@@ -574,30 +560,18 @@ class Keypoints(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(Localization)
+@inherits(Segmentation)
+@inherits(Keypoints)
 class ExtractOutline(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset),
-            'Localization': Localization(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale),
-            'Segmentation': Segmentation(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale),
-            'Keypoints': Keypoints(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size),
+            'PrepareData': self.clone(PrepareData),
+            'Localization': self.clone(Localization),
+            'Segmentation': self.clone(Segmentation),
+            'Keypoints': self.clone(Keypoints),
         }
 
     def get_incomplete(self):
@@ -662,26 +636,16 @@ class ExtractOutline(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(Localization)
+@inherits(ExtractOutline)
 class SeparateEdges(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset),
-            'Localization': Localization(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale),
-            'ExtractOutline': ExtractOutline(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale)
+            'PrepareData': self.clone(PrepareData),
+            'Localization': self.clone(Localization),
+            'ExtractOutline': self.clone(ExtractOutline),
         }
 
     def get_incomplete(self):
@@ -748,11 +712,9 @@ class SeparateEdges(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(SeparateEdges)
 class BlockCurvature(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
     oriented = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
 
@@ -767,13 +729,8 @@ class BlockCurvature(luigi.Task):
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset),
-            'SeparateEdges': SeparateEdges(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale)
+            'PrepareData': self.clone(PrepareData),
+            'SeparateEdges': self.clone(SeparateEdges),
         }
 
     def get_incomplete(self):
@@ -862,22 +819,15 @@ class BlockCurvature(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(SeparateEdges)
 class SeparateDatabaseQueries(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
     num_db_encounters = luigi.IntParameter(default=10)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset),
-            'SeparateEdges': SeparateEdges(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale)
+            'PrepareData': self.clone(PrepareData),
+            'SeparateEdges': self.clone(SeparateEdges),
         }
 
     def output(self):
@@ -926,11 +876,10 @@ class SeparateDatabaseQueries(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(BlockCurvature)
+@inherits(SeparateDatabaseQueries)
 class Identification(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
     window = luigi.IntParameter(default=8)
     curv_length = luigi.IntParameter(default=128)
     oriented = luigi.BoolParameter(default=False)
@@ -941,33 +890,11 @@ class Identification(luigi.Task):
     )
     spatial_weights = luigi.BoolParameter(default=False)
 
-    if oriented:  # use oriented curvature
-        curvature_scales = luigi.ListParameter(
-            #default=(0.06, 0.10, 0.14, 0.18)
-            default=(0.110, 0.160, 0.210, 0.260)
-        )
-    else:       # use standard block curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.133, 0.207, 0.280, 0.353)
-        )
-
     def requires(self):
         return {
-            'PrepareData': PrepareData(
-                dataset=self.dataset),
-            'BlockCurvature': BlockCurvature(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale,
-                oriented=self.oriented,
-                curvature_scales=self.curvature_scales,
-                serial=self.serial),
-            'SeparateDatabaseQueries': SeparateDatabaseQueries(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale)
+            'PrepareData': self.clone(PrepareData),
+            'BlockCurvature': self.clone(BlockCurvature),
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
     def complete(self):
@@ -1119,53 +1046,15 @@ class Identification(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(SeparateDatabaseQueries)
+@inherits(Identification)
 class Results(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
-    window = luigi.IntParameter(default=8)
-    curv_length = luigi.IntParameter(default=128)
-    oriented = luigi.BoolParameter(default=False)
-    normalize = luigi.BoolParameter(default=False)
-    num_db_encounters = luigi.IntParameter(default=10)
-    cost_func = luigi.ChoiceParameter(
-        choices=costs.get_cost_func_dict().keys(), var_type=str
-    )
-    spatial_weights = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
-
-    if oriented:  # use oriented curvature
-        curvature_scales = luigi.ListParameter(
-            #default=(0.06, 0.10, 0.14, 0.18)
-            default=(0.110, 0.160, 0.210, 0.260)
-        )
-    else:       # use standard block curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.133, 0.207, 0.280, 0.353)
-        )
 
     def requires(self):
         return {
-            'SeparateDatabaseQueries': SeparateDatabaseQueries(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale,
-                num_db_encounters=self.num_db_encounters),
-            'Identification': Identification(
-                dataset=self.dataset,
-                imsize=self.imsize,
-                batch_size=self.batch_size,
-                scale=self.scale,
-                window=self.window,
-                curv_length=self.curv_length,
-                curvature_scales=self.curvature_scales,
-                oriented=self.oriented,
-                normalize=self.normalize,
-                cost_func=self.cost_func,
-                spatial_weights=self.spatial_weights,
-                serial=self.serial),
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+            'Identification': self.clone(Identification),
         }
 
     def output(self):
