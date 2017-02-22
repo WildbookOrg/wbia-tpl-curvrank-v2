@@ -8,8 +8,6 @@ import matplotlib
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
 
-from ranking import dtw_alignment_cost
-
 
 def preprocess_images_star(fpath_side, imsize, output_targets):
     return preprocess_images(
@@ -199,7 +197,12 @@ def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
         for dind in dindivs:
             dcurvs = db_curv_dict[dind]
             # mxn matrix: m query curvs, n db curvs for an individual
-            result_dict[dind] = dtw_alignment_cost(qcurvs, dcurvs, simfunc)
+            S = np.zeros((len(qcurvs), len(dcurvs)), dtype=np.float32)
+            for i, qcurv in enumerate(qcurvs):
+                for j, dcurv in enumerate(dcurvs):
+                    S[i, j] = simfunc(qcurv, dcurv)
+
+            result_dict[dind] = S
 
         with output_targets[qind][qenc].open('wb') as f:
             pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
