@@ -1,9 +1,5 @@
 import numpy as np
 
-from pydtw import dtw_euclidean
-from pydtw import dtw_weighted_chi_square
-from pydtw import dtw_weighted_euclidean
-
 
 def rank_individuals(query_vectors, database, simfunc):
     dbindivs = database.keys()
