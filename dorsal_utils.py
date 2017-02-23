@@ -1,5 +1,4 @@
 import cv2
-import networkx as nx
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -102,74 +101,6 @@ def extract_outline(img, segm, start, end):
     outline = astar_path(W, start, end)
 
     return outline
-
-
-def extract_contour_refined(localization, segmentation, coordinates):
-    assert localization.shape[0:2] == segmentation.shape[0:2], '%r != %r' % (
-        localization.shape[0:2], segmentation.shape[0:2])
-
-    gs = cv2.cvtColor(localization, cv2.COLOR_BGR2GRAY)
-    grad_x = cv2.Sobel(gs, cv2.CV_32F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(gs, cv2.CV_32F, 0, 1, ksize=3)
-    grad_m = cv2.magnitude(grad_x, grad_y)
-
-    grad_norm = cv2.normalize(
-        grad_m, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
-
-    # convert to float or will have only 0/1 after normalization
-    segmentation = segmentation.astype(np.float32)
-    segm_norm = cv2.normalize(
-        segmentation, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
-
-    W = 1. / (grad_norm * segm_norm)
-
-    # the scaled lr approx. contour + neighborhood points
-    coordinates_extended = set()
-    d = 10
-    h, w = segmentation.shape[0:2]
-
-    # coordinates: the scaled lr approx. outline
-    for (x, y) in coordinates:
-        neighborhood = np.mgrid[
-            x - d:x + d + 1:1, y - d:y + d + 1:1
-        ].reshape(2, -1).T.astype(np.int32)
-        for (a, b) in neighborhood:
-            if 0 <= a < w and 0 <= b < h:
-                coordinates_extended.add((a, b))
-
-    G = nx.Graph()
-    G.add_nodes_from(coordinates_extended)
-
-    for (x, y) in coordinates_extended:
-        edges = []
-        if (x + 1, y) in coordinates_extended and\
-                not G.has_edge((x, y), (x + 1, y)):
-            weight = 0.5 * (W[y, x] + W[y, x + 1])
-            edges.append((
-                (x, y), (x + 1, y), weight)
-            )
-        if (x, y + 1) in coordinates_extended and\
-                not G.has_edge((x, y), (x, y + 1)):
-            weight = 0.5 * (W[y, x] + W[y + 1, x])
-            edges.append((
-                (x, y), (x, y + 1), weight)
-            )
-
-        G.add_weighted_edges_from(edges)
-
-    start = tuple(coordinates[0])
-    end = tuple(coordinates[-1])
-
-    assert G.has_node(start)
-    assert G.has_node(end)
-    assert G.number_of_nodes() == len(coordinates_extended)
-
-    path = nx.shortest_path(G, source=start, target=end, weight='weight')
-
-    path = np.vstack(path)
-    return path
 
 
 def separate_leading_trailing_edges(contour):
