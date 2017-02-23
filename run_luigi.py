@@ -1018,7 +1018,7 @@ class Identification(luigi.Task):
         output = self.output()
         qindivs = qr_curv_dict.keys()
         logger.info(
-            'Running identification for %d individuals using'
+            'Running identification for %d individuals using '
             'cost function = %s and spatial weights = %s' % (
                 len(qindivs), self.cost_func, self.spatial_weights)
         )
