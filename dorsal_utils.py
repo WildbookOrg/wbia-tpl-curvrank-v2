@@ -73,7 +73,15 @@ def extract_outline(img, segm, start, end):
     assert img.ndim == 3, 'img.dim = %d != 3' % (img.ndim)
     assert segm.ndim == 2, 'segm.ndim = %d != 2' % (segm.ndim)
 
+    # if OpenCV is not built with TBB, cvtColor hangs when run in parallel
+    # following a serial call, see:
+    # https://github.com/opencv/opencv/issues/5150
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # if this is the case, use this workaround that imitates cvtColor
+    # (~1.91 ms vs 98.5 us), or rebuild OpenCV with TBB
+    #gray = np.round(
+    #    np.sum(np.array([0.114, 0.587, 0.299]) * img, axis=2)
+    #).astype(np.uint8)
     grad = cv2.magnitude(
         cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
         cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3),
