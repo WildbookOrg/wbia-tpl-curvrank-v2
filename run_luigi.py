@@ -622,7 +622,7 @@ class ExtractOutline(luigi.Task):
             input3_targets=keypoints_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(image_filepaths)):
+        #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_extract_outline(fpath)
         try:
             pool = mp.Pool(processes=32)
