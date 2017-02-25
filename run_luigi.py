@@ -65,12 +65,12 @@ class PrepareData(luigi.Task):
             return pickle.load(f)
 
 
+@inherits(PrepareData)
 class EncounterStats(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
 
     def requires(self):
         return {
-            'PrepareData': PrepareData(dataset=self.dataset)
+            'PrepareData': self.clone(PrepareData)
         }
 
     def complete(self):
