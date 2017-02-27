@@ -120,7 +120,7 @@ def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict,
                               **kwargs):
     if name == 'nz':
         return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
-    elif name == 'sdrp':
+    elif name in ('sdrp', 'fb'):  # separate the flukebook dataset the same way
         return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
                                      **kwargs)
     else:
