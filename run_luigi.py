@@ -31,7 +31,7 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 
 class PrepareData(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
+    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp', 'fb'], var_type=str)
 
     def requires(self):
         return []
@@ -717,6 +717,9 @@ class SeparateEdges(luigi.Task):
 class BlockCurvature(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
+    extent = luigi.ChoiceParameter(
+        choices=['x', 'y'], var_type=str, default='y'
+    )
 
     if oriented:  # use oriented curvature
         curvature_scales = luigi.ListParameter(
@@ -798,6 +801,7 @@ class BlockCurvature(luigi.Task):
 
         partial_compute_block_curvature = partial(
             compute_curvature_star,
+            extent=self.extent,
             oriented=self.oriented,
             input_targets=separate_edges_targets,
             output_targets=output,
