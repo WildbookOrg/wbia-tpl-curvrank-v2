@@ -139,17 +139,18 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
         pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
 
 
-def compute_curvature_star(fpath_scales, oriented,
+def compute_curvature_star(fpath_scales, extent, oriented,
                            input_targets, output_targets):
     return compute_curvature(
         *fpath_scales,
+        extent=extent,
         oriented=oriented,
         input_targets=input_targets, output_targets=output_targets
     )
 
 
 #input_targets: extract_high_resolution_outline_targets
-def compute_curvature(fpath, scales, oriented,
+def compute_curvature(fpath, scales, extent, oriented,
                       input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
@@ -159,9 +160,11 @@ def compute_curvature(fpath, scales, oriented,
         # compute_curvature uses (x, y) coordinates
         trailing_edge = trailing_edge[:, ::-1]
         if oriented:
-            curv = dorsal_utils.oriented_curvature(trailing_edge, scales)
+            curv = dorsal_utils.oriented_curvature(
+                trailing_edge, scales, extent
+            )
         else:
-            curv = dorsal_utils.block_curvature(trailing_edge, scales)
+            curv = dorsal_utils.block_curvature(trailing_edge, scales, extent)
     # write the failures too or it seems like the task did not complete
     else:
         curv = None

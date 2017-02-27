@@ -136,11 +136,12 @@ def gaussian(u, s):
     return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
 
 
-def block_curvature(contour, scales):
+def block_curvature(contour, scales, extent='y'):
     curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
+    dim = 1 if extent == 'y' else 0
     for j, s in enumerate(scales):
-        h = s * (contour[:, 1].max() - contour[:, 1].min())
-        w = s * (contour[:, 0].max() - contour[:, 0].min())
+        h = s * (contour[:, dim].max() - contour[:, dim].min())
+        w = s * (contour[:, dim].max() - contour[:, dim].min())
         for i, (x, y) in enumerate(contour):
             x0, x1 = x - w / 2., x + w / 2.
             y0 = max(contour[:, 1].min(), y - h / 2.)
@@ -158,9 +159,11 @@ def block_curvature(contour, scales):
     return curvature
 
 
-def oriented_curvature(contour, scales):
+def oriented_curvature(contour, scales, extent='y'):
     curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
-    radii = (contour[:, 1].max() - contour[:, 1].min()) * np.array(scales)
+    # define the radii as a fraction of either the x or y extent
+    dim = 1 if extent == 'y' else 0
+    radii = (contour[:, dim].max() - contour[:, dim].min()) * np.array(scales)
     for i, (x, y) in enumerate(contour):
         center = np.array([x, y])
         dists = ((contour - center) ** 2).sum(axis=1)
