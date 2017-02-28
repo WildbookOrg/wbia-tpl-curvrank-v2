@@ -31,7 +31,10 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 
 class PrepareData(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp', 'fb'], var_type=str)
+    dataset = luigi.ChoiceParameter(
+        choices=['nz', 'sdrp', 'fb'], var_type=str,
+        description='Name of the dataset to use.'
+    )
 
     def requires(self):
         return []
@@ -140,7 +143,9 @@ class EncounterStats(luigi.Task):
 
 @inherits(PrepareData)
 class Preprocess(luigi.Task):
-    imsize = luigi.IntParameter(default=256)
+    imsize = luigi.IntParameter(
+        default=256, description='Side length of images after resizing.'
+    )
 
     def requires(self):
         return {'PrepareData': self.clone(PrepareData)}
@@ -208,7 +213,9 @@ class Preprocess(luigi.Task):
 @inherits(PrepareData)
 @inherits(Preprocess)
 class Localization(luigi.Task):
-    batch_size = luigi.IntParameter(default=32)
+    batch_size = luigi.IntParameter(
+        default=32, description='Batch size of data passed to GPU.'
+    )
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
@@ -353,7 +360,9 @@ class Localization(luigi.Task):
 @inherits(PrepareData)
 @inherits(Localization)
 class Segmentation(luigi.Task):
-    batch_size = luigi.IntParameter(default=32)
+    batch_size = luigi.IntParameter(
+        default=32, description='Batch size of data passed to GPU.'
+    )
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
@@ -715,12 +724,24 @@ class SeparateEdges(luigi.Task):
 @inherits(PrepareData)
 @inherits(SeparateEdges)
 class BlockCurvature(luigi.Task):
-    oriented = luigi.BoolParameter(default=False)
+    oriented = luigi.BoolParameter(
+        default=False,
+        description='Use the oriented block curvature implementation.'
+    )
     serial = luigi.BoolParameter(default=False)
-    trans_dims = luigi.BoolParameter(default=False)
-    indep_dims = luigi.BoolParameter(default=False)
+    trans_dims = luigi.BoolParameter(
+        default=False,
+        description='Transpose (x, y) -> (y, x) (use for humpback flukes).'
+    )
+    indep_dims = luigi.BoolParameter(
+        default=False, description='Choose dimensions of blocks based on '
+        'height and width, instead of just height (ignored with --oriented).'
+    )
 
-    curv_scales = luigi.ListParameter()
+    curv_scales = luigi.ListParameter(
+        description='List providing fractions of height and/or width '
+        'to use for curvature blocks/circles.'
+    )
 
     def requires(self):
         return {
@@ -819,7 +840,10 @@ class BlockCurvature(luigi.Task):
 @inherits(PrepareData)
 @inherits(SeparateEdges)
 class SeparateDatabaseQueries(luigi.Task):
-    num_db_encounters = luigi.IntParameter(default=10)
+    num_db_encounters = luigi.IntParameter(
+        default=10, description='Number of encounters to use to represent '
+        'each individual in the database.'
+    )
 
     def requires(self):
         return {
@@ -877,13 +901,21 @@ class SeparateDatabaseQueries(luigi.Task):
 @inherits(BlockCurvature)
 @inherits(SeparateDatabaseQueries)
 class Identification(luigi.Task):
-    window = luigi.IntParameter(default=8)
-    curv_length = luigi.IntParameter(default=128)
-    oriented = luigi.BoolParameter(default=False)
-    normalize = luigi.BoolParameter(default=False)
+    window = luigi.IntParameter(
+        default=8, description='Sakoe-Chiba bound for time-warping alignment.'
+    )
+    curv_length = luigi.IntParameter(
+        default=128, description='Number of spatial points in curvature '
+        'vectors after resampling.'
+    )
+    normalize = luigi.BoolParameter(
+        default=False, description='Scale curvature vectors to zero mean and'
+        'unit variance.'
+    )
     serial = luigi.BoolParameter(default=False)
     cost_func = luigi.ChoiceParameter(
-        choices=costs.get_cost_func_dict().keys(), var_type=str
+        choices=costs.get_cost_func_dict().keys(), var_type=str,
+        description='Function to compute similarity of two curvature vectors.'
     )
     spatial_weights = luigi.BoolParameter(default=False)
 
@@ -1046,7 +1078,9 @@ class Identification(luigi.Task):
 @inherits(SeparateDatabaseQueries)
 @inherits(Identification)
 class Results(luigi.Task):
-    serial = luigi.BoolParameter(default=False)
+    serial = luigi.BoolParameter(
+        default=False, description='Disable use of multiprocessing.Pool'
+    )
 
     def requires(self):
         return {
