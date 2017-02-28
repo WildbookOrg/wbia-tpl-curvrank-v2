@@ -717,18 +717,10 @@ class SeparateEdges(luigi.Task):
 class BlockCurvature(luigi.Task):
     oriented = luigi.BoolParameter(default=False)
     serial = luigi.BoolParameter(default=False)
-    extent = luigi.ChoiceParameter(
-        choices=['x', 'y'], var_type=str, default='y'
-    )
+    trans_dims = luigi.BoolParameter(default=False)
+    indep_dims = luigi.BoolParameter(default=False)
 
-    if oriented:  # use oriented curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.06, 0.10, 0.14, 0.18)
-        )
-    else:       # use standard block curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.133, 0.207, 0.280, 0.353)
-        )
+    curv_scales = luigi.ListParameter()
 
     def requires(self):
         return {
@@ -750,14 +742,14 @@ class BlockCurvature(luigi.Task):
                 with target.open('r') as h5f:
                     scales_computed = h5f.keys()
                 scales_to_compute = []
-                for scale in self.curvature_scales:
+                for scale in self.curv_scales:
                     # only compute the missing scales
                     if '%.3f' % scale not in scales_computed:
                         scales_to_compute.append(scale)
                 if scales_to_compute:
                     to_process.append((fpath, tuple(scales_to_compute)))
             else:
-                to_process.append((fpath, tuple(self.curvature_scales)))
+                to_process.append((fpath, tuple(self.curv_scales)))
 
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
@@ -783,7 +775,7 @@ class BlockCurvature(luigi.Task):
         for fpath, indiv, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             h5py_fname = '%s.h5py' % fname
-            for s in self.curvature_scales:
+            for s in self.curv_scales:
                 outputs[fpath] = {
                     'curvature': HDF5LocalTarget(
                         join(basedir, h5py_fname)),
@@ -801,7 +793,8 @@ class BlockCurvature(luigi.Task):
 
         partial_compute_block_curvature = partial(
             compute_curvature_star,
-            extent=self.extent,
+            transpose_dims=self.trans_dims,
+            indep_dims=self.indep_dims,
             oriented=self.oriented,
             input_targets=separate_edges_targets,
             output_targets=output,
@@ -913,7 +906,7 @@ class Identification(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
         if self.oriented:
             curvdir = join('oriented', self.cost_func, curvdir)
         else:
@@ -959,7 +952,7 @@ class Identification(luigi.Task):
             for fpath in db_fpath_dict[dind]:
                 curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                     curv_targets[fpath]['curvature'],
-                    self.curvature_scales, self.curv_length, self.normalize
+                    self.curv_scales, self.curv_length, self.normalize
                 )
                 db_curv_dict[dind].append(curv_matrix)
 
@@ -975,7 +968,7 @@ class Identification(luigi.Task):
                 for fpath in qr_fpath_dict[qind][qenc]:
                     curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                         curv_targets[fpath]['curvature'],
-                        self.curvature_scales, self.curv_length, self.normalize
+                        self.curv_scales, self.curv_length, self.normalize
                     )
                     qr_curv_dict[qind][qenc].append(curv_matrix)
 
@@ -1063,7 +1056,7 @@ class Results(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
         if self.oriented:
             curvdir = join('oriented', self.cost_func, curvdir)
         else:
@@ -1166,7 +1159,7 @@ class ParameterSearch(luigi.Task):
                 dataset=self.dataset,
                 curv_length=self.curv_length,
                 oriented=self.oriented,
-                curvature_scales=scales)
+                curv_scales=scales)
             for scales in self._gen_params_list()
         ]
 
@@ -1193,7 +1186,7 @@ class ParameterSearch(luigi.Task):
         with self.output()[0].open('w') as f:
             f.write('scales,%s\n' % ','.join([str(k) for k in k_values]))
             for i, task in enumerate(evaluation_runs):
-                params_list.append(task.curvature_scales)
+                params_list.append(task.curv_scales)
                 csv_fpath = task.output()[2].path
                 df = pd.read_csv(
                     csv_fpath, header='infer', usecols=['topk', 'accuracy']
@@ -1202,7 +1195,7 @@ class ParameterSearch(luigi.Task):
                 for j, k in enumerate(k_values):
                     results[i, j] = scores[k - 1]
                 f.write('%s: %s\n' % (
-                    ','.join(['%.3f' % s for s in task.curvature_scales]),
+                    ','.join(['%.3f' % s for s in task.curv_scales]),
                     ','.join(['%.2f' % s for s in results[i]])
                 ))
 

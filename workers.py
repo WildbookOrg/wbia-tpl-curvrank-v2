@@ -139,32 +139,51 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
         pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
 
 
-def compute_curvature_star(fpath_scales, extent, oriented,
+def compute_curvature_star(fpath_scales, transpose_dims, indep_dims, oriented,
                            input_targets, output_targets):
     return compute_curvature(
         *fpath_scales,
-        extent=extent,
+        transpose_dims=transpose_dims,
+        indep_dims=indep_dims,
         oriented=oriented,
         input_targets=input_targets, output_targets=output_targets
     )
 
 
 #input_targets: extract_high_resolution_outline_targets
-def compute_curvature(fpath, scales, extent, oriented,
+def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
                       input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f)
 
+    scales = np.array(scales)
     if trailing_edge is not None:
-        # compute_curvature uses (x, y) coordinates
-        trailing_edge = trailing_edge[:, ::-1]
+        # curvs are stored as (i, j), but compute_curvature expects (x, y)
+        # thus, for humpback flukes, we set transpose_dims = True
+        # so that they are oriented similar to dorsal fins
+        if not transpose_dims:
+            trailing_edge = trailing_edge[:, ::-1]
         if oriented:
-            curv = dorsal_utils.oriented_curvature(
-                trailing_edge, scales, extent
+            radii = scales * (
+                trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
             )
+            curv = dorsal_utils.oriented_curvature(trailing_edge, radii)
         else:
-            curv = dorsal_utils.block_curvature(trailing_edge, scales, extent)
+            heights = scales * (
+                trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
+            )
+            # humpback flukes tend to be flat, so define dims only in terms of
+            # height (after transpose)
+            if indep_dims:
+                widths = scales * (
+                    trailing_edge[:, 0].max() - trailing_edge[:, 0].min()
+                )
+            else:
+                widths = heights
+
+            dims = zip(heights, widths)
+            curv = dorsal_utils.block_curvature(trailing_edge, dims)
     # write the failures too or it seems like the task did not complete
     else:
         curv = None

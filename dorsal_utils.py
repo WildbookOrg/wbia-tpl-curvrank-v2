@@ -136,12 +136,9 @@ def gaussian(u, s):
     return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
 
 
-def block_curvature(contour, scales, extent='y'):
-    curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
-    dim = 1 if extent == 'y' else 0
-    for j, s in enumerate(scales):
-        h = s * (contour[:, dim].max() - contour[:, dim].min())
-        w = s * (contour[:, dim].max() - contour[:, dim].min())
+def block_curvature(contour, dimensions):
+    curvature = np.zeros((contour.shape[0], len(dimensions)), dtype=np.float32)
+    for j, (h, w) in enumerate(dimensions):
         for i, (x, y) in enumerate(contour):
             x0, x1 = x - w / 2., x + w / 2.
             y0 = max(contour[:, 1].min(), y - h / 2.)
@@ -159,17 +156,15 @@ def block_curvature(contour, scales, extent='y'):
     return curvature
 
 
-def oriented_curvature(contour, scales, extent='y'):
-    curvature = np.zeros((contour.shape[0], len(scales)), dtype=np.float32)
+def oriented_curvature(contour, radii):
+    curvature = np.zeros((contour.shape[0], len(radii)), dtype=np.float32)
     # define the radii as a fraction of either the x or y extent
-    dim = 1 if extent == 'y' else 0
-    radii = (contour[:, dim].max() - contour[:, dim].min()) * np.array(scales)
     for i, (x, y) in enumerate(contour):
         center = np.array([x, y])
         dists = ((contour - center) ** 2).sum(axis=1)
         inside = dists[:, np.newaxis] <= (radii * radii)
 
-        for j, _ in enumerate(scales):
+        for j, _ in enumerate(radii):
             curve = contour[inside[:, j]]
 
             n = curve[-1] - curve[0]
@@ -183,7 +178,6 @@ def oriented_curvature(contour, scales, extent='y'):
             r1[0] = min(curve_p[:, 0].max(), r1[0])
 
             area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
-
             curv = area / np.prod(r1 - r0)
             curvature[i, j] = curv
 
@@ -222,6 +216,9 @@ def load_curv_mat_from_h5py(target, scales, curv_length, normalize):
             if normalize:
                 curv -= curv.mean(axis=0)
                 curv /= curv.std(axis=0)
-            curv_matrix[:, sidx] = resample(curv, curv_length)
+            if curv.shape[0] == curv_length:
+                curv_matrix[:, sidx] = curv
+            else:
+                curv_matrix[:, sidx] = resample(curv, curv_length)
 
     return curv_matrix
