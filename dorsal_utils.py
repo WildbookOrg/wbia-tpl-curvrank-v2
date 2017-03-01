@@ -272,3 +272,12 @@ def load_curv_mat_from_h5py(target, scales, curv_length, normalize):
                 curv_matrix[:, sidx] = resample(curv, curv_length)
 
     return curv_matrix
+
+
+def load_descriptors_from_h5py(target, scales):
+    descriptors_dict = {}
+    with target.open('r') as h5f:
+        for (m, s) in scales:
+            descriptors_dict[(m, s)] = h5f['%d,%d' % (m, s)][:]
+
+    return descriptors_dict
