@@ -915,8 +915,22 @@ class ComputeDescriptors(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
-                      not exists(output[fpath]['descriptors'].path)]
+        scales = zip(self.descriptor_m, self.descriptor_s)
+        to_process = []
+        for fpath, _, _, _ in input_filepaths:
+            target = output[fpath]['descriptors']
+            if target.exists():
+                with target.open('r') as h5f:
+                    scales_computed = h5f.keys()
+                scales_to_compute = []
+                for (m, s) in scales:
+                    # only compute the missing scales
+                    if '%d,%d' % (m, s) not in scales_computed:
+                        scales_to_compute.append((m, s))
+                if scales_to_compute:
+                    to_process.append((fpath, tuple(scales_to_compute)))
+            else:
+                to_process.append((fpath, tuple(scales)))
 
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
@@ -924,28 +938,28 @@ class ComputeDescriptors(luigi.Task):
 
         return to_process
 
+    def complete(self):
+        to_process = self.get_incomplete()
+        return not bool(to_process)
+
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        descdir = ', '.join(
-            ['%s' % ((m, s),) for (m, s) in zip(
-                self.descriptor_m, self.descriptor_s)]
-        )
         unifdir = 'uniform' if self.uniform else 'standard'
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
-            pkl_fname = '%s.pickle' % fname
+            h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
-                'descriptors': luigi.LocalTarget(
-                    join(basedir, unifdir, descdir, pkl_fname)),
+                'descriptors': HDF5LocalTarget(
+                    join(basedir, unifdir, h5py_fname)),
             }
 
         return outputs
 
     def run(self):
-        from workers import compute_descriptors
+        from workers import compute_descriptors_star
 
         t_start = time()
         separate_edges_targets = self.requires()['SeparateEdges'].output()
@@ -953,10 +967,8 @@ class ComputeDescriptors(luigi.Task):
 
         to_process = self.get_incomplete()
 
-        scales = [(m, s) for m, s in zip(self.descriptor_m, self.descriptor_s)]
         partial_compute_descriptors = partial(
-            compute_descriptors,
-            scales=scales,
+            compute_descriptors_star,
             uniform=self.uniform,
             input_targets=separate_edges_targets,
             output_targets=output,
@@ -1021,6 +1033,7 @@ class EvaluateDescriptors(luigi.Task):
         ]
 
     def run(self):
+        import dorsal_utils
         import operator
         import pyflann
         from collections import defaultdict
@@ -1056,11 +1069,13 @@ class EvaluateDescriptors(luigi.Task):
         descriptors_dict = defaultdict(list)
         logger.info('loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
+        scales = zip(self.descriptor_m, self.descriptor_s)
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
                 target = desc_targets[fpath]['descriptors']
-                with target.open('rb') as f:
-                    descriptors = pickle.load(f)
+                descriptors = dorsal_utils.load_descriptors_from_h5py(
+                    target, scales
+                )
                 if descriptors is None:
                     continue
                 for m, s in zip(self.descriptor_m, self.descriptor_s):
@@ -1095,8 +1110,9 @@ class EvaluateDescriptors(luigi.Task):
                     descriptors_dict = defaultdict(list)
                     for fpath in qr_fpath_dict[qind][qenc]:
                         target = desc_targets[fpath]['descriptors']
-                        with target.open('rb') as dfile:
-                            descriptors = pickle.load(dfile)
+                        descriptors = dorsal_utils.load_descriptors_from_h5py(
+                            target, scales
+                        )
                         if descriptors is None:
                             continue
                         for m, s in zip(self.descriptor_m, self.descriptor_s):
