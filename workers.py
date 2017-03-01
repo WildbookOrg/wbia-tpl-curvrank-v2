@@ -164,6 +164,9 @@ def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
         # so that they are oriented similar to dorsal fins
         if not transpose_dims:
             trailing_edge = trailing_edge[:, ::-1]
+        # reverse contour to get positive curvature vectors
+        else:
+            trailing_edge = trailing_edge[::-1]
         if oriented:
             radii = scales * (
                 trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
