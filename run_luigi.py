@@ -897,30 +897,44 @@ class SeparateDatabaseQueries(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(SeparateEdges)
 class ComputeDescriptors(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
+    serial = luigi.BoolParameter(default=False)
     descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
     descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
     uniform = luigi.BoolParameter(default=False)
 
     def requires(self):
-        return [SeparateEdges(dataset=self.dataset,
-                              imsize=self.imsize,
-                              batch_size=self.batch_size,
-                              scale=self.scale)]
+        return {
+            'PrepareData': self.clone(PrepareData),
+            'SeparateEdges': self.clone(SeparateEdges),
+        }
+
+    def get_incomplete(self):
+        output = self.output()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
+                      not exists(output[fpath]['descriptors'].path)]
+
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
+
+        return to_process
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
         descdir = ', '.join(
             ['%s' % ((m, s),) for (m, s) in zip(
                 self.descriptor_m, self.descriptor_s)]
         )
         unifdir = 'uniform' if self.uniform else 'standard'
+
         outputs = {}
-        for fpath in self.requires()[0].output().keys():
+        for fpath, _, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
@@ -932,14 +946,12 @@ class ComputeDescriptors(luigi.Task):
 
     def run(self):
         from workers import compute_descriptors
-        separate_edges_targets = self.requires()[0].output()
-        output = self.output()
-        input_filepaths = separate_edges_targets.keys()
 
-        to_process = [fpath for fpath in input_filepaths if
-                      not exists(output[fpath]['descriptors'].path)]
-        print('%d of %d images to process' % (
-            len(to_process), len(input_filepaths)))
+        t_start = time()
+        separate_edges_targets = self.requires()['SeparateEdges'].output()
+        output = self.output()
+
+        to_process = self.get_incomplete()
 
         scales = [(m, s) for m, s in zip(self.descriptor_m, self.descriptor_s)]
         partial_compute_descriptors = partial(
@@ -949,29 +961,44 @@ class ComputeDescriptors(luigi.Task):
             input_targets=separate_edges_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
-        #    partial_compute_descriptors(fpath)
-        pool = mp.Pool(processes=32)
-        pool.map(partial_compute_descriptors, to_process)
+        if self.serial:
+            for fpath in tqdm(to_process, total=len(to_process)):
+                partial_compute_descriptors(fpath)
+        else:
+            try:
+                pool = mp.Pool(processes=32)
+                pool.map(partial_compute_descriptors, to_process)
+            finally:
+                pool.close()
+                pool.join()
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(ComputeDescriptors)
+@inherits(SeparateDatabaseQueries)
 class EvaluateDescriptors(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
     k = luigi.IntParameter(default=3)
-    descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
-    descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
-    uniform = luigi.BoolParameter(default=False)
 
     def requires(self):
-        return [
-            PrepareData(dataset=self.dataset),
-            ComputeDescriptors(dataset=self.dataset,
-                               descriptor_m=self.descriptor_m,
-                               descriptor_s=self.descriptor_s),
-        ]
+        return {
+            'PrepareData': self.clone(PrepareData),
+            'ComputeDescriptors': self.clone(ComputeDescriptors),
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+        }
+
+    def complete(self):
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        if not exists(db_qr_target.output()['queries'].path):
+            return False
+        else:
+            return all(map(
+                lambda output: output.exists(),
+                luigi.task.flatten(self.output())
+            ))
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -997,34 +1024,22 @@ class EvaluateDescriptors(luigi.Task):
         import operator
         import pyflann
         from collections import defaultdict
-        df = pd.read_csv(
-            self.requires()[0].output().path, header='infer',
-            usecols=['impath', 'individual', 'encounter']
-        )
 
-        fname_desc_dict = {}
-        desc_dict = self.requires()[1].output()
-        desc_filepaths = desc_dict.keys()
+        desc_targets = self.requires()['ComputeDescriptors'].output()
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        db_fpath_dict_target = db_qr_target.output()['database']
+        qr_fpath_dict_target = db_qr_target.output()['queries']
 
-        print('loading descriptor vectors of dimension %d for %d images' % (
-            256, len(desc_filepaths)))
+        with db_fpath_dict_target.open('rb') as f:
+            db_fpath_dict = pickle.load(f)
+        with qr_fpath_dict_target.open('rb') as f:
+            qr_fpath_dict = pickle.load(f)
 
-        for fpath in tqdm(desc_filepaths,
-                          total=len(desc_filepaths), leave=False):
-            fname = splitext(basename(fpath))[0]
-            fname_desc_dict[fname] = desc_dict[fpath]['descriptors']  # TODO
-
-        db_dict, qr_dict = datasets.separate_database_queries(
-            self.dataset, df['impath'].values,
-            df['individual'].values, df['encounter'].values,
-            fname_desc_dict
-        )
-
-        db_descs_list = [len(db_dict[ind]) for ind in db_dict]
+        db_descs_list = [len(db_fpath_dict[ind]) for ind in db_fpath_dict]
         qr_descs_list = []
-        for ind in qr_dict:
-            for enc in qr_dict[ind]:
-                qr_descs_list.append(len(qr_dict[ind][enc]))
+        for ind in qr_fpath_dict:
+            for enc in qr_fpath_dict[ind]:
+                qr_descs_list.append(len(qr_fpath_dict[ind][enc]))
 
         print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
             np.max(db_descs_list),
@@ -1040,9 +1055,10 @@ class EvaluateDescriptors(luigi.Task):
         db_labels = []
         descriptors_dict = defaultdict(list)
         print('loading descriptors for %d database individuals' % (
-            len(db_dict)))
-        for dind in tqdm(db_dict, total=len(db_dict), leave=False):
-            for target in db_dict[dind]:
+            len(db_fpath_dict)))
+        for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
+            for fpath in db_fpath_dict[dind]:
+                target = desc_targets[fpath]['descriptors']
                 with target.open('rb') as f:
                     descriptors = pickle.load(f)
                 if descriptors is None:
@@ -1060,22 +1076,25 @@ class EvaluateDescriptors(luigi.Task):
         dbl = np.hstack(db_labels)
 
         flann_dict, params_dict = {}, {}
-        print('building kdtrees')
+        logger.info('building kdtrees')
         for (m, s) in tqdm(descriptors_dict, leave=False):
             flann = pyflann.FLANN(random_seed=42)
             flann_dict[(m, s)] = flann
             params_dict[(m, s)] = flann.build_index(descriptors_dict[(m, s)])
 
         indiv_rank_indices = defaultdict(list)
-        qindivs = qr_dict.keys()
+        qindivs = qr_fpath_dict.keys()
         with self.output()[0].open('w') as f:
-            print('running identification for %d individuals' % (len(qindivs)))
+            logger.info(
+                'running identification for %d individuals' % (len(qindivs))
+            )
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-                qencs = qr_dict[qind].keys()
+                qencs = qr_fpath_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
                     descriptors_dict = defaultdict(list)
-                    for target in qr_dict[qind][qenc]:
+                    for fpath in qr_fpath_dict[qind][qenc]:
+                        target = desc_targets[fpath]['descriptors']
                         with target.open('rb') as dfile:
                             descriptors = pickle.load(dfile)
                         if descriptors is None:
@@ -1147,34 +1166,15 @@ class EvaluateDescriptors(luigi.Task):
         rank_indices = np.array(rank_indices)
         num_queries = rank_indices.shape[0]
         num_indivs = len(indiv_rank_indices)
-        print('accuracy scores:')
+        logger.info('Accuracy scores for k = %s:' % (
+            ', '.join(['%d' % k for k in topk_scores])))
         with self.output()[2].open('w') as f:
             f.write('topk,accuracy\n')
             for k in range(1, 1 + num_indivs):
                 topk = (100. / num_queries) * (rank_indices <= k).sum()
                 f.write('top-%d,%.6f\n' % (k, topk))
                 if k in topk_scores:
-                    print(' top-%d: %.2f%%' % (k, topk))
-
-
-class EvaluateIdentification(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
-    window = luigi.IntParameter(default=8)
-    curv_length = luigi.IntParameter(default=128)
-    oriented = luigi.BoolParameter(default=False)
-
-    if oriented:  # use oriented curvature
-        curvature_scales = luigi.ListParameter(
-            #default=(0.06, 0.10, 0.14, 0.18)
-            default=(0.110, 0.160, 0.210, 0.260)
-        )
-    else:       # use standard block curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.133, 0.207, 0.280, 0.353)
-        )
+                    logger.info(' top-%d: %.2f%%' % (k, topk))
 
 
 @inherits(PrepareData)
