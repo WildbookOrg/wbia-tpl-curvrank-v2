@@ -1041,12 +1041,12 @@ class EvaluateDescriptors(luigi.Task):
             for enc in qr_fpath_dict[ind]:
                 qr_descs_list.append(len(qr_fpath_dict[ind][enc]))
 
-        print('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+        logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
             np.max(db_descs_list),
             np.mean(db_descs_list),
             np.min(db_descs_list))
         )
-        print('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+        logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
             np.max(qr_descs_list),
             np.mean(qr_descs_list),
             np.min(qr_descs_list))
@@ -1054,7 +1054,7 @@ class EvaluateDescriptors(luigi.Task):
 
         db_labels = []
         descriptors_dict = defaultdict(list)
-        print('loading descriptors for %d database individuals' % (
+        logger.info('loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
