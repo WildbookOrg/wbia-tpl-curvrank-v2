@@ -8,6 +8,8 @@ import matplotlib
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
 
+from itertools import combinations
+
 
 def preprocess_images_star(fpath_side, imsize, output_targets):
     return preprocess_images(
@@ -237,6 +239,57 @@ def compute_descriptors(fpath, scales, uniform, input_targets, output_targets):
                 h5f.create_dataset(
                     '%d,%d' % (m, s), data=None, dtype=np.float32
                 )
+
+
+def compute_curv_descriptors_star(fpath_scales, input_targets, output_targets):
+    return compute_curv_descriptors(
+        *fpath_scales,
+        input_targets=input_targets,
+        output_targets=output_targets
+    )
+
+
+def compute_curv_descriptors(fpath, scales, input_targets, output_targets):
+    num_keypoints = 32
+    feat_dim = 256
+    block_curv_target = input_targets[fpath]['curvature']
+    with block_curv_target.open('r') as h5f:
+        shapes = [h5f['%.3f' % s].shape for s in scales]
+        curv = None if None in shapes else np.vstack(
+            h5f['%.3f' % s][:] for s in scales
+        ).T
+
+    if curv is not None:
+        resampled = dorsal_utils.resampleNd(curv, 1024)
+        keypoints = np.linspace(
+            0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
+        )
+
+        endpoints = list(combinations(keypoints, 2))
+        # each entry stores the features for one scale
+        descriptors = len(scales) * [
+            np.empty((len(endpoints), feat_dim), dtype=np.float32)
+        ]
+        for i, (idx0, idx1) in enumerate(endpoints):
+            subcurv = resampled[idx0:idx1]
+            feat = dorsal_utils.resampleNd(subcurv, feat_dim)
+
+            # l2-norm across the feature dimension
+            feat /= np.sqrt(np.sum(feat * feat, axis=0))
+            assert feat.shape[0] == feat_dim
+
+            for sidx, s in enumerate(scales):
+                descriptors[sidx][i] = feat[:, sidx]
+    else:
+        descriptors = None
+
+    desc_target = output_targets[fpath]['descriptors']
+    with desc_target.open('a') as h5f:
+        for i, scale, in enumerate(scales):
+            if descriptors is not None:
+                h5f.create_dataset('%.3f' % scale, data=descriptors[i])
+            else:
+                h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
 def visualize_individuals(fpath, input_targets, output_targets):

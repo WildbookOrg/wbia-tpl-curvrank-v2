@@ -899,7 +899,7 @@ class SeparateDatabaseQueries(luigi.Task):
 
 @inherits(PrepareData)
 @inherits(SeparateEdges)
-class ComputeDescriptors(luigi.Task):
+class GaussDescriptors(luigi.Task):
     serial = luigi.BoolParameter(default=False)
     descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
     descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
@@ -990,7 +990,93 @@ class ComputeDescriptors(luigi.Task):
 
 
 @inherits(PrepareData)
-@inherits(ComputeDescriptors)
+@inherits(BlockCurvature)
+class CurvatureDescriptors(luigi.Task):
+    serial = luigi.BoolParameter(default=False)
+
+    def requires(self):
+        return {
+            'PrepareData': self.clone(PrepareData),
+            'BlockCurvature': self.clone(BlockCurvature),
+        }
+
+    def get_incomplete(self):
+        output = self.output()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+
+        to_process = []
+        for fpath, _, _, _ in input_filepaths:
+            target = output[fpath]['descriptors']
+            if target.exists():
+                with target.open('r') as h5f:
+                    scales_computed = h5f.keys()
+                scales_to_compute = []
+                for s in self.curv_scales:
+                    # only compute the missing scales
+                    if '%.3f' % s not in scales_computed:
+                        scales_to_compute.append(s)
+                if scales_to_compute:
+                    to_process.append((fpath, tuple(scales_to_compute)))
+            else:
+                to_process.append((fpath, tuple(self.curv_scales)))
+
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
+
+        return to_process
+
+    def complete(self):
+        to_process = self.get_incomplete()
+        return not bool(to_process)
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+
+        outputs = {}
+        for fpath, _, _, _ in input_filepaths:
+            fname = splitext(basename(fpath))[0]
+            h5py_fname = '%s.h5py' % fname
+            outputs[fpath] = {
+                'descriptors': HDF5LocalTarget(
+                    join(basedir, h5py_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        from workers import compute_curv_descriptors_star
+
+        t_start = time()
+        block_curv_targets = self.requires()['BlockCurvature'].output()
+        output = self.output()
+        to_process = self.get_incomplete()
+
+        partial_compute_curv_descriptors = partial(
+            compute_curv_descriptors_star,
+            input_targets=block_curv_targets,
+            output_targets=output,
+        )
+
+        if self.serial:
+            for fpath in tqdm(to_process, total=len(to_process)):
+                partial_compute_curv_descriptors(fpath)
+        else:
+            try:
+                pool = mp.Pool(processes=32)
+                pool.map(partial_compute_curv_descriptors, to_process)
+            finally:
+                pool.close()
+                pool.join()
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
+
+
+@inherits(PrepareData)
+@inherits(GaussDescriptors)
 @inherits(SeparateDatabaseQueries)
 class EvaluateDescriptors(luigi.Task):
     k = luigi.IntParameter(default=3)
@@ -998,7 +1084,7 @@ class EvaluateDescriptors(luigi.Task):
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
-            'ComputeDescriptors': self.clone(ComputeDescriptors),
+            'GaussDescriptors': self.clone(GaussDescriptors),
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
@@ -1038,7 +1124,7 @@ class EvaluateDescriptors(luigi.Task):
         import pyflann
         from collections import defaultdict
 
-        desc_targets = self.requires()['ComputeDescriptors'].output()
+        desc_targets = self.requires()['GaussDescriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_fpath_dict_target = db_qr_target.output()['database']
         qr_fpath_dict_target = db_qr_target.output()['queries']
