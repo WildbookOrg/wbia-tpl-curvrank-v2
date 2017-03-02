@@ -915,7 +915,6 @@ class GaussDescriptors(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        scales = zip(self.descriptor_m, self.descriptor_s)
         to_process = []
         for fpath, _, _, _ in input_filepaths:
             target = output[fpath]['descriptors']
@@ -923,14 +922,14 @@ class GaussDescriptors(luigi.Task):
                 with target.open('r') as h5f:
                     scales_computed = h5f.keys()
                 scales_to_compute = []
-                for (m, s) in scales:
+                for s in self.curv_scales:
                     # only compute the missing scales
-                    if '%d,%d' % (m, s) not in scales_computed:
-                        scales_to_compute.append((m, s))
+                    if '%.3f' % s not in scales_computed:
+                        scales_to_compute.append(s)
                 if scales_to_compute:
                     to_process.append((fpath, tuple(scales_to_compute)))
             else:
-                to_process.append((fpath, tuple(scales)))
+                to_process.append((fpath, tuple(self.curv_scales)))
 
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
@@ -1076,7 +1075,7 @@ class CurvatureDescriptors(luigi.Task):
 
 
 @inherits(PrepareData)
-@inherits(GaussDescriptors)
+@inherits(CurvatureDescriptors)
 @inherits(SeparateDatabaseQueries)
 class EvaluateDescriptors(luigi.Task):
     k = luigi.IntParameter(default=3)
@@ -1084,7 +1083,7 @@ class EvaluateDescriptors(luigi.Task):
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
-            'GaussDescriptors': self.clone(GaussDescriptors),
+            'CurvatureDescriptors': self.clone(CurvatureDescriptors),
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
@@ -1100,12 +1099,10 @@ class EvaluateDescriptors(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        descdir = ', '.join(
-            ['%s' % ((m, s),) for (m, s) in zip(
-                self.descriptor_m, self.descriptor_s)]
-        )
+        descdir = ','.join(['%.3f' % s for s in self.curv_scales])
         kdir = '%d' % self.k
-        unifdir = 'uniform' if self.uniform else 'standard'
+        #unifdir = 'uniform' if self.uniform else 'standard'
+        unifdir = 'uniform'
         return [
             luigi.LocalTarget(
                 join(basedir, kdir, unifdir, descdir,
@@ -1124,7 +1121,7 @@ class EvaluateDescriptors(luigi.Task):
         import pyflann
         from collections import defaultdict
 
-        desc_targets = self.requires()['GaussDescriptors'].output()
+        desc_targets = self.requires()['CurvatureDescriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_fpath_dict_target = db_qr_target.output()['database']
         qr_fpath_dict_target = db_qr_target.output()['queries']
@@ -1155,33 +1152,32 @@ class EvaluateDescriptors(luigi.Task):
         descriptors_dict = defaultdict(list)
         logger.info('loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
-        scales = zip(self.descriptor_m, self.descriptor_s)
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
                 target = desc_targets[fpath]['descriptors']
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
-                    target, scales
+                    target, self.curv_scales
                 )
                 if descriptors is None:
                     continue
-                for m, s in zip(self.descriptor_m, self.descriptor_s):
-                    descriptors_dict[(m, s)].append(descriptors[(m, s)])
+                for s in self.curv_scales:
+                    descriptors_dict[s].append(descriptors[s])
                 # label each feature with the individual name
-                for _ in range(descriptors[(m, s)].shape[0]):
+                for _ in range(descriptors[s].shape[0]):
                     db_labels.append(dind)
 
         # stack list of features per encounter into a single array
-        for (m, s) in descriptors_dict:
-            descriptors_dict[(m, s)] = np.vstack(descriptors_dict[(m, s)])
+        for s in descriptors_dict:
+            descriptors_dict[s] = np.vstack(descriptors_dict[s])
 
         dbl = np.hstack(db_labels)
 
         flann_dict, params_dict = {}, {}
         logger.info('building kdtrees')
-        for (m, s) in tqdm(descriptors_dict, leave=False):
+        for s in tqdm(descriptors_dict, leave=False):
             flann = pyflann.FLANN(random_seed=42)
-            flann_dict[(m, s)] = flann
-            params_dict[(m, s)] = flann.build_index(descriptors_dict[(m, s)])
+            flann_dict[s] = flann
+            params_dict[s] = flann.build_index(descriptors_dict[s])
 
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_fpath_dict.keys()
@@ -1197,33 +1193,33 @@ class EvaluateDescriptors(luigi.Task):
                     for fpath in qr_fpath_dict[qind][qenc]:
                         target = desc_targets[fpath]['descriptors']
                         descriptors = dorsal_utils.load_descriptors_from_h5py(
-                            target, scales
+                            target, self.curv_scales
                         )
                         if descriptors is None:
                             continue
-                        for m, s in zip(self.descriptor_m, self.descriptor_s):
-                            descriptors_dict[(m, s)].append(
-                                descriptors[(m, s)]
+                        for s in self.curv_scales:
+                            descriptors_dict[s].append(
+                                descriptors[s]
                             )
 
                     # for some encounters there may be no trailing edge
                     empty_encounter = False
-                    for (m, s) in descriptors_dict:
-                        if not descriptors_dict[(m, s )]:
+                    for s in descriptors_dict:
+                        if not descriptors_dict[s]:
                             empty_encounter = True
                     if empty_encounter:
                         continue
 
-                    for (m, s) in descriptors_dict:
-                        descriptors_dict[(m, s)] = np.vstack(
-                            descriptors_dict[(m, s)]
+                    for s in descriptors_dict:
+                        descriptors_dict[s] = np.vstack(
+                            descriptors_dict[s]
                         )
 
                     # lnbnn classification
                     scores = defaultdict(int)
-                    for (m, s) in descriptors_dict:
-                        flann, params = flann_dict[(m, s)], params_dict[(m, s)]
-                        query_features = descriptors_dict[(m, s)]
+                    for s in descriptors_dict:
+                        flann, params = flann_dict[s], params_dict[s]
+                        query_features = descriptors_dict[s]
                         ind, dist = flann.nn_index(
                             query_features, self.k, checks=params['checks']
                         )
