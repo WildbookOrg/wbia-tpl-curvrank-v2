@@ -250,8 +250,9 @@ def compute_curv_descriptors_star(fpath_scales, input_targets, output_targets):
 
 
 def compute_curv_descriptors(fpath, scales, input_targets, output_targets):
-    num_keypoints = 32
-    feat_dim = 256
+    num_keypoints = 49
+    #feat_dim = 256
+    feat_dim = 16
     block_curv_target = input_targets[fpath]['curvature']
     with block_curv_target.open('r') as h5f:
         shapes = [h5f['%.3f' % s].shape for s in scales]
@@ -277,6 +278,9 @@ def compute_curv_descriptors(fpath, scales, input_targets, output_targets):
             # l2-norm across the feature dimension
             feat /= np.sqrt(np.sum(feat * feat, axis=0))
             assert feat.shape[0] == feat_dim
+            assert np.allclose(
+                np.linalg.norm(feat, axis=0), np.ones(feat.shape[1])
+            )
 
             for sidx, s in enumerate(scales):
                 descriptors[sidx][i] = feat[:, sidx]
