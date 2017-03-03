@@ -904,6 +904,9 @@ class GaussDescriptors(luigi.Task):
     descriptor_m = luigi.ListParameter(default=(2, 2, 2, 2))
     descriptor_s = luigi.ListParameter(default=(1, 2, 4, 8))
     uniform = luigi.BoolParameter(default=False)
+    feat_dim = luigi.IntParameter(default=16)
+    contour_length = luigi.IntParameter(default=1024)
+    num_keypoints = luigi.IntParameter(default=50)
 
     def requires(self):
         return {
@@ -968,6 +971,9 @@ class GaussDescriptors(luigi.Task):
 
         partial_compute_descriptors = partial(
             compute_descriptors_star,
+            num_keypoints=self.num_keypoints,
+            feat_dim=self.feat_dim,
+            contour_length=self.contour_length,
             uniform=self.uniform,
             input_targets=separate_edges_targets,
             output_targets=output,
@@ -992,6 +998,10 @@ class GaussDescriptors(luigi.Task):
 @inherits(BlockCurvature)
 class CurvatureDescriptors(luigi.Task):
     serial = luigi.BoolParameter(default=False)
+    uniform = luigi.BoolParameter(default=False)
+    num_keypoints = luigi.IntParameter(default=50)
+    feat_dim = luigi.IntParameter(default=16)
+    curv_length = luigi.IntParameter(default=1024)
 
     def requires(self):
         return {
@@ -1032,6 +1042,7 @@ class CurvatureDescriptors(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         input_filepaths = self.requires()['PrepareData'].get_input_list()
+        unifdir = 'uniform' if self.uniform else 'standard'
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
@@ -1039,7 +1050,7 @@ class CurvatureDescriptors(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
                 'descriptors': HDF5LocalTarget(
-                    join(basedir, h5py_fname)),
+                    join(basedir, unifdir, h5py_fname)),
             }
 
         return outputs
@@ -1054,6 +1065,10 @@ class CurvatureDescriptors(luigi.Task):
 
         partial_compute_curv_descriptors = partial(
             compute_curv_descriptors_star,
+            num_keypoints=self.num_keypoints,
+            feat_dim=self.feat_dim,
+            curv_length=self.curv_length,
+            uniform=self.uniform,
             input_targets=block_curv_targets,
             output_targets=output,
         )
@@ -1101,8 +1116,7 @@ class EvaluateDescriptors(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         descdir = ','.join(['%.3f' % s for s in self.curv_scales])
         kdir = '%d' % self.k
-        #unifdir = 'uniform' if self.uniform else 'standard'
-        unifdir = 'uniform'
+        unifdir = 'uniform' if self.uniform else 'standard'
         return [
             luigi.LocalTarget(
                 join(basedir, kdir, unifdir, descdir,
