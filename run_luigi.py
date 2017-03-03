@@ -1150,7 +1150,7 @@ class EvaluateDescriptors(luigi.Task):
 
         db_labels = []
         descriptors_dict = defaultdict(list)
-        logger.info('loading descriptors for %d database individuals' % (
+        logger.info('Loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
@@ -1158,8 +1158,6 @@ class EvaluateDescriptors(luigi.Task):
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
                     target, self.curv_scales
                 )
-                if descriptors is None:
-                    continue
                 for s in self.curv_scales:
                     descriptors_dict[s].append(descriptors[s])
                 # label each feature with the individual name
@@ -1173,7 +1171,10 @@ class EvaluateDescriptors(luigi.Task):
         dbl = np.hstack(db_labels)
 
         flann_dict, params_dict = {}, {}
-        logger.info('building kdtrees')
+        logger.info('Building %d kdtrees for scales: %s' % (
+            len(self.curv_scales),
+            ', '.join('%s' % s for s in self.curv_scales))
+        )
         for s in tqdm(descriptors_dict, leave=False):
             flann = pyflann.FLANN(random_seed=42)
             flann_dict[s] = flann
@@ -1183,7 +1184,7 @@ class EvaluateDescriptors(luigi.Task):
         qindivs = qr_fpath_dict.keys()
         with self.output()[0].open('w') as f:
             logger.info(
-                'running identification for %d individuals' % (len(qindivs))
+                'Running identification for %d individuals' % (len(qindivs))
             )
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_fpath_dict[qind].keys()
@@ -1195,25 +1196,11 @@ class EvaluateDescriptors(luigi.Task):
                         descriptors = dorsal_utils.load_descriptors_from_h5py(
                             target, self.curv_scales
                         )
-                        if descriptors is None:
-                            continue
                         for s in self.curv_scales:
-                            descriptors_dict[s].append(
-                                descriptors[s]
-                            )
-
-                    # for some encounters there may be no trailing edge
-                    empty_encounter = False
-                    for s in descriptors_dict:
-                        if not descriptors_dict[s]:
-                            empty_encounter = True
-                    if empty_encounter:
-                        continue
+                            descriptors_dict[s].append(descriptors[s])
 
                     for s in descriptors_dict:
-                        descriptors_dict[s] = np.vstack(
-                            descriptors_dict[s]
-                        )
+                        descriptors_dict[s] = np.vstack(descriptors_dict[s])
 
                     # lnbnn classification
                     scores = defaultdict(int)
