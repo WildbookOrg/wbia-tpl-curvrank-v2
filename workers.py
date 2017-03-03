@@ -240,12 +240,12 @@ def compute_gauss_descriptors(fpath, scales,
     desc_target = output_targets[fpath]['descriptors']
     # write the failures too or it seems like the task did not complete
     with desc_target.open('a') as h5f:
-        for i, (m, s) in enumerate(scales):
+        for i, s in enumerate(scales):
             if descriptors is not None:
-                h5f.create_dataset('%d,%d' % (m, s), data=descriptors[i])
+                h5f.create_dataset('%s' % (s,), data=descriptors[i])
             else:
                 h5f.create_dataset(
-                    '%d,%d' % (m, s), data=None, dtype=np.float32
+                    '%s' % (s,), data=None, dtype=np.float32
                 )
 
 

@@ -918,6 +918,7 @@ class GaussDescriptors(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
+        scales = zip(self.descriptor_m, self.descriptor_s)
         to_process = []
         for fpath, _, _, _ in input_filepaths:
             target = output[fpath]['descriptors']
@@ -925,14 +926,14 @@ class GaussDescriptors(luigi.Task):
                 with target.open('r') as h5f:
                     scales_computed = h5f.keys()
                 scales_to_compute = []
-                for s in self.curv_scales:
+                for s in scales:
                     # only compute the missing scales
-                    if '%.3f' % s not in scales_computed:
+                    if '%s' % (s,) not in scales_computed:
                         scales_to_compute.append(s)
                 if scales_to_compute:
                     to_process.append((fpath, tuple(scales_to_compute)))
             else:
-                to_process.append((fpath, tuple(self.curv_scales)))
+                to_process.append((fpath, tuple(scales)))
 
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
@@ -961,7 +962,7 @@ class GaussDescriptors(luigi.Task):
         return outputs
 
     def run(self):
-        from workers import compute_descriptors_star
+        from workers import compute_gauss_descriptors_star
 
         t_start = time()
         separate_edges_targets = self.requires()['SeparateEdges'].output()
@@ -970,7 +971,7 @@ class GaussDescriptors(luigi.Task):
         to_process = self.get_incomplete()
 
         partial_compute_descriptors = partial(
-            compute_descriptors_star,
+            compute_gauss_descriptors_star,
             num_keypoints=self.num_keypoints,
             feat_dim=self.feat_dim,
             contour_length=self.contour_length,
@@ -1090,15 +1091,24 @@ class CurvatureDescriptors(luigi.Task):
 
 
 @inherits(PrepareData)
+# TODO: this is kind of a hack, it now requires the parameters for both tasks
 @inherits(CurvatureDescriptors)
+@inherits(GaussDescriptors)
 @inherits(SeparateDatabaseQueries)
 class EvaluateDescriptors(luigi.Task):
     k = luigi.IntParameter(default=3)
+    descriptor_type = luigi.ChoiceParameter(
+        choices=['gauss', 'curv'], var_type=str
+    )
 
     def requires(self):
+        if self.descriptor_type == 'gauss':
+            descriptors_task = self.clone(GaussDescriptors)
+        elif self.descriptor_type == 'curv':
+            descriptors_task = self.clone(CurvatureDescriptors)
         return {
             'PrepareData': self.clone(PrepareData),
-            'CurvatureDescriptors': self.clone(CurvatureDescriptors),
+            'Descriptors': descriptors_task,
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
@@ -1112,21 +1122,33 @@ class EvaluateDescriptors(luigi.Task):
                 luigi.task.flatten(self.output())
             ))
 
+    def _get_descriptor_scales(self):
+        if self.descriptor_type == 'gauss':
+            descriptor_scales = [
+                '%s' % (s,)
+                for s in zip(self.descriptor_m, self.descriptor_s)
+            ]
+        elif self.descriptor_type == 'curv':
+            descriptor_scales = ['%.3f' % s for s in  self.curv_scales]
+        else:
+            assert False, 'bad descriptor type: %s' % (self.descriptor_type)
+
+        return descriptor_scales
+
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        descdir = ','.join(['%.3f' % s for s in self.curv_scales])
+        scales = self._get_descriptor_scales()
+        descdir = ','.join(['%s' % s for s in scales])
         kdir = '%d' % self.k
         unifdir = 'uniform' if self.uniform else 'standard'
+        outdir = join(basedir, self.descriptor_type, kdir, unifdir, descdir)
         return [
             luigi.LocalTarget(
-                join(basedir, kdir, unifdir, descdir,
-                     '%s_all.csv' % self.dataset)),
+                join(outdir, '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, unifdir, descdir,
-                     '%s_mrr.csv' % self.dataset)),
+                join(outdir, '%s_mrr.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, kdir, unifdir, descdir,
-                     '%s_topk.csv' % self.dataset))
+                join(outdir, '%s_topk.csv' % self.dataset))
         ]
 
     def run(self):
@@ -1135,7 +1157,7 @@ class EvaluateDescriptors(luigi.Task):
         import pyflann
         from collections import defaultdict
 
-        desc_targets = self.requires()['CurvatureDescriptors'].output()
+        desc_targets = self.requires()['Descriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_fpath_dict_target = db_qr_target.output()['database']
         qr_fpath_dict_target = db_qr_target.output()['queries']
@@ -1162,6 +1184,7 @@ class EvaluateDescriptors(luigi.Task):
             np.min(qr_descs_list))
         )
 
+        descriptor_scales = self._get_descriptor_scales()
         db_labels = []
         descriptors_dict = defaultdict(list)
         logger.info('Loading descriptors for %d database individuals' % (
@@ -1170,13 +1193,14 @@ class EvaluateDescriptors(luigi.Task):
             for fpath in db_fpath_dict[dind]:
                 target = desc_targets[fpath]['descriptors']
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
-                    target, self.curv_scales
+                    target, descriptor_scales
                 )
-                for s in self.curv_scales:
+                for sidx, s in enumerate(descriptor_scales):
                     descriptors_dict[s].append(descriptors[s])
-                # label each feature with the individual name
-                for _ in range(descriptors[s].shape[0]):
-                    db_labels.append(dind)
+                    if sidx == 0:
+                        # label each feature with the individual name
+                        for _ in range(descriptors[s].shape[0]):
+                            db_labels.append(dind)
 
         # stack list of features per encounter into a single array
         for s in descriptors_dict:
@@ -1186,8 +1210,8 @@ class EvaluateDescriptors(luigi.Task):
 
         flann_dict, params_dict = {}, {}
         logger.info('Building %d kdtrees for scales: %s' % (
-            len(self.curv_scales),
-            ', '.join('%s' % s for s in self.curv_scales))
+            len(descriptor_scales),
+            ', '.join('%s' % s for s in descriptor_scales))
         )
         for s in tqdm(descriptors_dict, leave=False):
             flann = pyflann.FLANN(random_seed=42)
@@ -1198,7 +1222,8 @@ class EvaluateDescriptors(luigi.Task):
         qindivs = qr_fpath_dict.keys()
         with self.output()[0].open('w') as f:
             logger.info(
-                'Running identification for %d individuals' % (len(qindivs))
+                'Running identification for %d individuals using '
+                'descriptor type = %s ' % (len(qindivs), self.descriptor_type)
             )
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_fpath_dict[qind].keys()
@@ -1208,9 +1233,9 @@ class EvaluateDescriptors(luigi.Task):
                     for fpath in qr_fpath_dict[qind][qenc]:
                         target = desc_targets[fpath]['descriptors']
                         descriptors = dorsal_utils.load_descriptors_from_h5py(
-                            target, self.curv_scales
+                            target, descriptor_scales
                         )
-                        for s in self.curv_scales:
+                        for s in descriptor_scales:
                             descriptors_dict[s].append(descriptors[s])
 
                     for s in descriptors_dict:
