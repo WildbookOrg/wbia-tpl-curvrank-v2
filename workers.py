@@ -9,6 +9,7 @@ matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
 
 from itertools import combinations
+from scipy.signal import argrelextrema
 
 
 def preprocess_images_star(fpath_side, imsize, output_targets):
@@ -203,17 +204,23 @@ def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
                 h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
-def compute_descriptors_star(fpath_scales, uniform,
-                             input_targets, output_targets):
-    return compute_descriptors(
+def compute_gauss_descriptors_star(fpath_scales, num_keypoints,
+                                   feat_dim, contour_length, uniform,
+                                   input_targets, output_targets):
+    return compute_gauss_descriptors(
         *fpath_scales,
+        num_keypoints=num_keypoints,
+        feat_dim=feat_dim,
+        contour_length=contour_length,
         uniform=uniform,
         input_targets=input_targets,
         output_targets=output_targets
     )
 
 
-def compute_descriptors(fpath, scales, uniform, input_targets, output_targets):
+def compute_gauss_descriptors(fpath, scales,
+                              num_keypoints, feat_dim, contour_length, uniform,
+                              input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f)
@@ -223,7 +230,8 @@ def compute_descriptors(fpath, scales, uniform, input_targets, output_targets):
         trailing_edge = trailing_edge[:, ::-1]
         for (m, s) in scales:
             desc = dorsal_utils.diff_of_gauss_descriptor(
-                trailing_edge, m, s, uniform,
+                trailing_edge, m, s, num_keypoints, feat_dim,
+                contour_length, uniform,
             )
             descriptors.append(desc.astype(np.float32))
     else:
@@ -241,18 +249,23 @@ def compute_descriptors(fpath, scales, uniform, input_targets, output_targets):
                 )
 
 
-def compute_curv_descriptors_star(fpath_scales, input_targets, output_targets):
+def compute_curv_descriptors_star(fpath_scales,
+                                  num_keypoints, feat_dim, curv_length,
+                                  uniform, input_targets, output_targets):
     return compute_curv_descriptors(
         *fpath_scales,
+        num_keypoints=num_keypoints,
+        feat_dim=feat_dim,
+        curv_length=curv_length,
+        uniform=uniform,
         input_targets=input_targets,
         output_targets=output_targets
     )
 
 
-def compute_curv_descriptors(fpath, scales, input_targets, output_targets):
-    num_keypoints = 49
-    #feat_dim = 256
-    feat_dim = 16
+def compute_curv_descriptors(fpath, scales,
+                             num_keypoints, feat_dim, curv_length, uniform,
+                             input_targets, output_targets):
     block_curv_target = input_targets[fpath]['curvature']
     with block_curv_target.open('r') as h5f:
         shapes = [h5f['%.3f' % s].shape for s in scales]
@@ -261,10 +274,29 @@ def compute_curv_descriptors(fpath, scales, input_targets, output_targets):
         ).T
 
     if curv is not None:
-        resampled = dorsal_utils.resampleNd(curv, 1024)
-        keypoints = np.linspace(
-            0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
-        )
+        if curv.shape[0] == curv_length:
+            resampled = curv
+        else:
+            resampled = dorsal_utils.resampleNd(curv, curv_length)
+        if uniform:
+            keypoints = np.linspace(
+                0, resampled.shape[0], num_keypoints, dtype=np.int32
+            )
+        else:
+            maxima_idx, = argrelextrema(resampled[:, -1], np.greater, order=1)
+            sorted_idx = np.argsort(resampled[maxima_idx, -1])[::-1]
+            # leave two spots for the start and endpoints
+            maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
+
+            sorted_maxima_idx = np.sort(maxima_idx)
+            if sorted_maxima_idx[0] in (0, 1):
+                sorted_maxima_idx = sorted_maxima_idx[1:]
+            keypoints = np.zeros(
+                min(num_keypoints, 2 + sorted_maxima_idx.shape[0]),
+                dtype=np.int32
+            )
+            keypoints[0], keypoints[-1] = 0, resampled.shape[0]
+            keypoints[1:-1] = sorted_maxima_idx
 
         endpoints = list(combinations(keypoints, 2))
         # each entry stores the features for one scale
