@@ -185,27 +185,28 @@ def oriented_curvature(contour, radii):
     return curvature
 
 
-def diff_of_gauss_descriptor(contour, m, s, uniform=False):
-    length = 1024       # length of the resampled contour
-    feat_dim = 256      # dimension of the feature vector
-    resampled = resampleNd(contour, length)
+def diff_of_gauss_descriptor(contour, m, s, num_keypoints,
+                             feat_dim, contour_length, uniform):
+    if contour.shape[0] == contour_length:
+        resampled = contour
+    else:
+        resampled = resampleNd(contour, contour_length)
     if uniform:
-        num_keypoints = 32  # number of keypoints to place
         keypoints = np.linspace(
-            0, resampled.shape[0], num_keypoints + 1, dtype=np.int32
+            0, resampled.shape[0], num_keypoints, dtype=np.int32
         )
     else:
-        num_keypoints = 50
         steps = 1 + 4 * 8 * 2
         response = diff_of_gauss_norm(resampled, steps,  m=8, s=2)
 
         maxima_idx, = argrelextrema(response, np.greater, order=1)
 
         sorted_idx = np.argsort(response[maxima_idx])[::-1]
-        maxima_idx =  maxima_idx[sorted_idx][0:48]
+        maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
         maxima_idx += steps // 2
 
-        keypoints = np.zeros(min(50, 2 + maxima_idx.shape[0]), dtype=np.int32)
+        keypoints = np.zeros(
+            min(num_keypoints, 2 + maxima_idx.shape[0]), dtype=np.int32)
         keypoints[0], keypoints[-1] = 0, resampled.shape[0]
         keypoints[1:-1] = np.sort(maxima_idx)
 
