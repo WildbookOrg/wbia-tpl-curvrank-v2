@@ -276,9 +276,7 @@ def load_curv_mat_from_h5py(target, scales, curv_length, normalize):
 
 
 def load_descriptors_from_h5py(target, scales):
-    descriptors_dict = {}
     with target.open('r') as h5f:
-        for s in scales:
-            descriptors_dict[s] = h5f['%.3f' % s][:]
+        descriptors_dict = {s: h5f[s][:] for s in scales}
 
     return descriptors_dict
