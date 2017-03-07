@@ -32,7 +32,7 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 class PrepareData(luigi.Task):
     dataset = luigi.ChoiceParameter(
-        choices=['nz', 'sdrp', 'fb'], var_type=str,
+        choices=['nz', 'sdrp', 'fb', 'crc'], var_type=str,
         description='Name of the dataset to use.'
     )
 
@@ -949,6 +949,7 @@ class GaussDescriptors(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         input_filepaths = self.requires()['PrepareData'].get_input_list()
         unifdir = 'uniform' if self.uniform else 'standard'
+        featdir = '%d' % self.feat_dim
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
@@ -956,7 +957,7 @@ class GaussDescriptors(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
                 'descriptors': HDF5LocalTarget(
-                    join(basedir, unifdir, h5py_fname)),
+                    join(basedir, unifdir, featdir, h5py_fname)),
             }
 
         return outputs
@@ -1044,6 +1045,7 @@ class CurvatureDescriptors(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__)
         input_filepaths = self.requires()['PrepareData'].get_input_list()
         unifdir = 'uniform' if self.uniform else 'standard'
+        featdir = '%d' % self.feat_dim
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
@@ -1051,7 +1053,7 @@ class CurvatureDescriptors(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
                 'descriptors': HDF5LocalTarget(
-                    join(basedir, unifdir, h5py_fname)),
+                    join(basedir, unifdir, featdir, h5py_fname)),
             }
 
         return outputs
