@@ -12,6 +12,7 @@ def get_cost_func_dict():
         'dtw-chi2': get_dtw_chi2,
         'norm-l2': get_norm_l2,
         'random': get_random,
+        'hist': get_hist,
     }
 
 
@@ -48,3 +49,30 @@ def norm_l2(qcurv, dcurv, weights):
 
 def random_cost(qcurv, dcurv):
     return np.random.random()
+
+
+def get_hist(**kwargs):
+    cost_func = hist_intersect
+    return cost_func
+
+
+def hist_intersect(qcurv, dcurv):
+    num_bins = 10
+    qhist = np.zeros((qcurv.shape[1], num_bins), dtype=np.float32)
+    dhist = np.zeros((dcurv.shape[1], num_bins), dtype=np.float32)
+
+    for j in range(qcurv.shape[1]):
+        qhist[j], _ = np.histogram(
+            qcurv[:, j], bins=np.linspace(0, 1, 1 + num_bins), density=True
+        )
+        dhist[j], _ = np.histogram(
+            dcurv[:, j], bins=np.linspace(0, 1, 1 + num_bins), density=True
+        )
+
+        qhist[j] /= qhist[j].sum()
+        dhist[j] /= dhist[j].sum()
+
+    qfeat = qhist.flatten()
+    dfeat = dhist.flatten()
+
+    return -1. * np.sum(np.minimum(qfeat, dfeat))
