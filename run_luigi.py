@@ -845,6 +845,8 @@ class SeparateDatabaseQueries(luigi.Task):
         'each individual in the database.'
     )
 
+    num_individuals = luigi.IntParameter(default=None)
+
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -853,11 +855,17 @@ class SeparateDatabaseQueries(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
+        outdir = join(
+            basedir, '%s' % self.num_db_encounters,
+            '%s' % (
+                'all' if self.num_individuals is None else self.num_individuals
+            )
+        )
         return {
             'database': luigi.LocalTarget(
-                join(basedir, '%s.pickle' % 'database')),
+                join(outdir, '%s.pickle' % 'database')),
             'queries': luigi.LocalTarget(
-                join(basedir, '%s.pickle' % 'queries')),
+                join(outdir, '%s.pickle' % 'queries')),
         }
 
     def run(self):
@@ -883,6 +891,18 @@ class SeparateDatabaseQueries(luigi.Task):
             self.dataset, filepaths, individuals, encounters,
             fname_trailing_edge_dict, num_db_encounters=self.num_db_encounters
         )
+
+        if self.num_individuals is not None:
+            selected_indivs = np.random.choice(
+                db_dict.keys(), self.num_individuals, replace=False
+            )
+            logger.info('Only using %d of %d individuals' % (
+                len(selected_indivs), len(db_dict.keys())
+            ))
+            for dind in db_dict.keys():
+                if dind not in selected_indivs:
+                    db_dict.pop(dind)
+                    qr_dict.pop(dind)
 
         output = self.output()
         logger.info('Saving database with %d individuals' % (len(db_dict)))
@@ -1143,7 +1163,14 @@ class EvaluateDescriptors(luigi.Task):
         descdir = ','.join(['%s' % s for s in scales])
         kdir = '%d' % self.k
         unifdir = 'uniform' if self.uniform else 'standard'
-        outdir = join(basedir, self.descriptor_type, kdir, unifdir, descdir)
+        featdir = '%d' % self.feat_dim
+        outdir = join(
+            basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
+            '%s' % self.num_db_encounters,
+            '%s' % (
+                'all' if self.num_individuals is None else self.num_individuals
+            )
+        )
         return [
             luigi.LocalTarget(
                 join(outdir, '%s_all.csv' % self.dataset)),
@@ -1158,6 +1185,7 @@ class EvaluateDescriptors(luigi.Task):
         import operator
         import pyflann
         from collections import defaultdict
+        from scipy.special import binom
 
         desc_targets = self.requires()['Descriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
@@ -1186,17 +1214,22 @@ class EvaluateDescriptors(luigi.Task):
             np.min(qr_descs_list))
         )
 
+        expected_descs = binom(self.num_keypoints, 2)
+
         descriptor_scales = self._get_descriptor_scales()
         db_labels = []
         descriptors_dict = defaultdict(list)
         logger.info('Loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
+        incomplete_descs = 0
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
                 target = desc_targets[fpath]['descriptors']
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
                     target, descriptor_scales
                 )
+                if descriptors[descriptor_scales[0]].shape[0] < expected_descs:
+                    incomplete_descs += 1
                 for sidx, s in enumerate(descriptor_scales):
                     descriptors_dict[s].append(descriptors[s])
                     if sidx == 0:
@@ -1204,6 +1237,11 @@ class EvaluateDescriptors(luigi.Task):
                         for _ in range(descriptors[s].shape[0]):
                             db_labels.append(dind)
 
+        if incomplete_descs > 0:
+            logger.warn(
+                '%d Images produced fewer than the expected %d descriptors' % (
+                    incomplete_descs, expected_descs)
+            )
         # stack list of features per encounter into a single array
         for s in descriptors_dict:
             descriptors_dict[s] = np.vstack(descriptors_dict[s])
@@ -1222,6 +1260,7 @@ class EvaluateDescriptors(luigi.Task):
 
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_fpath_dict.keys()
+        incomplete_descs = 0
         with self.output()[0].open('w') as f:
             logger.info(
                 'Running identification for %d individuals using '
@@ -1237,6 +1276,9 @@ class EvaluateDescriptors(luigi.Task):
                         descriptors = dorsal_utils.load_descriptors_from_h5py(
                             target, descriptor_scales
                         )
+                        if (descriptors[descriptor_scales[0]].shape[0] <
+                                expected_descs):
+                            incomplete_descs += 1
                         for s in descriptor_scales:
                             descriptors_dict[s].append(descriptors[s])
 
@@ -1276,6 +1318,11 @@ class EvaluateDescriptors(luigi.Task):
                     f.write('%s\n' % (
                         ','.join(['%.6f' % s for s in scores])))
 
+        if incomplete_descs > 0:
+            logger.warn(
+                '%d Images produced fewer than the expected %d descriptors' % (
+                    incomplete_descs, expected_descs)
+            )
         with self.output()[1].open('w') as f:
             f.write('individual,mrr\n')
             for qind in indiv_rank_indices.keys():
@@ -1349,12 +1396,19 @@ class Identification(luigi.Task):
             curvdir = join('oriented', self.cost_func, curvdir)
         else:
             curvdir = join('standard', self.cost_func, curvdir)
+        weightdir = 'weighted' if self.spatial_weights else 'uniform'
 
         # query dict tells us which encounters become result objects
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         with db_qr_target.output()['queries'].open('rb') as f:
             qr_curv_dict = pickle.load(f)
 
+        outdir = join(
+            basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
+            '%s' % (
+                'all' if self.num_individuals is None else self.num_individuals
+            )
+        )
         output = {}
         for qind in qr_curv_dict:
             if qind not in output:
@@ -1362,7 +1416,7 @@ class Identification(luigi.Task):
             for qenc in qr_curv_dict[qind]:
                 # an encounter may belong to multiple individuals, hence qind
                 output[qind][qenc] = luigi.LocalTarget(
-                    join(basedir, curvdir, qind, '%s.pickle' % qenc)
+                    join(outdir, qind, '%s.pickle' % qenc)
                 )
 
         return output
@@ -1428,8 +1482,14 @@ class Identification(luigi.Task):
         )
 
         # coefficients for the sum of polynomials
-        coeffs = np.array([0.0960, 0.6537, 1.0000, 0.7943, 1.0000,
-                           0.3584, 0.4492, 0.0000, 0.4157, 0.0626])
+        # coeffs for the SDRP Bottlenose dataset
+        if self.dataset in ('sdrp', 'nz'):
+            coeffs = np.array([0.0960, 0.6537, 1.0000, 0.7943, 1.0000,
+                               0.3584, 0.4492, 0.0000, 0.4157, 0.0626])
+        # coeffs for the CRC Humpback dataset
+        elif self.dataset in ('crc', 'fb'):
+            coeffs = np.array([0.0944, 0.5629, 0.7286, 0.6028, 0.0000,
+                               0.0434, 0.6906, 0.7316, 0.4671, 0.0258])
         coeffs = coeffs.reshape(coeffs.shape[0], 1)
         def bernstein_poly(x, coeffs):
             interval = np.array([0, 1])
@@ -1502,13 +1562,20 @@ class Results(luigi.Task):
         else:
             curvdir = join('standard', self.cost_func, curvdir)
 
+        weightdir = 'weighted' if self.spatial_weights else 'uniform'
+        outdir = join(
+            basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
+            '%s' % (
+                'all' if self.num_individuals is None else self.num_individuals
+            )
+        )
         return [
             luigi.LocalTarget(
-                join(basedir, curvdir, '%s_all.csv' % self.dataset)),
+                join(outdir, '%s_all.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, curvdir, '%s_mrr.csv' % self.dataset)),
+                join(outdir, '%s_mrr.csv' % self.dataset)),
             luigi.LocalTarget(
-                join(basedir, curvdir, '%s_topk.csv' % self.dataset)),
+                join(outdir, '%s_topk.csv' % self.dataset)),
         ]
 
     def run(self):
@@ -1721,65 +1788,33 @@ class VisualizeIndividuals(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(SeparateEdges)
+@inherits(SeparateDatabaseQueries)
+@inherits(BlockCurvature)
+@inherits(Identification)
 class VisualizeMisidentifications(luigi.Task):
-    dataset = luigi.ChoiceParameter(choices=['nz', 'sdrp'], var_type=str)
-    imsize = luigi.IntParameter(default=256)
-    batch_size = luigi.IntParameter(default=32)
-    scale = luigi.IntParameter(default=4)
-    window = luigi.IntParameter(default=8)
-    curv_length = luigi.IntParameter(default=128)
-    oriented = luigi.BoolParameter(default=False)
-    normalize = luigi.BoolParameter(default=False)
     num_qr_visualizations = luigi.IntParameter(default=3)
     num_db_visualizations = luigi.IntParameter(default=5)
 
-    if oriented:  # use oriented curvature
-        curvature_scales = luigi.ListParameter(
-            #default=(0.06, 0.10, 0.14, 0.18)
-            default=(0.110, 0.160, 0.210, 0.260)
-        )
-    else:       # use standard block curvature
-        curvature_scales = luigi.ListParameter(
-            default=(0.133, 0.207, 0.280, 0.353)
-        )
-
     def requires(self):
-        return [
-            SeparateEdges(dataset=self.dataset,
-                          imsize=self.imsize,
-                          batch_size=self.batch_size,
-                          scale=self.scale),
-            SeparateDatabaseQueries(dataset=self.dataset,
-                                    imsize=self.imsize,
-                                    batch_size=self.batch_size,
-                                    scale=self.scale),
-            BlockCurvature(dataset=self.dataset,
-                           imsize=self.imsize,
-                           batch_size=self.batch_size,
-                           scale=self.scale,
-                           oriented=self.oriented,
-                           curvature_scales=self.curvature_scales),
-            Identification(dataset=self.dataset,
-                           imsize=self.imsize,
-                           batch_size=self.batch_size,
-                           scale=self.scale,
-                           window=self.window,
-                           curv_length=self.curv_length,
-                           curvature_scales=self.curvature_scales,
-                           oriented=self.oriented,
-                           normalize=self.normalize)
-        ]
+        return {
+            'SeparateEdges': self.clone(SeparateEdges),
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+            'BlockCurvature': self.clone(BlockCurvature),
+            'Identification': self.clone(Identification),
+        }
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        curvdir = ','.join(['%.3f' % s for s in self.curvature_scales])
+        curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
         if self.oriented:
             curvdir = join('oriented', curvdir)
         else:
             curvdir = join('standard', curvdir)
 
         output = {}
-        evaluation_targets = self.requires()[3].output()
+        evaluation_targets = self.requires()['Identification'].output()
         for qind in evaluation_targets:
             if qind not in output:
                 output[qind] = {}
@@ -1797,15 +1832,15 @@ class VisualizeMisidentifications(luigi.Task):
     def run(self):
         from workers import visualize_misidentifications
         output = self.output()
-        edges_targets = self.requires()[0].output()
-        database_queries_targets = self.requires()[1].output()
-        block_curv_targets = self.requires()[2].output()
-        with database_queries_targets['database'].open('rb') as f:
+        edges_targets = self.requires()['SeparateEdges'].output()
+        db_qr_targets = self.requires()['SeparateDatabaseQueries'].output()
+        block_curv_targets = self.requires()['BlockCurvature'].output()
+        with db_qr_targets['database'].open('rb') as f:
             db_dict = pickle.load(f)
-        with database_queries_targets['queries'].open('rb') as f:
+        with db_qr_targets['queries'].open('rb') as f:
             qr_dict = pickle.load(f)
 
-        evaluation_targets = self.requires()[3].output()
+        evaluation_targets = self.requires()['Identification'].output()
         qindivs = evaluation_targets.keys()
         partial_visualize_misidentifications = partial(
             visualize_misidentifications,
@@ -1813,6 +1848,8 @@ class VisualizeMisidentifications(luigi.Task):
             db_dict=db_dict,
             num_qr=self.num_qr_visualizations,
             num_db=self.num_db_visualizations,
+            scales=self.curv_scales,
+            curv_length=self.curv_length,
             input1_targets=evaluation_targets,
             input2_targets=edges_targets,
             input3_targets=block_curv_targets,
