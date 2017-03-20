@@ -363,7 +363,8 @@ def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
 # input1_targets: evaluation_targets (the result dicts)
 # input2_targets: edges_targets (the separate_edges visualizations)
 # input3_targets: block_curv_targets (the curvature vectors)
-def visualize_misidentifications(qind, qr_dict, db_dict, num_db, num_qr,
+def visualize_misidentifications(qind, qr_dict, db_dict,
+                                 num_db, num_qr, scales, curv_length,
                                  input1_targets, input2_targets,
                                  input3_targets, output_targets):
     dindivs = np.hstack(db_dict.keys())  # TODO: add sorted() everywhere
@@ -464,16 +465,18 @@ def visualize_misidentifications(qind, qr_dict, db_dict, num_db, num_qr,
             db_row = np.hstack(db_row)
             db_rows.append(np.hstack((qr_img, db_row, db_qr_img)))
 
-            with qr_curv_fname.open('rb') as f:
-                qcurv = pickle.load(f)
+            qcurv = dorsal_utils.load_curv_mat_from_h5py(
+                qr_curv_fname, scales, curv_length, False
+            )
             axarr[0, i].set_title('%s: %s' % (qind, qenc), size='xx-small')
             axarr[0, i].plot(np.arange(qcurv.shape[0]), qcurv)
             axarr[0, i].set_ylim((0, 1))
             axarr[0, i].set_xlim((0, qcurv.shape[0]))
             axarr[0, i].xaxis.set_visible(False)
             for didx, db_curv_fname in enumerate(db_curv_fnames, start=1):
-                with db_curv_fname.open('rb') as f:
-                    dcurv = pickle.load(f)
+                dcurv = dorsal_utils.load_curv_mat_from_h5py(
+                    db_curv_fname, scales, curv_length, False
+                )
                 axarr[didx, i].plot(np.arange(dcurv.shape[0]), dcurv)
                 axarr[didx, i].set_title(
                     '%d) %s: %.6f' % (
@@ -484,8 +487,9 @@ def visualize_misidentifications(qind, qr_dict, db_dict, num_db, num_qr,
                 axarr[didx, i].set_xlim((0, dcurv.shape[0]))
                 axarr[didx, i].xaxis.set_visible(False)
 
-            with db_qr_curv_fname.open('rb') as f:
-                db_qr_curv = pickle.load(f)
+            db_qr_curv = dorsal_utils.load_curv_mat_from_h5py(
+                db_qr_curv_fname, scales, curv_length, False
+            )
             axarr[-1, i].plot(np.arange(db_qr_curv.shape[0]), db_qr_curv)
             axarr[-1, i].set_title(
                 '%d) %s: %.6f' % (
