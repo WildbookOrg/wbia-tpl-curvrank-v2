@@ -267,7 +267,7 @@ def load_curv_mat_from_h5py(target, scales, curv_length, normalize):
             if normalize:
                 curv -= curv.mean(axis=0)
                 curv /= curv.std(axis=0)
-            if curv.shape[0] == curv_length:
+            if curv_length is None or curv.shape[0] == curv_length:
                 curv_matrix[:, sidx] = curv
             else:
                 curv_matrix[:, sidx] = resample(curv, curv_length)
