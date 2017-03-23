@@ -287,14 +287,17 @@ def compute_curv_descriptors(fpath, scales,
         ]
         for i, (idx0, idx1) in enumerate(endpoints):
             subcurv = resampled[idx0:idx1]
+
             feat = dorsal_utils.resampleNd(subcurv, feat_dim)
 
             # l2-norm across the feature dimension
             feat /= np.sqrt(np.sum(feat * feat, axis=0))
-            assert feat.shape[0] == feat_dim
+            assert feat.shape[0] == feat_dim, (
+                'feat.shape[0] = %d != feat_dim' % (feat.shape[0], feat_dim))
+            feat_norm = np.linalg.norm(feat, axis=0)
             assert np.allclose(
-                np.linalg.norm(feat, axis=0), np.ones(feat.shape[1])
-            )
+                feat_norm, np.ones(feat.shape[1])
+            ), 'norm(feat) = [%s]' % (','.join('%.6f' % a for a in feat_norm))
 
             for sidx, s in enumerate(scales):
                 descriptors[sidx][i] = feat[:, sidx]
