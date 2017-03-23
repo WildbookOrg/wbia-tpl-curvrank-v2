@@ -1346,10 +1346,6 @@ class Identification(luigi.Task):
         default=128, description='Number of spatial points in curvature '
         'vectors after resampling.'
     )
-    normalize = luigi.BoolParameter(
-        default=False, description='Scale curvature vectors to zero mean and'
-        'unit variance.'
-    )
     serial = luigi.BoolParameter(default=False)
     cost_func = luigi.ChoiceParameter(
         choices=costs.get_cost_func_dict().keys(), var_type=str,
@@ -1426,7 +1422,7 @@ class Identification(luigi.Task):
             for fpath in db_fpath_dict[dind]:
                 curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                     curv_targets[fpath]['curvature'],
-                    self.curv_scales, self.curv_length, self.normalize
+                    self.curv_scales, self.curv_length
                 )
                 db_curv_dict[dind].append(curv_matrix)
 
@@ -1442,7 +1438,7 @@ class Identification(luigi.Task):
                 for fpath in qr_fpath_dict[qind][qenc]:
                     curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                         curv_targets[fpath]['curvature'],
-                        self.curv_scales, self.curv_length, self.normalize
+                        self.curv_scales, self.curv_length
                     )
                     qr_curv_dict[qind][qenc].append(curv_matrix)
 
