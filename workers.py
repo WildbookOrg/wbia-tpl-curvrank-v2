@@ -142,19 +142,17 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
         pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
 
 
-def compute_curvature_star(fpath_scales, transpose_dims, indep_dims, oriented,
+def compute_curvature_star(fpath_scales, transpose_dims,
                            input_targets, output_targets):
     return compute_curvature(
         *fpath_scales,
         transpose_dims=transpose_dims,
-        indep_dims=indep_dims,
-        oriented=oriented,
         input_targets=input_targets, output_targets=output_targets
     )
 
 
 #input_targets: extract_high_resolution_outline_targets
-def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
+def compute_curvature(fpath, scales, transpose_dims,
                       input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
@@ -170,26 +168,10 @@ def compute_curvature(fpath, scales, transpose_dims, indep_dims, oriented,
         # reverse contour to get positive curvature vectors
         else:
             trailing_edge = trailing_edge[::-1]
-        if oriented:
-            radii = scales * (
-                trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
-            )
-            curv = dorsal_utils.oriented_curvature(trailing_edge, radii)
-        else:
-            heights = scales * (
-                trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
-            )
-            # humpback flukes tend to be flat, so define dims only in terms of
-            # height (after transpose)
-            if indep_dims:
-                widths = scales * (
-                    trailing_edge[:, 0].max() - trailing_edge[:, 0].min()
-                )
-            else:
-                widths = heights
-
-            dims = zip(heights, widths)
-            curv = dorsal_utils.block_curvature(trailing_edge, dims)
+        radii = scales * (
+            trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
+        )
+        curv = dorsal_utils.oriented_curvature(trailing_edge, radii)
     # write the failures too or it seems like the task did not complete
     else:
         curv = None

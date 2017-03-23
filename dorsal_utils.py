@@ -137,26 +137,6 @@ def gaussian(u, s):
     return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
 
 
-def block_curvature(contour, dimensions):
-    curvature = np.zeros((contour.shape[0], len(dimensions)), dtype=np.float32)
-    for j, (h, w) in enumerate(dimensions):
-        for i, (x, y) in enumerate(contour):
-            x0, x1 = x - w / 2., x + w / 2.
-            y0 = max(contour[:, 1].min(), y - h / 2.)
-            y1 = min(y + h / 2., contour[:, 1].max())
-
-            x0x1 = (contour[:, 0] >= x0)
-            y0y1 = (contour[:, 1] >= y0) & (contour[:, 1] <= y1)
-            curve = contour[x0x1 & y0y1]
-
-            curve[:, 0] = np.clip(curve[:, 0], x0, x1)
-            area = np.trapz(curve[:, 0] - x0, curve[:, 1], axis=0)
-
-            curvature[i, j] = area / ((x1 - x0) * (y1 - y0))
-
-    return curvature
-
-
 def oriented_curvature(contour, radii):
     curvature = np.zeros((contour.shape[0], len(radii)), dtype=np.float32)
     # define the radii as a fraction of either the x or y extent

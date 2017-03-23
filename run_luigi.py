@@ -724,18 +724,10 @@ class SeparateEdges(luigi.Task):
 @inherits(PrepareData)
 @inherits(SeparateEdges)
 class BlockCurvature(luigi.Task):
-    oriented = luigi.BoolParameter(
-        default=False,
-        description='Use the oriented block curvature implementation.'
-    )
     serial = luigi.BoolParameter(default=False)
     trans_dims = luigi.BoolParameter(
         default=False,
         description='Transpose (x, y) -> (y, x) (use for humpback flukes).'
-    )
-    indep_dims = luigi.BoolParameter(
-        default=False, description='Choose dimensions of blocks based on '
-        'height and width, instead of just height (ignored with --oriented).'
     )
 
     curv_scales = luigi.ListParameter(
@@ -787,11 +779,6 @@ class BlockCurvature(luigi.Task):
 
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        if self.oriented:
-            basedir = join(basedir, 'oriented')
-        else:
-            basedir = join(basedir, 'standard')
-
         outputs = {}
         for fpath, indiv, _, _ in input_filepaths:
             fname = splitext(basename(fpath))[0]
@@ -815,8 +802,6 @@ class BlockCurvature(luigi.Task):
         partial_compute_block_curvature = partial(
             compute_curvature_star,
             transpose_dims=self.trans_dims,
-            indep_dims=self.indep_dims,
-            oriented=self.oriented,
             input_targets=separate_edges_targets,
             output_targets=output,
         )
@@ -1392,10 +1377,7 @@ class Identification(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
-        if self.oriented:
-            curvdir = join('oriented', self.cost_func, curvdir)
-        else:
-            curvdir = join('standard', self.cost_func, curvdir)
+        curvdir = join(self.cost_func, curvdir)
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
 
         # query dict tells us which encounters become result objects
@@ -1557,10 +1539,7 @@ class Results(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
-        if self.oriented:
-            curvdir = join('oriented', self.cost_func, curvdir)
-        else:
-            curvdir = join('standard', self.cost_func, curvdir)
+        curvdir = join(self.cost_func, curvdir)
 
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
         outdir = join(
@@ -1808,10 +1787,6 @@ class VisualizeMisidentifications(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
-        if self.oriented:
-            curvdir = join('oriented', curvdir)
-        else:
-            curvdir = join('standard', curvdir)
 
         output = {}
         evaluation_targets = self.requires()['Identification'].output()
