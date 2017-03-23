@@ -830,8 +830,6 @@ class SeparateDatabaseQueries(luigi.Task):
         'each individual in the database.'
     )
 
-    num_individuals = luigi.IntParameter(default=None)
-
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -840,12 +838,7 @@ class SeparateDatabaseQueries(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        outdir = join(
-            basedir, '%s' % self.num_db_encounters,
-            '%s' % (
-                'all' if self.num_individuals is None else self.num_individuals
-            )
-        )
+        outdir = join(basedir, '%s' % self.num_db_encounters)
         return {
             'database': luigi.LocalTarget(
                 join(outdir, '%s.pickle' % 'database')),
@@ -876,18 +869,6 @@ class SeparateDatabaseQueries(luigi.Task):
             self.dataset, filepaths, individuals, encounters,
             fname_trailing_edge_dict, num_db_encounters=self.num_db_encounters
         )
-
-        if self.num_individuals is not None:
-            selected_indivs = np.random.choice(
-                db_dict.keys(), self.num_individuals, replace=False
-            )
-            logger.info('Only using %d of %d individuals' % (
-                len(selected_indivs), len(db_dict.keys())
-            ))
-            for dind in db_dict.keys():
-                if dind not in selected_indivs:
-                    db_dict.pop(dind)
-                    qr_dict.pop(dind)
 
         output = self.output()
         logger.info('Saving database with %d individuals' % (len(db_dict)))
@@ -1151,10 +1132,7 @@ class EvaluateDescriptors(luigi.Task):
         featdir = '%d' % self.feat_dim
         outdir = join(
             basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
-            '%s' % self.num_db_encounters,
-            '%s' % (
-                'all' if self.num_individuals is None else self.num_individuals
-            )
+            '%s' % self.num_db_encounters
         )
         return [
             luigi.LocalTarget(
@@ -1383,9 +1361,6 @@ class Identification(luigi.Task):
 
         outdir = join(
             basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
-            '%s' % (
-                'all' if self.num_individuals is None else self.num_individuals
-            )
         )
         output = {}
         for qind in qr_curv_dict:
@@ -1540,9 +1515,6 @@ class Results(luigi.Task):
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
         outdir = join(
             basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
-            '%s' % (
-                'all' if self.num_individuals is None else self.num_individuals
-            )
         )
         return [
             luigi.LocalTarget(
