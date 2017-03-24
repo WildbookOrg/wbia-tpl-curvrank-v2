@@ -96,14 +96,14 @@ def load_sdrp_dataset(years):
             distance_code, distance_text) in cur.fetchall():
 
         date = datetime.strptime(date, '%m/%d/%y %H:%M:%S')
-        #quality_score = (focus_code + contrast_code + angle_code +
-        #                 partial_code + distance_code)
+        quality_score = (focus_code + contrast_code + angle_code +
+                         partial_code + distance_code)
         #if quality_score > 7:
         #    continue
-        #if quality_score > 11:
-        #    continue
-        #if distinct_rating not in ['D1', 'D2']:
-        #    continue
+        if quality_score > 11:  # Q1 or Q2 in quality
+            continue
+        if distinct_rating not in ['D1', 'D2']:
+            continue
         # we only use left-view images for now
         if date.year in years:
             data_list.append((
@@ -159,12 +159,13 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
                         qr_dict[ind] = {}
                     qr_dict[ind][enc] = ind_enc_curv_dict[ind][enc]
         else:
-            print('individual %s has only %d encounters' % (
-                ind, num_encounters))
+            db_dict[ind] = ind_enc_curv_dict[ind][encounters[0]]
+            #print('individual %s has only %d encounters' % (
+            #    ind, num_encounters))
 
     # we only use individuals with at least two encounters
-    for qind in qr_dict.keys():
-        assert qind in db_dict.keys(), '%s missing from db!' % (qind)
+    #for qind in qr_dict.keys():
+    #    assert qind in db_dict.keys(), '%s missing from db!' % (qind)
     return db_dict, qr_dict
 
 
@@ -214,7 +215,8 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
                     q_curv_list.append(curv)
                 qr_dict[ind][enc] = q_curv_list
         else:
-            single_encounter_individuals += 1
+            db_dict[ind] = ind_enc_curv_dict[ind][encounters[0]]
+            #single_encounter_individuals += 1
 
     print('there are %d individuals with only 1 encounter' %  (
         single_encounter_individuals))

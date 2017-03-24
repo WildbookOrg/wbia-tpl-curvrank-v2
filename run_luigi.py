@@ -1404,8 +1404,13 @@ class Identification(luigi.Task):
             qr_fpath_dict = pickle.load(f)
 
         db_curv_dict = {}
-        logger.info('Loading curvature vectors for %d database individuals' % (
-            len(db_fpath_dict)))
+        num_db_curvs = np.sum(
+            [len(db_fpath_dict[dind]) for dind in db_fpath_dict]
+        )
+        logger.info(
+            'Loading %d curvature vectors for %d database individuals' %
+            (num_db_curvs, len(db_fpath_dict))
+        )
         for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
             if dind not in db_curv_dict:
                 db_curv_dict[dind] = []
@@ -1417,8 +1422,12 @@ class Identification(luigi.Task):
                 db_curv_dict[dind].append(curv_matrix)
 
         qr_curv_dict = {}
-        logger.info('Loading curvature vectors for %d query individuals' % (
-            len(qr_fpath_dict)))
+        num_qr_curvs = np.sum([
+            len(qr_fpath_dict[qind][qenc]) for qind in qr_fpath_dict
+            for qenc in qr_fpath_dict[qind]
+        ])
+        logger.info('Loading %d curvature vectors for %d query individuals' % (
+            num_qr_curvs, len(qr_fpath_dict)))
         for qind in tqdm(qr_fpath_dict, total=len(qr_fpath_dict), leave=False):
             if qind not in qr_curv_dict:
                 qr_curv_dict[qind] = {}
@@ -1482,9 +1491,10 @@ class Identification(luigi.Task):
         output = self.output()
         qindivs = qr_curv_dict.keys()
         logger.info(
-            'Running identification for %d individuals using '
-            'cost function = %s and spatial weights = %s' % (
-                len(qindivs), self.cost_func, self.spatial_weights)
+            'Running identification for %d encounters from %d individuals'
+            ' using cost function = %s and spatial weights = %s' % (
+                len(to_process), len(qindivs), self.cost_func,
+                self.spatial_weights)
         )
         partial_identify_encounters = partial(
             identify_encounter_star,
