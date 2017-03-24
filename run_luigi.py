@@ -1338,15 +1338,27 @@ class Identification(luigi.Task):
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
-    def complete(self):
+    def get_incomplete(self):
+        output = self.output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        if not exists(db_qr_target.output()['queries'].path):
-            return False
-        else:
-            return all(map(
-                lambda output: output.exists(),
-                luigi.task.flatten(self.output())
-            ))
+        qr_fpath_dict_target = db_qr_target.output()['queries']
+
+        # use the qr_dict to determine which encounters have not been quieried
+        with qr_fpath_dict_target.open('rb') as f:
+            qr_fpath_dict = pickle.load(f)
+
+        to_process = []
+        for qind in qr_fpath_dict:
+            for qenc in qr_fpath_dict[qind]:
+                target = output[qind][qenc]
+                if not target.exists():
+                    to_process.append((qind, qenc))
+
+        return to_process
+
+    def complete(self):
+        to_process = self.get_incomplete()
+        return not bool(to_process)
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
@@ -1354,8 +1366,11 @@ class Identification(luigi.Task):
         curvdir = join(self.cost_func, curvdir)
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
 
-        # query dict tells us which encounters become result objects
         db_qr_target = self.requires()['SeparateDatabaseQueries']
+        qr_fpath_dict_target = db_qr_target.output()['queries']
+        if not qr_fpath_dict_target.exists():
+            self.requires()['SeparateDatabaseQueries'].run()
+        # query dict tells us which encounters become result objects
         with db_qr_target.output()['queries'].open('rb') as f:
             qr_curv_dict = pickle.load(f)
 
@@ -1463,11 +1478,7 @@ class Identification(luigi.Task):
             self.cost_func, weights=weights, window=self.window
         )
 
-        to_process = []
-        for qind in qr_curv_dict:
-            for qenc in qr_curv_dict[qind]:
-                to_process.append((qind, qenc))
-
+        to_process = self.get_incomplete()
         output = self.output()
         qindivs = qr_curv_dict.keys()
         logger.info(
