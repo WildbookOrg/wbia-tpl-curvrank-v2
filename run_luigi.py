@@ -1377,7 +1377,7 @@ class Identification(luigi.Task):
     def run(self):
         import dorsal_utils
         from scipy.interpolate import BPoly
-        from workers import identify_encounters
+        from workers import identify_encounter_star
         curv_targets = self.requires()['BlockCurvature'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_fpath_dict_target = db_qr_target.output()['database']
@@ -1463,6 +1463,11 @@ class Identification(luigi.Task):
             self.cost_func, weights=weights, window=self.window
         )
 
+        to_process = []
+        for qind in qr_curv_dict:
+            for qenc in qr_curv_dict[qind]:
+                to_process.append((qind, qenc))
+
         output = self.output()
         qindivs = qr_curv_dict.keys()
         logger.info(
@@ -1471,7 +1476,7 @@ class Identification(luigi.Task):
                 len(qindivs), self.cost_func, self.spatial_weights)
         )
         partial_identify_encounters = partial(
-            identify_encounters,
+            identify_encounter_star,
             qr_curv_dict=qr_curv_dict,
             db_curv_dict=db_curv_dict,
             simfunc=cost_func,
@@ -1480,12 +1485,13 @@ class Identification(luigi.Task):
 
         t_start = time()
         if self.serial:
-            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-                partial_identify_encounters(qind)
+            for qind, qenc in tqdm(
+                    to_process, total=len(qindivs), leave=False):
+                partial_identify_encounters((qind, qenc))
         else:
             try:
                 pool = mp.Pool(processes=32)
-                pool.map(partial_identify_encounters, qindivs)
+                pool.map(partial_identify_encounters, to_process)
             finally:
                 pool.close()
                 pool.join()

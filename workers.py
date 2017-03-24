@@ -320,26 +320,35 @@ def visualize_individuals(fpath, input_targets, output_targets):
         f.write(img_buf)
 
 
-def identify_encounters(qind, qr_curv_dict, db_curv_dict, simfunc,
-                        output_targets):
-    qencs = qr_curv_dict[qind].keys()
+def identify_encounter_star(qind_qenc, qr_curv_dict, db_curv_dict, simfunc,
+                            output_targets):
+    return identify_encounter(
+        *qind_qenc,
+        qr_curv_dict=qr_curv_dict,
+        db_curv_dict=db_curv_dict,
+        simfunc=simfunc,
+        output_targets=output_targets
+    )
+
+
+def identify_encounter(qind, qenc, qr_curv_dict, db_curv_dict, simfunc,
+                       output_targets):
     dindivs = db_curv_dict.keys()
-    assert qencs, 'empty encounter list for %s' % qind
-    for qenc in qencs:
-        result_dict = {}
-        qcurvs = qr_curv_dict[qind][qenc]
-        for dind in dindivs:
-            dcurvs = db_curv_dict[dind]
-            # mxn matrix: m query curvs, n db curvs for an individual
-            S = np.zeros((len(qcurvs), len(dcurvs)), dtype=np.float32)
-            for i, qcurv in enumerate(qcurvs):
-                for j, dcurv in enumerate(dcurvs):
-                    S[i, j] = simfunc(qcurv, dcurv)
+    #assert qencs, 'empty encounter list for %s' % qind
+    result_dict = {}
+    qcurvs = qr_curv_dict[qind][qenc]
+    for dind in dindivs:
+        dcurvs = db_curv_dict[dind]
+        # mxn matrix: m query curvs, n db curvs for an individual
+        S = np.zeros((len(qcurvs), len(dcurvs)), dtype=np.float32)
+        for i, qcurv in enumerate(qcurvs):
+            for j, dcurv in enumerate(dcurvs):
+                S[i, j] = simfunc(qcurv, dcurv)
 
-            result_dict[dind] = S
+        result_dict[dind] = S
 
-        with output_targets[qind][qenc].open('wb') as f:
-            pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
+    with output_targets[qind][qenc].open('wb') as f:
+        pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
 
 
 # input1_targets: evaluation_targets (the result dicts)
