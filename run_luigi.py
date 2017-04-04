@@ -14,7 +14,7 @@ from functools import partial
 from luigi.util import inherits
 from time import time
 from tqdm import tqdm
-from os.path import basename, exists, join, splitext
+from os.path import basename, exists, isfile, join, splitext
 
 
 logger = logging.getLogger('luigi-interface')
@@ -28,6 +28,9 @@ class HDF5LocalTarget(luigi.LocalTarget):
         if mode in ('a', 'w'):
             self.makedirs()
         return h5py.File(self.path, mode)
+
+    def exists(self):
+        return isfile(self.path)
 
 
 class PrepareData(luigi.Task):
@@ -830,6 +833,15 @@ class SeparateDatabaseQueries(luigi.Task):
         'each individual in the database.'
     )
 
+    db_fname = luigi.Parameter(
+        description='The filename from which to load the db_dict'
+    )
+    qr_fname = luigi.Parameter(
+        description='The filename from which to load the qr_dict'
+    )
+
+    num_individuals = luigi.IntParameter(default=None)
+
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -841,9 +853,9 @@ class SeparateDatabaseQueries(luigi.Task):
         outdir = join(basedir, '%s' % self.num_db_encounters)
         return {
             'database': luigi.LocalTarget(
-                join(outdir, '%s.pickle' % 'database')),
+                join(outdir, self.db_fname)),
             'queries': luigi.LocalTarget(
-                join(outdir, '%s.pickle' % 'queries')),
+                join(outdir, self.qr_fname)),
         }
 
     def run(self):
@@ -1399,6 +1411,8 @@ class Identification(luigi.Task):
         db_fpath_dict_target = db_qr_target.output()['database']
         qr_fpath_dict_target = db_qr_target.output()['queries']
 
+        logger.info('Using %s as the database' % (db_fpath_dict_target.path))
+        logger.info('Using %s as the queries' % (qr_fpath_dict_target.path))
         with db_fpath_dict_target.open('rb') as f:
             db_fpath_dict = pickle.load(f)
         with qr_fpath_dict_target.open('rb') as f:
@@ -1574,15 +1588,21 @@ class Results(luigi.Task):
 
                     asc_scores_idx = np.argsort(scores)
                     ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
-                    ranked_scores = [scores[idx] for idx in asc_scores_idx]
+                    #ranked_scores = [scores[idx] for idx in asc_scores_idx]
 
-                    rank = 1 + ranked_indivs.index(qind)
-                    indiv_rank_indices[qind].append(rank)
+                    # handle unknown individuals, or those not in the database
+                    try:
+                        rank = 1 + ranked_indivs.index(qind)
+                        indiv_rank_indices[qind].append(rank)
+                    except ValueError:
+                        rank = -1
 
-                    f.write('%s,%s\n' % (
-                        qind, ','.join(['%s' % r for r in ranked_indivs])))
-                    f.write('%s\n' % (
-                        ','.join(['%.6f' % s for s in ranked_scores])))
+                    f.write('%s,%s,%s,%s\n' % (
+                        qenc, qind, rank,
+                        ','.join('%s' % r for r in ranked_indivs[0:10])
+                    ))
+                    #f.write('%s\n' % (
+                    #    ','.join(['%.6f' % s for s in ranked_scores])))
 
         with self.output()[1].open('w') as f:
             f.write('individual,mrr\n')
