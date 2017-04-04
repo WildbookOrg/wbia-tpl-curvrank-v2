@@ -1185,7 +1185,8 @@ class EvaluateDescriptors(luigi.Task):
         logger.info('Loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
         incomplete_descs = 0
-        for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
+        dindivs = db_fpath_dict.keys()
+        for dind in tqdm(dindivs, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
                 target = desc_targets[fpath]['descriptors']
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
@@ -1249,7 +1250,7 @@ class EvaluateDescriptors(luigi.Task):
                         descriptors_dict[s] = np.vstack(descriptors_dict[s])
 
                     # lnbnn classification
-                    scores = defaultdict(int)
+                    scores = {dind: 0.0 for dind in dindivs}
                     for s in descriptors_dict:
                         flann, params = flann_dict[s], params_dict[s]
                         query_features = descriptors_dict[s]
