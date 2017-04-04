@@ -1237,10 +1237,13 @@ class EvaluateDescriptors(luigi.Task):
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_fpath_dict.keys()
         incomplete_descs = 0
+        logger.info(
+            'Running identification for %d individuals using '
+            'descriptor type = %s ' % (len(qindivs), self.descriptor_type)
+        )
         with self.output()[0].open('w') as f:
-            logger.info(
-                'Running identification for %d individuals using '
-                'descriptor type = %s ' % (len(qindivs), self.descriptor_type)
+            f.write('Enc,Ind,Rank,%s\n' % (
+                ','.join('%s' % s for s in range(1, 1 + len(dindivs))))
             )
             for qind in tqdm(qindivs, total=len(qindivs), leave=False):
                 qencs = qr_fpath_dict[qind].keys()
@@ -1279,20 +1282,21 @@ class EvaluateDescriptors(luigi.Task):
 
                     ranking = sorted(scores.items(),
                                      key=operator.itemgetter(1))
-                    rindivs = [x[0] for x in ranking]
-                    scores = [x[1] for x in ranking]
+                    ranked_indivs = [x[0] for x in ranking]
+                    #scores = [x[1] for x in ranking]
 
                     try:
-                        rank = 1 + rindivs.index(qind)
+                        rank = 1 + ranked_indivs.index(qind)
+                        indiv_rank_indices[qind].append(rank)
                     except ValueError:
-                        rank = 1 + (len(rindivs) + len(qindivs)) / 2
+                        rank = -1
 
-                    indiv_rank_indices[qind].append(rank)
-
-                    f.write('%s,%s\n' % (
-                        qind, ','.join(['%s' % r for r in rindivs])))
-                    f.write('%s\n' % (
-                        ','.join(['%.6f' % s for s in scores])))
+                    f.write('%s,%s,%s,%s\n' % (
+                        qenc, qind, rank,
+                        ','.join('%s' % r for r in ranked_indivs)
+                    ))
+                    #f.write('%s\n' % (
+                    #    ','.join(['%.6f' % s for s in scores])))
 
         if incomplete_descs > 0:
             logger.warn(
@@ -1577,6 +1581,9 @@ class Results(luigi.Task):
         indiv_rank_indices = defaultdict(list)
         t_start = time()
         with self.output()[0].open('w') as f:
+            f.write('Enc,Ind,Rank,%s\n' % (
+                ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+            )
             for qind in tqdm(evaluation_targets, leave=False):
                 for qenc in evaluation_targets[qind]:
                     with evaluation_targets[qind][qenc].open('rb') as f1:
@@ -1599,7 +1606,7 @@ class Results(luigi.Task):
 
                     f.write('%s,%s,%s,%s\n' % (
                         qenc, qind, rank,
-                        ','.join('%s' % r for r in ranked_indivs[0:10])
+                        ','.join('%s' % r for r in ranked_indivs)
                     ))
                     #f.write('%s\n' % (
                     #    ','.join(['%.6f' % s for s in ranked_scores])))
