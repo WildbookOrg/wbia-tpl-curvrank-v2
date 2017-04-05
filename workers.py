@@ -323,6 +323,61 @@ def visualize_individuals(fpath, input_targets, output_targets):
         f.write(img_buf)
 
 
+def identify_encounter_descriptors_star(qind_qenc, query_mgr, scales, k,
+                                        qr_fpath_dict, db_fpath_dict,
+                                        input_targets, output_targets):
+    return identify_encounter_descriptors(
+        *qind_qenc,
+        query_mgr=query_mgr,
+        scales=scales, k=k,
+        qr_fpath_dict=qr_fpath_dict,
+        db_fpath_dict=db_fpath_dict,
+        input_targets=input_targets,
+        output_targets=output_targets
+    )
+
+
+def identify_encounter_descriptors(qind, qenc, query_mgr, scales, k,
+                                   qr_fpath_dict, db_fpath_dict,
+                                   input_targets, output_targets):
+    descriptors_dict = {s: [] for s in scales}
+    for fpath in qr_fpath_dict[qind][qenc]:
+        target = input_targets[fpath]['descriptors']
+        descriptors = dorsal_utils.load_descriptors_from_h5py(
+            target, scales
+        )
+        for s in scales:
+            descriptors_dict[s].append(descriptors[s])
+
+    for s in descriptors_dict:
+        descriptors_dict[s] = np.vstack(descriptors_dict[s])
+
+    db_indivs = db_fpath_dict.keys()
+    # lnbnn classification
+    scores = {dind: 0.0 for dind in db_indivs}
+    for s in descriptors_dict:
+        flann, params = query_mgr.flann[s], query_mgr.params[s]
+        query_features = descriptors_dict[s]
+        print('nn index')
+        ind, dist = flann.nn_index(
+            query_features, k, checks=params['checks']
+        )
+        print('done nn index')
+
+        for i in range(query_features.shape[0]):
+            classes = query_mgr.db_labels[ind][i, :]
+            for c in np.unique(classes):
+                j, = np.where(classes == c)
+                score = dist[i, j.min()] - dist[i, -1]
+                scores[c] += score
+            print('done classes: %d / %d' % (i, query_features.shape[0]))
+        print('done scoring')
+
+    print('writing output')
+    with output_targets[qind][qenc].open('wb') as f:
+        pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
+
+
 def identify_encounter_star(qind_qenc, qr_curv_dict, db_curv_dict, simfunc,
                             output_targets):
     return identify_encounter(

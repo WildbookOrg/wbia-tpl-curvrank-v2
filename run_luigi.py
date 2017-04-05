@@ -8,6 +8,7 @@ import datasets
 import model
 import logging
 import multiprocessing as mp
+import multiprocessing.pool
 import numpy as np
 
 from functools import partial
@@ -15,6 +16,18 @@ from luigi.util import inherits
 from time import time
 from tqdm import tqdm
 from os.path import basename, exists, isfile, join, splitext
+
+
+class NoDaemonProcess(mp.Process):
+    def _get_daemon(self):
+        return False
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
 
 
 logger = logging.getLogger('luigi-interface')
@@ -1095,7 +1108,7 @@ class CurvatureDescriptors(luigi.Task):
 @inherits(CurvatureDescriptors)
 @inherits(GaussDescriptors)
 @inherits(SeparateDatabaseQueries)
-class EvaluateDescriptors(luigi.Task):
+class DescriptorsIdentification(luigi.Task):
     k = luigi.IntParameter(default=3)
     descriptor_type = luigi.ChoiceParameter(
         choices=['gauss', 'curv'], var_type=str
@@ -1112,15 +1125,26 @@ class EvaluateDescriptors(luigi.Task):
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
         }
 
-    def complete(self):
+    def get_incomplete(self):
+        output = self.output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        if not exists(db_qr_target.output()['queries'].path):
-            return False
-        else:
-            return all(map(
-                lambda output: output.exists(),
-                luigi.task.flatten(self.output())
-            ))
+        qr_fpath_dict_target = db_qr_target.output()['queries']
+
+        # use the qr_dict to determine which encounters have not been quieried
+        with qr_fpath_dict_target.open('rb') as f:
+            qr_fpath_dict = pickle.load(f)
+
+        to_process = []
+        for qind in qr_fpath_dict:
+            for qenc in qr_fpath_dict[qind]:
+                target = output[qind][qenc]
+                if not target.exists():
+                    to_process.append((qind, qenc))
+
+        return to_process
+    def complete(self):
+        to_process = self.get_incomplete()
+        return not bool(to_process)
 
     def _get_descriptor_scales(self):
         if self.descriptor_type == 'gauss':
@@ -1146,14 +1170,27 @@ class EvaluateDescriptors(luigi.Task):
             basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
             '%s' % self.num_db_encounters
         )
-        return [
-            luigi.LocalTarget(
-                join(outdir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_topk.csv' % self.dataset))
-        ]
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        qr_fpath_dict_target = db_qr_target.output()['queries']
+        if not qr_fpath_dict_target.exists():
+            self.requires()['SeparateDatabaseQueries'].run()
+        with db_qr_target.output()['queries'].open('rb') as f:
+            qr_curv_dict = pickle.load(f)
+        output = {}
+        for qind in qr_curv_dict:
+            if qind not in output:
+                output[qind] = {}
+            for qenc in qr_curv_dict[qind]:
+                # an encounter may belong to multiple individuals, hence qind
+                output[qind][qenc] = luigi.LocalTarget(
+                    join(outdir, qind, '%s.pickle' % qenc)
+                )
+
+        for qind in output:
+            for qenc in output[qind]:
+                print output[qind][qenc].path
+        exit(0)
+        return output
 
     def run(self):
         import dorsal_utils
@@ -1161,6 +1198,7 @@ class EvaluateDescriptors(luigi.Task):
         import pyflann
         from collections import defaultdict
         from scipy.special import binom
+        from workers import identify_encounter_descriptors_star
 
         desc_targets = self.requires()['Descriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
@@ -1234,6 +1272,32 @@ class EvaluateDescriptors(luigi.Task):
             flann_dict[s] = flann
             params_dict[s] = flann.build_index(descriptors_dict[s])
 
+        to_process = self.get_incomplete()
+        manager = mp.Manager()
+        ns = manager.Namespace()
+        ns.flann = flann_dict
+        ns.params = params_dict
+        ns.db_labels = dbl
+
+        output = self.output()
+        partial_identify_encounter_descriptors = partial(
+            identify_encounter_descriptors_star,
+            query_mgr=ns,
+            scales=descriptor_scales,
+            k=self.k,
+            qr_fpath_dict=qr_fpath_dict,
+            db_fpath_dict=db_fpath_dict,
+            input_targets=desc_targets,
+            output_targets=output,
+        )
+
+        try:
+            pool = MyPool(processes=32)
+            pool.map(partial_identify_encounter_descriptors, to_process)
+        finally:
+            pool.close()
+            pool.join()
+
         indiv_rank_indices = defaultdict(list)
         qindivs = qr_fpath_dict.keys()
         incomplete_descs = 0
@@ -1249,37 +1313,7 @@ class EvaluateDescriptors(luigi.Task):
                 qencs = qr_fpath_dict[qind].keys()
                 assert qencs, 'empty encounter list for %s' % qind
                 for qenc in qencs:
-                    descriptors_dict = defaultdict(list)
-                    for fpath in qr_fpath_dict[qind][qenc]:
-                        target = desc_targets[fpath]['descriptors']
-                        descriptors = dorsal_utils.load_descriptors_from_h5py(
-                            target, descriptor_scales
-                        )
-                        if (descriptors[descriptor_scales[0]].shape[0] <
-                                expected_descs):
-                            incomplete_descs += 1
-                        for s in descriptor_scales:
-                            descriptors_dict[s].append(descriptors[s])
-
-                    for s in descriptors_dict:
-                        descriptors_dict[s] = np.vstack(descriptors_dict[s])
-
-                    # lnbnn classification
-                    scores = {dind: 0.0 for dind in dindivs}
-                    for s in descriptors_dict:
-                        flann, params = flann_dict[s], params_dict[s]
-                        query_features = descriptors_dict[s]
-                        ind, dist = flann.nn_index(
-                            query_features, self.k, checks=params['checks']
-                        )
-
-                        for i in range(query_features.shape[0]):
-                            classes = dbl[ind][i, :]
-                            for c in np.unique(classes):
-                                j, = np.where(classes == c)
-                                score = dist[i, j.min()] - dist[i, -1]
-                                scores[c] += score
-
+                    # TODO
                     ranking = sorted(scores.items(),
                                      key=operator.itemgetter(1))
                     ranked_indivs = [x[0] for x in ranking]
