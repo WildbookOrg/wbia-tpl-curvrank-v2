@@ -1095,7 +1095,7 @@ class CurvatureDescriptors(luigi.Task):
 @inherits(CurvatureDescriptors)
 @inherits(GaussDescriptors)
 @inherits(SeparateDatabaseQueries)
-class DescriptorsIdentification(luigi.Task):
+class DescriptorsId(luigi.Task):
     k = luigi.IntParameter(default=3)
     descriptor_type = luigi.ChoiceParameter(
         choices=['gauss', 'curv'], var_type=str
@@ -1129,6 +1129,7 @@ class DescriptorsIdentification(luigi.Task):
                     to_process.append((qind, qenc))
 
         return to_process
+
     def complete(self):
         to_process = self.get_incomplete()
         return not bool(to_process)
@@ -1236,21 +1237,18 @@ class DescriptorsIdentification(luigi.Task):
         assert len(data_fts_list[0]) == len(data_ids_list), '%d != %d' % (
             len(data_fts_list), len(data_ids_list))
 
-        index_fpath_dict = {}
-        indexes_to_build = []
-        for s in descriptor_scales:
-            fpath = join('data', 'tmp', '%s.ann' % s)
-            if not exists(fpath):
-                data = descriptor_scales[s]
-                indexes_to_build.append((data, fpath))
-            index_fpath_dict[s] = fpath
+        index_fpath_dict = {
+            s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
+        }
+        indexes_to_build = [
+            (descriptors_dict[s], index_fpath_dict[s])
+            for s in descriptor_scales
+        ]
 
-        logger.info('Require %d kdtrees for scales: %s' % (
+        logger.info('Building %d kdtrees for scales: %s' % (
             len(descriptor_scales),
             ', '.join('%s' % s for s in descriptor_scales))
         )
-        logger.info('Building %d of %d kdtrees' % (
-            len(indexes_to_build), len(descriptor_scales)))
 
         if indexes_to_build:
             try:
@@ -1261,7 +1259,13 @@ class DescriptorsIdentification(luigi.Task):
                 pool.join()
 
         to_process = self.get_incomplete()
-
+        qindivs = qr_fpath_dict.keys()
+        logger.info(
+            'Running identification for %d encounters from %d individuals'
+            ' using descriptor type = %s and feature dimension = %s' % (
+                len(to_process), len(qindivs), self.descriptor_type,
+                self.feat_dim)
+        )
         output = self.output()
         partial_identify_encounter_descriptors = partial(
             identify_encounter_descriptors_star,
@@ -1286,7 +1290,7 @@ class DescriptorsIdentification(luigi.Task):
 @inherits(PrepareData)
 @inherits(BlockCurvature)
 @inherits(SeparateDatabaseQueries)
-class Identification(luigi.Task):
+class TimeWarpingId(luigi.Task):
     window = luigi.IntParameter(
         default=8, description='Sakoe-Chiba bound for time-warping alignment.'
     )
@@ -1494,8 +1498,8 @@ class Identification(luigi.Task):
 
 
 @inherits(SeparateDatabaseQueries)
-@inherits(Identification)
-class Results(luigi.Task):
+@inherits(TimeWarpingId)
+class TimeWarpingResults(luigi.Task):
     serial = luigi.BoolParameter(
         default=False, description='Disable use of multiprocessing.Pool'
     )
@@ -1503,7 +1507,7 @@ class Results(luigi.Task):
     def requires(self):
         return {
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
-            'Identification': self.clone(Identification),
+            'TimeWarpingId': self.clone(TimeWarpingId),
         }
 
     def output(self):
@@ -1526,7 +1530,7 @@ class Results(luigi.Task):
 
     def run(self):
         from collections import defaultdict
-        evaluation_targets = self.requires()['Identification'].output()
+        evaluation_targets = self.requires()['TimeWarpingId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
         with db_qr_output['database'].open('rb') as f:
             db_dict = pickle.load(f)
@@ -1545,6 +1549,111 @@ class Results(luigi.Task):
                     for i, dind in enumerate(db_indivs):
                         result_matrix = result_dict[dind]
                         scores[i] = result_matrix.min(axis=None)
+
+                    asc_scores_idx = np.argsort(scores)
+                    ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                    #ranked_scores = [scores[idx] for idx in asc_scores_idx]
+
+                    # handle unknown individuals, or those not in the database
+                    try:
+                        rank = 1 + ranked_indivs.index(qind)
+                        indiv_rank_indices[qind].append(rank)
+                    except ValueError:
+                        rank = -1
+
+                    f.write('%s,%s,%s,%s\n' % (
+                        qenc, qind, rank,
+                        ','.join('%s' % r for r in ranked_indivs)
+                    ))
+                    #f.write('%s\n' % (
+                    #    ','.join(['%.6f' % s for s in ranked_scores])))
+
+        with self.output()[1].open('w') as f:
+            f.write('individual,mrr\n')
+            for qind in indiv_rank_indices.keys():
+                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                num = len(indiv_rank_indices[qind])
+                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+
+        rank_indices = []
+        for ind in indiv_rank_indices:
+            for rank in indiv_rank_indices[ind]:
+                rank_indices.append(rank)
+
+        topk_scores = [1, 5, 10, 25]
+        rank_indices = np.array(rank_indices)
+        num_queries = rank_indices.shape[0]
+        num_indivs = len(indiv_rank_indices)
+        logger.info('Accuracy scores for k = %s:' % (
+            ', '.join(['%d' % k for k in topk_scores])))
+        with self.output()[2].open('w') as f:
+            f.write('topk,accuracy\n')
+            for k in range(1, 1 + num_indivs):
+                topk = (100. / num_queries) * (rank_indices <= k).sum()
+                f.write('top-%d,%.6f\n' % (k, topk))
+                if k in topk_scores:
+                    logger.info(' top-%d: %.2f%%' % (k, topk))
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
+
+
+@inherits(SeparateDatabaseQueries)
+@inherits(DescriptorsId)
+class DescriptorsResults(luigi.Task):
+    serial = luigi.BoolParameter(
+        default=False, description='Disable use of multiprocessing.Pool'
+    )
+
+    def requires(self):
+        return {
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+            'DescriptorsId': self.clone(DescriptorsId),
+        }
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        scales = self.requires()['DescriptorsId']._get_descriptor_scales()
+        descdir = ','.join(['%s' % s for s in scales])
+        kdir = '%d' % self.k
+        unifdir = 'uniform' if self.uniform else 'standard'
+        featdir = '%d' % self.feat_dim
+        outdir = join(
+            basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
+            '%s' % self.num_db_encounters
+        )
+
+        return [
+            luigi.LocalTarget(
+                join(outdir, '%s_all.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(outdir, '%s_mrr.csv' % self.dataset)),
+            luigi.LocalTarget(
+                join(outdir, '%s_topk.csv' % self.dataset)),
+        ]
+
+    def run(self):
+        from collections import defaultdict
+        evaluation_targets = self.requires()['DescriptorsId'].output()
+        db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
+        with db_qr_output['database'].open('rb') as f:
+            db_dict = pickle.load(f)
+        db_indivs = db_dict.keys()
+        indiv_rank_indices = defaultdict(list)
+        t_start = time()
+        with self.output()[0].open('w') as f:
+            f.write('Enc,Ind,Rank,%s\n' % (
+                ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+            )
+            for qind in tqdm(evaluation_targets, leave=False):
+                for qenc in evaluation_targets[qind]:
+                    with evaluation_targets[qind][qenc].open('rb') as f1:
+                        result_dict = pickle.load(f1)
+                    scores = np.zeros(len(db_indivs), dtype=np.float32)
+                    for i, dind in enumerate(db_indivs):
+                        result_matrix = result_dict[dind]
+                        scores[i] = result_matrix
 
                     asc_scores_idx = np.argsort(scores)
                     ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
@@ -1669,7 +1778,7 @@ class VisualizeIndividuals(luigi.Task):
 @inherits(SeparateEdges)
 @inherits(SeparateDatabaseQueries)
 @inherits(BlockCurvature)
-@inherits(Identification)
+@inherits(TimeWarpingId)
 class VisualizeMisidentifications(luigi.Task):
     num_qr_visualizations = luigi.IntParameter(default=3)
     num_db_visualizations = luigi.IntParameter(default=5)
@@ -1679,7 +1788,7 @@ class VisualizeMisidentifications(luigi.Task):
             'SeparateEdges': self.clone(SeparateEdges),
             'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
             'BlockCurvature': self.clone(BlockCurvature),
-            'Identification': self.clone(Identification),
+            'TimeWarpingId': self.clone(TimeWarpingId),
         }
 
     def output(self):
@@ -1687,7 +1796,7 @@ class VisualizeMisidentifications(luigi.Task):
         curvdir = ','.join(['%.3f' % s for s in self.curv_scales])
 
         output = {}
-        evaluation_targets = self.requires()['Identification'].output()
+        evaluation_targets = self.requires()['TimeWarpingId'].output()
         for qind in evaluation_targets:
             if qind not in output:
                 output[qind] = {}
@@ -1713,7 +1822,7 @@ class VisualizeMisidentifications(luigi.Task):
         with db_qr_targets['queries'].open('rb') as f:
             qr_dict = pickle.load(f)
 
-        evaluation_targets = self.requires()['Identification'].output()
+        evaluation_targets = self.requires()['TimeWarpingId'].output()
         qindivs = evaluation_targets.keys()
         partial_visualize_misidentifications = partial(
             visualize_misidentifications,
