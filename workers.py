@@ -1,4 +1,5 @@
 import affine
+import annoy
 import cv2
 import cPickle as pickle
 import numpy as np
@@ -323,26 +324,43 @@ def visualize_individuals(fpath, input_targets, output_targets):
         f.write(img_buf)
 
 
-def identify_encounter_descriptors_star(qind_qenc, query_mgr, scales, k,
+def identify_encounter_descriptors_star(qind_qenc, db_names, scales, k,
                                         qr_fpath_dict, db_fpath_dict,
-                                        input_targets, output_targets):
+                                        input1_targets, input2_targets,
+                                        output_targets):
     return identify_encounter_descriptors(
         *qind_qenc,
-        query_mgr=query_mgr,
+        db_names=db_names,
         scales=scales, k=k,
         qr_fpath_dict=qr_fpath_dict,
         db_fpath_dict=db_fpath_dict,
-        input_targets=input_targets,
+        input1_targets=input1_targets,
+        input2_targets=input2_targets,
         output_targets=output_targets
     )
 
 
-def identify_encounter_descriptors(qind, qenc, query_mgr, scales, k,
+def build_annoy_index_star(data_fpath):
+    return build_annoy_index(*data_fpath)
+
+
+def build_annoy_index(data, fpath):
+    f = data.shape[1]  # feature dimension
+    index = annoy.AnnoyIndex(f)
+    for i, _ in enumerate(data):
+        index.add_item(i, data[i])
+    index.build(10)
+    index.save(fpath)
+    return index
+
+
+def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
                                    qr_fpath_dict, db_fpath_dict,
-                                   input_targets, output_targets):
+                                   input1_targets, input2_targets,
+                                   output_targets):
     descriptors_dict = {s: [] for s in scales}
     for fpath in qr_fpath_dict[qind][qenc]:
-        target = input_targets[fpath]['descriptors']
+        target = input1_targets[fpath]['descriptors']
         descriptors = dorsal_utils.load_descriptors_from_h5py(
             target, scales
         )
@@ -356,24 +374,21 @@ def identify_encounter_descriptors(qind, qenc, query_mgr, scales, k,
     # lnbnn classification
     scores = {dind: 0.0 for dind in db_indivs}
     for s in descriptors_dict:
-        flann, params = query_mgr.flann[s], query_mgr.params[s]
-        query_features = descriptors_dict[s]
-        print('nn index')
-        ind, dist = flann.nn_index(
-            query_features, k, checks=params['checks']
-        )
-        print('done nn index')
+        data = descriptors_dict[s]
+        index = annoy.AnnoyIndex(data.shape[1])
+        index.load(input2_targets[s])
 
-        for i in range(query_features.shape[0]):
-            classes = query_mgr.db_labels[ind][i, :]
+        for i in range(data.shape[0]):
+            ind, dist = index.get_nns_by_vector(
+                data[i], k, search_k=-1, include_distances=True
+            )
+            classes = np.array([db_names[idx] for idx in ind])
             for c in np.unique(classes):
                 j, = np.where(classes == c)
-                score = dist[i, j.min()] - dist[i, -1]
+                # multiple descriptors in the top-k may belong to same class
+                score = dist[j.min()] - dist[-1]
                 scores[c] += score
-            print('done classes: %d / %d' % (i, query_features.shape[0]))
-        print('done scoring')
 
-    print('writing output')
     with output_targets[qind][qenc].open('wb') as f:
         pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
 

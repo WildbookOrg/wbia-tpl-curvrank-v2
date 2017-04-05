@@ -8,7 +8,6 @@ import datasets
 import model
 import logging
 import multiprocessing as mp
-import multiprocessing.pool
 import numpy as np
 
 from functools import partial
@@ -16,18 +15,6 @@ from luigi.util import inherits
 from time import time
 from tqdm import tqdm
 from os.path import basename, exists, isfile, join, splitext
-
-
-class NoDaemonProcess(mp.Process):
-    def _get_daemon(self):
-        return False
-    def _set_daemon(self, value):
-        pass
-    daemon = property(_get_daemon, _set_daemon)
-
-
-class MyPool(multiprocessing.pool.Pool):
-    Process = NoDaemonProcess
 
 
 logger = logging.getLogger('luigi-interface')
@@ -1186,19 +1173,13 @@ class DescriptorsIdentification(luigi.Task):
                     join(outdir, qind, '%s.pickle' % qenc)
                 )
 
-        for qind in output:
-            for qenc in output[qind]:
-                print output[qind][qenc].path
-        exit(0)
         return output
 
     def run(self):
         import dorsal_utils
-        import operator
-        import pyflann
         from collections import defaultdict
-        from scipy.special import binom
         from workers import identify_encounter_descriptors_star
+        from workers import build_annoy_index_star
 
         desc_targets = self.requires()['Descriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
@@ -1227,14 +1208,12 @@ class DescriptorsIdentification(luigi.Task):
             np.min(qr_descs_list))
         )
 
-        expected_descs = binom(self.num_keypoints, 2)
-
         descriptor_scales = self._get_descriptor_scales()
-        db_labels = []
+        data_ids_list = []
         descriptors_dict = defaultdict(list)
         logger.info('Loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
-        incomplete_descs = 0
+
         dindivs = db_fpath_dict.keys()
         for dind in tqdm(dindivs, total=len(db_fpath_dict), leave=False):
             for fpath in db_fpath_dict[dind]:
@@ -1242,126 +1221,66 @@ class DescriptorsIdentification(luigi.Task):
                 descriptors = dorsal_utils.load_descriptors_from_h5py(
                     target, descriptor_scales
                 )
-                if descriptors[descriptor_scales[0]].shape[0] < expected_descs:
-                    incomplete_descs += 1
                 for sidx, s in enumerate(descriptor_scales):
                     descriptors_dict[s].append(descriptors[s])
                     if sidx == 0:
                         # label each feature with the individual name
                         for _ in range(descriptors[s].shape[0]):
-                            db_labels.append(dind)
+                            data_ids_list.append(dind)
 
-        if incomplete_descs > 0:
-            logger.warn(
-                '%d Images produced fewer than the expected %d descriptors' % (
-                    incomplete_descs, expected_descs)
-            )
         # stack list of features per encounter into a single array
         for s in descriptors_dict:
             descriptors_dict[s] = np.vstack(descriptors_dict[s])
 
-        dbl = np.hstack(db_labels)
+        data_fts_list = [descriptors_dict[s] for s in descriptor_scales]
+        assert len(data_fts_list[0]) == len(data_ids_list), '%d != %d' % (
+            len(data_fts_list), len(data_ids_list))
 
-        flann_dict, params_dict = {}, {}
-        logger.info('Building %d kdtrees for scales: %s' % (
+        index_fpath_dict = {}
+        indexes_to_build = []
+        for s in descriptor_scales:
+            fpath = join('data', 'tmp', '%s.ann' % s)
+            if not exists(fpath):
+                data = descriptor_scales[s]
+                indexes_to_build.append((data, fpath))
+            index_fpath_dict[s] = fpath
+
+        logger.info('Require %d kdtrees for scales: %s' % (
             len(descriptor_scales),
             ', '.join('%s' % s for s in descriptor_scales))
         )
-        for s in tqdm(descriptors_dict, leave=False):
-            flann = pyflann.FLANN(random_seed=42)
-            flann_dict[s] = flann
-            params_dict[s] = flann.build_index(descriptors_dict[s])
+        logger.info('Building %d of %d kdtrees' % (
+            len(indexes_to_build), len(descriptor_scales)))
+
+        if indexes_to_build:
+            try:
+                pool = mp.Pool(processes=len(indexes_to_build))
+                pool.map(build_annoy_index_star, indexes_to_build)
+            finally:
+                pool.close()
+                pool.join()
 
         to_process = self.get_incomplete()
-        manager = mp.Manager()
-        ns = manager.Namespace()
-        ns.flann = flann_dict
-        ns.params = params_dict
-        ns.db_labels = dbl
 
         output = self.output()
         partial_identify_encounter_descriptors = partial(
             identify_encounter_descriptors_star,
-            query_mgr=ns,
+            db_names=data_ids_list,
             scales=descriptor_scales,
             k=self.k,
             qr_fpath_dict=qr_fpath_dict,
             db_fpath_dict=db_fpath_dict,
-            input_targets=desc_targets,
+            input1_targets=desc_targets,
+            input2_targets=index_fpath_dict,
             output_targets=output,
         )
 
         try:
-            pool = MyPool(processes=32)
+            pool = mp.Pool(processes=32)
             pool.map(partial_identify_encounter_descriptors, to_process)
         finally:
             pool.close()
             pool.join()
-
-        indiv_rank_indices = defaultdict(list)
-        qindivs = qr_fpath_dict.keys()
-        incomplete_descs = 0
-        logger.info(
-            'Running identification for %d individuals using '
-            'descriptor type = %s ' % (len(qindivs), self.descriptor_type)
-        )
-        with self.output()[0].open('w') as f:
-            f.write('Enc,Ind,Rank,%s\n' % (
-                ','.join('%s' % s for s in range(1, 1 + len(dindivs))))
-            )
-            for qind in tqdm(qindivs, total=len(qindivs), leave=False):
-                qencs = qr_fpath_dict[qind].keys()
-                assert qencs, 'empty encounter list for %s' % qind
-                for qenc in qencs:
-                    # TODO
-                    ranking = sorted(scores.items(),
-                                     key=operator.itemgetter(1))
-                    ranked_indivs = [x[0] for x in ranking]
-                    #scores = [x[1] for x in ranking]
-
-                    try:
-                        rank = 1 + ranked_indivs.index(qind)
-                        indiv_rank_indices[qind].append(rank)
-                    except ValueError:
-                        rank = -1
-
-                    f.write('%s,%s,%s,%s\n' % (
-                        qenc, qind, rank,
-                        ','.join('%s' % r for r in ranked_indivs)
-                    ))
-                    #f.write('%s\n' % (
-                    #    ','.join(['%.6f' % s for s in scores])))
-
-        if incomplete_descs > 0:
-            logger.warn(
-                '%d Images produced fewer than the expected %d descriptors' % (
-                    incomplete_descs, expected_descs)
-            )
-        with self.output()[1].open('w') as f:
-            f.write('individual,mrr\n')
-            for qind in indiv_rank_indices.keys():
-                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
-                num = len(indiv_rank_indices[qind])
-                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
-
-        rank_indices = []
-        for ind in indiv_rank_indices:
-            for rank in indiv_rank_indices[ind]:
-                rank_indices.append(rank)
-
-        topk_scores = [1, 5, 10, 25]
-        rank_indices = np.array(rank_indices)
-        num_queries = rank_indices.shape[0]
-        num_indivs = len(indiv_rank_indices)
-        logger.info('Accuracy scores for k = %s:' % (
-            ', '.join(['%d' % k for k in topk_scores])))
-        with self.output()[2].open('w') as f:
-            f.write('topk,accuracy\n')
-            for k in range(1, 1 + num_indivs):
-                topk = (100. / num_queries) * (rank_indices <= k).sum()
-                f.write('top-%d,%.6f\n' % (k, topk))
-                if k in topk_scores:
-                    logger.info(' top-%d: %.2f%%' % (k, topk))
 
 
 @inherits(PrepareData)
