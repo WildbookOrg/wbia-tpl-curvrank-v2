@@ -1317,7 +1317,7 @@ class TimeWarpingId(luigi.Task):
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         qr_fpath_dict_target = db_qr_target.output()['queries']
 
-        # use the qr_dict to determine which encounters have not been quieried
+        # use the qr_dict to determine which encounters have not been queried
         with qr_fpath_dict_target.open('rb') as f:
             qr_fpath_dict = pickle.load(f)
 
