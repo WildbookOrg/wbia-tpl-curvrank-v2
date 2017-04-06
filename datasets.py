@@ -184,7 +184,6 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
                 ind_enc_curv_dict[ind][enc] = []
             ind_enc_curv_dict[ind][enc].append(curv_dict[fname])
 
-    single_encounter_individuals = 0
     db_dict, qr_dict = {}, {}
     individuals = ind_enc_curv_dict.keys()
     for ind in individuals:
@@ -217,8 +216,5 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
         else:
             db_dict[ind] = ind_enc_curv_dict[ind][encounters[0]]
             #single_encounter_individuals += 1
-
-    print('there are %d individuals with only 1 encounter' %  (
-        single_encounter_individuals))
 
     return db_dict, qr_dict
