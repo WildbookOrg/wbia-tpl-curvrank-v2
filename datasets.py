@@ -174,7 +174,7 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
     # {'i1': {'e1': [v1, v2, ..., vn], 'e2': [v1, v2, ..., vm]}}
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
-        if ind == '____':
+        if ind == '0':
             continue
         fname = splitext(basename(fpath))[0]
         if fname in curv_dict.keys():
