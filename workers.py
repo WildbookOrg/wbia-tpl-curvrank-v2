@@ -346,7 +346,7 @@ def build_annoy_index_star(data_fpath):
 
 def build_annoy_index(data, fpath):
     f = data.shape[1]  # feature dimension
-    index = annoy.AnnoyIndex(f)
+    index = annoy.AnnoyIndex(f, metric='euclidean')
     for i, _ in enumerate(data):
         index.add_item(i, data[i])
     index.build(10)
@@ -375,7 +375,7 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
     scores = {dind: 0.0 for dind in db_indivs}
     for s in descriptors_dict:
         data = descriptors_dict[s]
-        index = annoy.AnnoyIndex(data.shape[1])
+        index = annoy.AnnoyIndex(data.shape[1], metric='euclidean')
         index.load(input2_targets[s])
 
         for i in range(data.shape[0]):
