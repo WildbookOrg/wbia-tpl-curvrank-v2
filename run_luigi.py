@@ -1279,12 +1279,17 @@ class DescriptorsId(luigi.Task):
             output_targets=output,
         )
 
-        try:
-            pool = mp.Pool(processes=32)
-            pool.map(partial_identify_encounter_descriptors, to_process)
-        finally:
-            pool.close()
-            pool.join()
+        if self.serial:
+            for (qind, qenc) in to_process:
+                partial_identify_encounter_descriptors((qind, qenc))
+                exit(0)
+        else:
+            try:
+                pool = mp.Pool(processes=32)
+                pool.map(partial_identify_encounter_descriptors, to_process)
+            finally:
+                pool.close()
+                pool.join()
 
 
 @inherits(PrepareData)

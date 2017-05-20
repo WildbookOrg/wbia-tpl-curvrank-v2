@@ -283,8 +283,9 @@ def compute_curv_descriptors(fpath, scales,
 
         endpoints = list(combinations(keypoints, 2))
         # each entry stores the features for one scale
-        descriptors = len(scales) * [
+        descriptors = [
             np.empty((len(endpoints), feat_dim), dtype=np.float32)
+            for s in scales
         ]
         for i, (idx0, idx1) in enumerate(endpoints):
             subcurv = resampled[idx0:idx1]
