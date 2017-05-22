@@ -372,7 +372,8 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
         descriptors_dict[s] = np.vstack(descriptors_dict[s])
 
     db_indivs = db_fpath_dict.keys()
-    # lnbnn classification
+    # lnbnn classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
+    # performance is about the same using: https://arxiv.org/abs/1609.06323
     scores = {dind: 0.0 for dind in db_indivs}
     for s in descriptors_dict:
         data = descriptors_dict[s]
