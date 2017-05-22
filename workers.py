@@ -382,9 +382,10 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
 
         for i in range(data.shape[0]):
             ind, dist = index.get_nns_by_vector(
-                data[i], k, search_k=-1, include_distances=True
+                data[i], k + 1, search_k=-1, include_distances=True
             )
-            classes = np.array([db_names[idx] for idx in ind])
+            # entry at k + 1 is the normalizing distance
+            classes = np.array([db_names[idx] for idx in ind[:-1]])
             for c in np.unique(classes):
                 j, = np.where(classes == c)
                 # multiple descriptors in the top-k may belong to same class
