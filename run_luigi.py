@@ -1210,8 +1210,8 @@ class DescriptorsId(luigi.Task):
         )
 
         descriptor_scales = self._get_descriptor_scales()
-        data_ids_list = []
-        descriptors_dict = defaultdict(list)
+        db_names_dict = defaultdict(list)
+        db_descs_dict = defaultdict(list)
         logger.info('Loading descriptors for %d database individuals' % (
             len(db_fpath_dict)))
 
@@ -1223,25 +1223,26 @@ class DescriptorsId(luigi.Task):
                     target, descriptor_scales
                 )
                 for sidx, s in enumerate(descriptor_scales):
-                    descriptors_dict[s].append(descriptors[s])
-                    if sidx == 0:
-                        # label each feature with the individual name
-                        for _ in range(descriptors[s].shape[0]):
-                            data_ids_list.append(dind)
+                    db_descs_dict[s].append(descriptors[s])
+                    # label each feature with the individual name
+                    for _ in range(descriptors[s].shape[0]):
+                        db_names_dict[s].append(dind)
 
         # stack list of features per encounter into a single array
-        for s in descriptors_dict:
-            descriptors_dict[s] = np.vstack(descriptors_dict[s])
+        for s in db_descs_dict:
+            db_descs_dict[s] = np.vstack(db_descs_dict[s])
 
-        data_fts_list = [descriptors_dict[s] for s in descriptor_scales]
-        assert len(data_fts_list[0]) == len(data_ids_list), '%d != %d' % (
-            len(data_fts_list), len(data_ids_list))
+        # check that each descriptor is labeled with an individual name
+        for s in descriptor_scales:
+            num_names = len(db_names_dict[s])
+            num_descs = db_descs_dict[s].shape[0]
+            assert num_names == num_descs, '%d != %d' % (num_names, num_descs)
 
         index_fpath_dict = {
             s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
         }
         indexes_to_build = [
-            (descriptors_dict[s], index_fpath_dict[s])
+            (db_descs_dict[s], index_fpath_dict[s])
             for s in descriptor_scales
         ]
 
@@ -1269,7 +1270,7 @@ class DescriptorsId(luigi.Task):
         output = self.output()
         partial_identify_encounter_descriptors = partial(
             identify_encounter_descriptors_star,
-            db_names=data_ids_list,
+            db_names=db_names_dict,
             scales=descriptor_scales,
             k=self.k,
             qr_fpath_dict=qr_fpath_dict,

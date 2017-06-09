@@ -377,6 +377,7 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
     scores = {dind: 0.0 for dind in db_indivs}
     for s in descriptors_dict:
         data = descriptors_dict[s]
+        names = db_names[s]
         index = annoy.AnnoyIndex(data.shape[1], metric='euclidean')
         index.load(input2_targets[s])
 
@@ -385,7 +386,7 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
                 data[i], k + 1, search_k=-1, include_distances=True
             )
             # entry at k + 1 is the normalizing distance
-            classes = np.array([db_names[idx] for idx in ind[:-1]])
+            classes = np.array([names[idx] for idx in ind[:-1]])
             for c in np.unique(classes):
                 j, = np.where(classes == c)
                 # multiple descriptors in the top-k may belong to same class
