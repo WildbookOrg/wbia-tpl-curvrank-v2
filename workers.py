@@ -173,6 +173,7 @@ def compute_curvature(fpath, scales, transpose_dims,
             trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
         )
         curv = dorsal_utils.oriented_curvature(trailing_edge, radii)
+        assert not np.isnan(curv).any(), 'nan in curvature for %s' % (fpath)
     # write the failures too or it seems like the task did not complete
     else:
         curv = None

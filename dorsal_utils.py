@@ -94,10 +94,17 @@ def extract_outline(img, segm, start, end):
         segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
 
-    #W = -1. * np.log(grad_norm * segm_norm)
+    _, segm_thrs = cv2.threshold(segm_norm, 0.1, 255, cv2.THRESH_BINARY_INV)
+    # to ensure sufficient overlap between segmentation and gradient images
+    dist, _ = cv2.distanceTransformWithLabels(
+        segm_thrs.astype(np.uint8), cv2.DIST_L2, 5
+    )
+    dist = np.exp(-0.1 * dist)
+    dist = cv2.normalize(
+        dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
 
-    #W = 1. / (0.25 * grad + 0.75 * segm)
-    W = 1. / (np.clip(grad_norm * segm_norm, 1e-15, 1.))
+    W = 1. / np.clip(grad_norm * dist, 1e-15, 1.)
 
     outline = astar_path(W, start, end)
 
@@ -137,6 +144,7 @@ def gaussian(u, s):
     return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
 
 
+# contour: (n, 2) array of (x, y) points
 def oriented_curvature(contour, radii):
     curvature = np.zeros((contour.shape[0], len(radii)), dtype=np.float32)
     # define the radii as a fraction of either the x or y extent
@@ -147,19 +155,22 @@ def oriented_curvature(contour, radii):
 
         for j, _ in enumerate(radii):
             curve = contour[inside[:, j]]
+            # sometimes only a single point lies inside the circle
+            if curve.shape[0] == 1:
+                curv = 0.5
+            else:
+                n = curve[-1] - curve[0]
+                theta = np.arctan2(n[1], n[0])
 
-            n = curve[-1] - curve[0]
-            theta = np.arctan2(n[1], n[0])
+                curve_p = reorient(curve, theta, center)
+                center_p = np.squeeze(reorient(center[None], theta, center))
+                r0 = center_p - radii[j]
+                r1 = center_p + radii[j]
+                r0[0] = max(curve_p[:, 0].min(), r0[0])
+                r1[0] = min(curve_p[:, 0].max(), r1[0])
 
-            curve_p = reorient(curve, theta, center)
-            center_p = np.squeeze(reorient(center[None], theta, center))
-            r0 = center_p - radii[j]
-            r1 = center_p + radii[j]
-            r0[0] = max(curve_p[:, 0].min(), r0[0])
-            r1[0] = min(curve_p[:, 0].max(), r1[0])
-
-            area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
-            curv = area / np.prod(r1 - r0)
+                area = np.trapz(curve_p[:, 1] - r0[1], curve_p[:, 0], axis=0)
+                curv = area / np.prod(r1 - r0)
             curvature[i, j] = curv
 
     return curvature
