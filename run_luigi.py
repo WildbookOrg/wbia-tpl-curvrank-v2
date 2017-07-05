@@ -750,7 +750,7 @@ class BlockCurvature(luigi.Task):
 
         # an image is incomplete if:
         # 1) no hdf5 file exists for it, or
-        # 2) the hdf5 file exsists, but some scales are missing
+        # 2) the hdf5 file exists, but some scales are missing
         to_process = []
         for fpath, _, _, _ in input_filepaths:
             target = output[fpath]['curvature']
