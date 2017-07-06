@@ -239,7 +239,7 @@ def compute_curv_descriptors_star(fpath_scales,
     return compute_curv_descriptors(
         *fpath_scales,
         num_keypoints=num_keypoints,
-        feat_dim=feat_dim,
+        fdim=feat_dim,
         curv_length=curv_length,
         uniform=uniform,
         input_targets=input_targets,
@@ -248,7 +248,7 @@ def compute_curv_descriptors_star(fpath_scales,
 
 
 def compute_curv_descriptors(fpath, scales,
-                             num_keypoints, feat_dim, curv_length, uniform,
+                             num_keypoints, fdim, curv_length, uniform,
                              input_targets, output_targets):
     block_curv_target = input_targets[fpath]['curvature']
     with block_curv_target.open('r') as h5f:
@@ -257,62 +257,60 @@ def compute_curv_descriptors(fpath, scales,
             h5f['%.3f' % s][:] for s in scales
         ).T
 
-    if curv is not None:
-        if curv.shape[0] == curv_length:
-            resampled = curv
-        else:
-            resampled = dorsal_utils.resampleNd(curv, curv_length)
-        if uniform:
-            keypoints = np.linspace(
-                0, resampled.shape[0], num_keypoints, dtype=np.int32
-            )
-        else:
-            maxima_idx, = argrelextrema(resampled[:, -1], np.greater, order=1)
-            sorted_idx = np.argsort(resampled[maxima_idx, -1])[::-1]
-            # leave two spots for the start and endpoints
-            maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
-
-            sorted_maxima_idx = np.sort(maxima_idx)
-            if sorted_maxima_idx[0] in (0, 1):
-                sorted_maxima_idx = sorted_maxima_idx[1:]
-            keypoints = np.zeros(
-                min(num_keypoints, 2 + sorted_maxima_idx.shape[0]),
-                dtype=np.int32
-            )
-            keypoints[0], keypoints[-1] = 0, resampled.shape[0]
-            keypoints[1:-1] = sorted_maxima_idx
-
-        endpoints = list(combinations(keypoints, 2))
-        # each entry stores the features for one scale
-        descriptors = [
-            np.empty((len(endpoints), feat_dim), dtype=np.float32)
-            for s in scales
-        ]
-        for i, (idx0, idx1) in enumerate(endpoints):
-            subcurv = resampled[idx0:idx1]
-
-            feat = dorsal_utils.resampleNd(subcurv, feat_dim)
-
-            # l2-norm across the feature dimension
-            feat /= np.sqrt(np.sum(feat * feat, axis=0))
-            assert feat.shape[0] == feat_dim, (
-                'feat.shape[0] = %d != feat_dim' % (feat.shape[0], feat_dim))
-            feat_norm = np.linalg.norm(feat, axis=0)
-            assert np.allclose(
-                feat_norm, np.ones(feat.shape[1])
-            ), 'norm(feat) = [%s]' % (','.join('%.6f' % a for a in feat_norm))
-
-            for sidx, s in enumerate(scales):
-                descriptors[sidx][i] = feat[:, sidx]
-    else:
-        descriptors = None
-
     desc_target = output_targets[fpath]['descriptors']
     with desc_target.open('a') as h5f:
-        for i, scale, in enumerate(scales):
-            if descriptors is not None:
-                h5f.create_dataset('%.3f' % scale, data=descriptors[i])
+        if curv is not None:
+            if curv.shape[0] == curv_length:
+                resampled = curv
             else:
+                resampled = dorsal_utils.resampleNd(curv, curv_length)
+            for sidx, scale in enumerate(scales):
+                # keypoints are at uniform intervals along contour
+                if uniform:
+                    keypts = np.linspace(
+                        0, resampled.shape[0], num_keypoints, dtype=np.int32
+                    )
+                # keypoints are the local maxima at each scale
+                else:
+                    maxima_idx, = argrelextrema(
+                        resampled[:, sidx], np.greater, order=1
+                    )
+                    sorted_idx = np.argsort(resampled[maxima_idx, sidx])[::-1]
+                    # leave two spots for the start and endpoints
+                    maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
+
+                    sorted_maxima_idx = np.sort(maxima_idx)
+                    if sorted_maxima_idx[0] in (0, 1):
+                        sorted_maxima_idx = sorted_maxima_idx[1:]
+                    keypts = np.zeros(
+                        min(num_keypoints, 2 + sorted_maxima_idx.shape[0]),
+                        dtype=np.int32
+                    )
+                    keypts[0], keypts[-1] = 0, resampled.shape[0]
+                    keypts[1:-1] = sorted_maxima_idx
+
+                endpts = list(combinations(keypts, 2))
+                # each entry stores the features for one scale
+                descriptors = np.empty((len(endpts), fdim), dtype=np.float32)
+                for i, (idx0, idx1) in enumerate(endpts):
+                    subcurv = resampled[idx0:idx1, sidx]
+
+                    feat = dorsal_utils.resample(subcurv, fdim)
+
+                    # l2-norm across the feature dimension
+                    #feat /= np.sqrt(np.sum(feat * feat, axis=0))
+                    feat /= np.linalg.norm(feat)
+                    assert feat.shape[0] == fdim, (
+                        'f.shape[0] = %d != fdim' % (feat.shape[0], fdim))
+                    feat_norm = np.linalg.norm(feat, axis=0)
+                    assert np.allclose(feat_norm, 1.), (
+                        'norm(feat) = %.6f' % (feat_norm))
+
+                    descriptors[i] = feat
+                h5f.create_dataset('%.3f' % scale, data=descriptors)
+        # create dummy data at each scale
+        else:
+            for sidx, scale in enumerate(scales):
                 h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
