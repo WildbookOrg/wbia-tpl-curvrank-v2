@@ -203,7 +203,7 @@ class Preprocess(luigi.Task):
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_preprocess_images(fpath)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_preprocess_images, to_process)
         finally:
             pool.close()
@@ -561,7 +561,7 @@ class Keypoints(luigi.Task):
         #for fpath in tqdm(to_process, total=len(image_filepaths)):
         #    partial_find_keypoints(fpath)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_find_keypoints, to_process)
         finally:
             pool.close()
@@ -637,7 +637,7 @@ class ExtractOutline(luigi.Task):
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_extract_outline(fpath)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_extract_outline, to_process)
         finally:
             pool.close()
@@ -713,7 +713,7 @@ class SeparateEdges(luigi.Task):
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_separate_edges(fpath)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_separate_edges, to_process)
         finally:
             pool.close()
@@ -814,7 +814,7 @@ class BlockCurvature(luigi.Task):
                 partial_compute_block_curvature(fpath)
         else:
             try:
-                pool = mp.Pool(processes=32)
+                pool = mp.Pool(processes=None)
                 pool.map(partial_compute_block_curvature, to_process)
             finally:
                 pool.close()
@@ -983,7 +983,7 @@ class GaussDescriptors(luigi.Task):
                 partial_compute_descriptors(fpath)
         else:
             try:
-                pool = mp.Pool(processes=32)
+                pool = mp.Pool(processes=None)
                 pool.map(partial_compute_descriptors, to_process)
             finally:
                 pool.close()
@@ -1079,7 +1079,7 @@ class CurvatureDescriptors(luigi.Task):
                 partial_compute_curv_descriptors(fpath)
         else:
             try:
-                pool = mp.Pool(processes=32)
+                pool = mp.Pool(processes=None)
                 pool.map(partial_compute_curv_descriptors, to_process)
             finally:
                 pool.close()
@@ -1285,7 +1285,7 @@ class DescriptorsId(luigi.Task):
                 partial_identify_encounter_descriptors((qind, qenc))
         else:
             try:
-                pool = mp.Pool(processes=32)
+                pool = mp.Pool(processes=None)
                 pool.map(partial_identify_encounter_descriptors, to_process)
             finally:
                 pool.close()
@@ -1492,7 +1492,7 @@ class TimeWarpingId(luigi.Task):
                 partial_identify_encounters((qind, qenc))
         else:
             try:
-                pool = mp.Pool(processes=32)
+                pool = mp.Pool(processes=None)
                 pool.map(partial_identify_encounters, to_process)
             finally:
                 pool.close()
@@ -1769,7 +1769,7 @@ class VisualizeIndividuals(luigi.Task):
         #for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_visualize_individuals(fpath)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_visualize_individuals, to_process)
         finally:
             pool.close()
@@ -1846,7 +1846,7 @@ class VisualizeMisidentifications(luigi.Task):
         #for qind in qindivs:
         #    partial_visualize_misidentifications(qind)
         try:
-            pool = mp.Pool(processes=32)
+            pool = mp.Pool(processes=None)
             pool.map(partial_visualize_misidentifications, qindivs)
         finally:
             pool.close()
