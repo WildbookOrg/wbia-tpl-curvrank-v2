@@ -16,6 +16,8 @@ def load_dataset(name):
         return load_fb_dataset()
     elif name == 'crc':
         return load_crc_dataset()
+    elif name == 'fw':
+        return load_fw_dataset()
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -138,6 +140,25 @@ def load_fb_dataset():
             filepaths, individuals, encounters, sides):
         data_list.append((
             fpath, indiv, enc, side
+        ))
+
+    return data_list
+
+
+def load_fw_dataset():
+    root = '/media/hdd/hendrik/datasets/metr/'
+    csv_fpath = join(root, 'fw.csv')
+    df = pd.read_csv(csv_fpath)
+    data_list = []
+    # no encounter information, assume all separate
+    for enc, (fname, indiv, side) in enumerate(
+            df[['Filename', 'ID', 'Side']].values):
+        img_fpath = join(root, 'images', fname)
+        data_list.append((
+            img_fpath,
+            indiv,
+            enc,
+            side,
         ))
 
     return data_list
