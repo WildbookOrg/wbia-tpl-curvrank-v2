@@ -1673,16 +1673,20 @@ class DescriptorsResults(luigi.Task):
             for i in range(self.runs)
         ]
 
+        aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
+
         return {
             'all': all_targets,
             'mrr': mrr_targets,
             'topk': topk_targets,
+            'agg': aggr_target,
         }
 
     def run(self):
         from collections import defaultdict
         evaluation_targets = self.requires()['DescriptorsId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
+        topk_aggr = defaultdict(list)
         t_start = time()
         for run_idx in range(self.runs):
             with db_qr_output['database'][run_idx].open('rb') as f:
@@ -1743,9 +1747,18 @@ class DescriptorsResults(luigi.Task):
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
                     topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk_aggr[run_idx].append(topk)
                     f.write('top-%d,%.6f\n' % (k, topk))
                     if k in topk_scores:
                         logger.info(' top-%d: %.2f%%' % (k, topk))
+
+        aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
+        with self.output()['agg'].open('w') as f:
+            f.write('mean,min,max,std\n')
+            for i, k in enumerate(range(1, 1 + num_indivs)):
+                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
+                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
+                ))
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
