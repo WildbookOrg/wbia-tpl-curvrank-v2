@@ -833,11 +833,12 @@ class SeparateDatabaseQueries(luigi.Task):
         'each individual in the database.'
     )
 
-    db_fname = luigi.Parameter(
-        description='The filename from which to load the db_dict'
+    eval_dir = luigi.Parameter(
+        description='The directory in which to store the splits.'
     )
-    qr_fname = luigi.Parameter(
-        description='The filename from which to load the qr_dict'
+
+    runs = luigi.IntParameter(
+        description='The number of database/query splits to do.'
     )
 
     def requires(self):
@@ -848,13 +849,19 @@ class SeparateDatabaseQueries(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        outdir = join(basedir, '%s' % self.num_db_encounters)
-        return {
-            'database': luigi.LocalTarget(
-                join(outdir, self.db_fname)),
-            'queries': luigi.LocalTarget(
-                join(outdir, self.qr_fname)),
-        }
+        outdir = join(
+            basedir, self.eval_dir,
+            '%s' % self.runs, '%s' % self.num_db_encounters
+        )
+        db_targets = [
+            luigi.LocalTarget(join(outdir, 'db%d.pickle' % i))
+            for i in range(self.runs)
+        ]
+        qr_targets = [
+            luigi.LocalTarget(join(outdir, 'qr%d.pickle' % i))
+            for i in range(self.runs)
+        ]
+        return {'database': db_targets, 'queries': qr_targets}
 
     def run(self):
         t_start = time()
@@ -864,6 +871,7 @@ class SeparateDatabaseQueries(luigi.Task):
         fname_trailing_edge_dict = {}
         trailing_edge_dict = self.requires()['SeparateEdges'].output()
         trailing_edge_filepaths = trailing_edge_dict.keys()
+        logger.info('Collecting trailing edge extractions.')
         for fpath in tqdm(trailing_edge_filepaths,
                           total=len(trailing_edge_filepaths), leave=False):
             trailing_edge_target = trailing_edge_dict[fpath]['trailing-coords']
@@ -872,21 +880,31 @@ class SeparateDatabaseQueries(luigi.Task):
             # no trailing edge could be extracted for this image
             if trailing_edge is None:
                 continue
-            fname = splitext(basename(fpath))[0]
-            fname_trailing_edge_dict[fname] = fpath
+            else:
+                fname = splitext(basename(fpath))[0]
+                fname_trailing_edge_dict[fname] = fpath
 
-        db_dict, qr_dict = datasets.separate_database_queries(
-            self.dataset, filepaths, individuals, encounters,
-            fname_trailing_edge_dict, num_db_encounters=self.num_db_encounters
+        logger.info('Successful trailing edge extractions: %d of %d' % (
+            len(fname_trailing_edge_dict.keys()), len(trailing_edge_filepaths))
         )
+        for i in range(self.runs):
+            db_dict, qr_dict = datasets.separate_database_queries(
+                self.dataset, filepaths, individuals, encounters,
+                fname_trailing_edge_dict,
+                num_db_encounters=self.num_db_encounters
+            )
 
-        output = self.output()
-        logger.info('Saving database with %d individuals' % (len(db_dict)))
-        with output['database'].open('wb') as f:
-            pickle.dump(db_dict, f, pickle.HIGHEST_PROTOCOL)
-        logger.info('Saving queries with %d individuals' % (len(qr_dict)))
-        with output['queries'].open('wb') as f:
-            pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
+            output = self.output()
+            db_target = output['database'][i]
+            logger.info('Saving database with %d individuals to %s' % (
+                len(db_dict), db_target.path))
+            with db_target.open('wb') as f:
+                pickle.dump(db_dict, f, pickle.HIGHEST_PROTOCOL)
+            qr_target = output['queries'][i]
+            logger.info('Saving queries with %d individuals to %s' % (
+                len(qr_dict), qr_target.path))
+            with qr_target.open('wb') as f:
+                pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
