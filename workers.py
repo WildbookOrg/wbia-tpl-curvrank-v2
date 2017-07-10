@@ -280,8 +280,9 @@ def compute_curv_descriptors(fpath, scales,
                     maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
 
                     sorted_maxima_idx = np.sort(maxima_idx)
-                    if sorted_maxima_idx[0] in (0, 1):
-                        sorted_maxima_idx = sorted_maxima_idx[1:]
+                    if sorted_maxima_idx.shape[0] > 0:
+                        if sorted_maxima_idx[0] in (0, 1):
+                            sorted_maxima_idx = sorted_maxima_idx[1:]
                     keypts = np.zeros(
                         min(num_keypoints, 2 + sorted_maxima_idx.shape[0]),
                         dtype=np.int32

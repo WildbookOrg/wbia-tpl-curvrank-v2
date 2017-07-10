@@ -1210,6 +1210,8 @@ class DescriptorsId(luigi.Task):
         qr_targets = db_qr_target.output()['queries']
 
         descriptor_scales = self._get_descriptor_scales()
+        logger.info('Using descriptor type = %s and feature dimension = %s' % (
+            self.descriptor_type, self.feat_dim))
         t_start = time()
         for run_idx, (db_target, qr_target) in enumerate(
                 zip(db_targets, qr_targets)):
@@ -1223,17 +1225,6 @@ class DescriptorsId(luigi.Task):
             for ind in qr_fpath_dict:
                 for enc in qr_fpath_dict[ind]:
                     qr_descs_list.append(len(qr_fpath_dict[ind][enc]))
-
-            logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
-                np.max(db_descs_list),
-                np.mean(db_descs_list),
-                np.min(db_descs_list))
-            )
-            logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
-                np.max(qr_descs_list),
-                np.mean(qr_descs_list),
-                np.min(qr_descs_list))
-            )
 
             db_names_dict = defaultdict(list)
             db_descs_dict = defaultdict(list)
@@ -1261,7 +1252,8 @@ class DescriptorsId(luigi.Task):
             for s in descriptor_scales:
                 num_names = len(db_names_dict[s])
                 num_descs = db_descs_dict[s].shape[0]
-                assert num_names == num_descs, '%d != %d' % (num_names, num_descs)
+                assert num_names == num_descs, (
+                    '%d != %d' % (num_names, num_descs))
 
             index_fpath_dict = {
                 s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
@@ -1287,10 +1279,17 @@ class DescriptorsId(luigi.Task):
             to_process = self.get_incomplete()[run_idx]
             qindivs = qr_fpath_dict.keys()
             logger.info(
-                'Running identification %d of %d for %d encounters from %d individuals'
-                ' using descriptor type = %s and feature dimension = %s' % (
-                    1 + run_idx, self.runs, len(to_process), len(qindivs),
-                    self.descriptor_type, self.feat_dim)
+                'Running id %d of %d for %d encounters from %d individuals'
+                % (
+                    1 + run_idx, self.runs, len(to_process), len(qindivs)))
+            logger.info(
+                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)' % (
+                    np.max(db_descs_list),
+                    np.mean(db_descs_list),
+                    np.min(db_descs_list),
+                    np.max(qr_descs_list),
+                    np.mean(qr_descs_list),
+                    np.min(db_descs_list))
             )
             output = self.output()[run_idx]
             partial_identify_encounter_descriptors = partial(
@@ -1311,7 +1310,8 @@ class DescriptorsId(luigi.Task):
             else:
                 try:
                     pool = mp.Pool(processes=None)
-                    pool.map(partial_identify_encounter_descriptors, to_process)
+                    pool.map(
+                        partial_identify_encounter_descriptors, to_process)
                 finally:
                     pool.close()
                     pool.join()
@@ -1708,10 +1708,14 @@ class DescriptorsResults(luigi.Task):
                             scores[i] = result_matrix
 
                         asc_scores_idx = np.argsort(scores)
-                        ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
-                        #ranked_scores = [scores[idx] for idx in asc_scores_idx]
+                        ranked_indivs = [
+                            db_indivs[idx] for idx in asc_scores_idx
+                        ]
+                        #ranked_scores = [
+                        #    scores[idx] for idx in asc_scores_idx]
+                        #]
 
-                        # handle unknown individuals, or those not in the database
+                        # handle unknown individuals
                         try:
                             rank = 1 + ranked_indivs.index(qind)
                             indiv_rank_indices[qind].append(rank)
@@ -1741,24 +1745,24 @@ class DescriptorsResults(luigi.Task):
             rank_indices = np.array(rank_indices)
             num_queries = rank_indices.shape[0]
             num_indivs = len(indiv_rank_indices)
-            logger.info('Accuracy scores for k = %s:' % (
-                ', '.join(['%d' % k for k in topk_scores])))
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
                     topk = (100. / num_queries) * (rank_indices <= k).sum()
                     topk_aggr[run_idx].append(topk)
                     f.write('top-%d,%.6f\n' % (k, topk))
-                    if k in topk_scores:
-                        logger.info(' top-%d: %.2f%%' % (k, topk))
 
         aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
         with self.output()['agg'].open('w') as f:
+            logger.info('Accuracy scores over %d runs for k = %s:' % (
+                self.runs, ', '.join(['%d' % k for k in topk_scores])))
             f.write('mean,min,max,std\n')
             for i, k in enumerate(range(1, 1 + num_indivs)):
                 f.write('%.6f,%.6f,%.6f,%.6f\n' % (
                     aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
                 ))
+                if k in topk_scores:
+                    logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
