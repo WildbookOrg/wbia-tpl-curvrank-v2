@@ -1653,84 +1653,99 @@ class DescriptorsResults(luigi.Task):
         unifdir = 'uniform' if self.uniform else 'standard'
         featdir = '%d' % self.feat_dim
         outdir = join(
-            basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
+            basedir, self.eval_dir,
+            self.descriptor_type, kdir, unifdir, featdir, descdir,
             '%s' % self.num_db_encounters
         )
 
-        return [
-            luigi.LocalTarget(
-                join(outdir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_topk.csv' % self.dataset)),
+        all_targets = [
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
+            for i in range(self.runs)
         ]
+
+        mrr_targets = [
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        topk_targets = [
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        return {
+            'all': all_targets,
+            'mrr': mrr_targets,
+            'topk': topk_targets,
+        }
 
     def run(self):
         from collections import defaultdict
         evaluation_targets = self.requires()['DescriptorsId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
-        with db_qr_output['database'].open('rb') as f:
-            db_dict = pickle.load(f)
-        db_indivs = db_dict.keys()
-        indiv_rank_indices = defaultdict(list)
         t_start = time()
-        with self.output()[0].open('w') as f:
-            f.write('Enc,Ind,Rank,%s\n' % (
-                ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
-            )
-            for qind in tqdm(evaluation_targets, leave=False):
-                for qenc in evaluation_targets[qind]:
-                    with evaluation_targets[qind][qenc].open('rb') as f1:
-                        result_dict = pickle.load(f1)
-                    scores = np.zeros(len(db_indivs), dtype=np.float32)
-                    for i, dind in enumerate(db_indivs):
-                        result_matrix = result_dict[dind]
-                        scores[i] = result_matrix
+        for run_idx in range(self.runs):
+            with db_qr_output['database'][run_idx].open('rb') as f:
+                db_dict = pickle.load(f)
+            db_indivs = db_dict.keys()
+            indiv_rank_indices = defaultdict(list)
+            with self.output()['all'][run_idx].open('w') as f:
+                f.write('Enc,Ind,Rank,%s\n' % (
+                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                )
+                qind_eval_targets = evaluation_targets[run_idx]
+                for qind in tqdm(qind_eval_targets, leave=False):
+                    for qenc in qind_eval_targets[qind]:
+                        with qind_eval_targets[qind][qenc].open('rb') as f1:
+                            result_dict = pickle.load(f1)
+                        scores = np.zeros(len(db_indivs), dtype=np.float32)
+                        for i, dind in enumerate(db_indivs):
+                            result_matrix = result_dict[dind]
+                            scores[i] = result_matrix
 
-                    asc_scores_idx = np.argsort(scores)
-                    ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
-                    #ranked_scores = [scores[idx] for idx in asc_scores_idx]
+                        asc_scores_idx = np.argsort(scores)
+                        ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                        #ranked_scores = [scores[idx] for idx in asc_scores_idx]
 
-                    # handle unknown individuals, or those not in the database
-                    try:
-                        rank = 1 + ranked_indivs.index(qind)
-                        indiv_rank_indices[qind].append(rank)
-                    except ValueError:
-                        rank = -1
+                        # handle unknown individuals, or those not in the database
+                        try:
+                            rank = 1 + ranked_indivs.index(qind)
+                            indiv_rank_indices[qind].append(rank)
+                        except ValueError:
+                            rank = -1
 
-                    f.write('%s,%s,%s,%s\n' % (
-                        qenc, qind, rank,
-                        ','.join('%s' % r for r in ranked_indivs)
-                    ))
-                    #f.write('%s\n' % (
-                    #    ','.join(['%.6f' % s for s in ranked_scores])))
+                        f.write('%s,%s,%s,%s\n' % (
+                            qenc, qind, rank,
+                            ','.join('%s' % r for r in ranked_indivs)
+                        ))
+                        #f.write('%s\n' % (
+                        #    ','.join(['%.6f' % s for s in ranked_scores])))
 
-        with self.output()[1].open('w') as f:
-            f.write('individual,mrr\n')
-            for qind in indiv_rank_indices.keys():
-                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
-                num = len(indiv_rank_indices[qind])
-                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+            with self.output()['mrr'][run_idx].open('w') as f:
+                f.write('individual,mrr\n')
+                for qind in indiv_rank_indices.keys():
+                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    num = len(indiv_rank_indices[qind])
+                    f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
-        rank_indices = []
-        for ind in indiv_rank_indices:
-            for rank in indiv_rank_indices[ind]:
-                rank_indices.append(rank)
+            rank_indices = []
+            for ind in indiv_rank_indices:
+                for rank in indiv_rank_indices[ind]:
+                    rank_indices.append(rank)
 
-        topk_scores = [1, 5, 10, 25]
-        rank_indices = np.array(rank_indices)
-        num_queries = rank_indices.shape[0]
-        num_indivs = len(indiv_rank_indices)
-        logger.info('Accuracy scores for k = %s:' % (
-            ', '.join(['%d' % k for k in topk_scores])))
-        with self.output()[2].open('w') as f:
-            f.write('topk,accuracy\n')
-            for k in range(1, 1 + num_indivs):
-                topk = (100. / num_queries) * (rank_indices <= k).sum()
-                f.write('top-%d,%.6f\n' % (k, topk))
-                if k in topk_scores:
-                    logger.info(' top-%d: %.2f%%' % (k, topk))
+            topk_scores = [1, 5, 10, 25]
+            rank_indices = np.array(rank_indices)
+            num_queries = rank_indices.shape[0]
+            num_indivs = len(indiv_rank_indices)
+            logger.info('Accuracy scores for k = %s:' % (
+                ', '.join(['%d' % k for k in topk_scores])))
+            with self.output()['topk'][run_idx].open('w') as f:
+                f.write('topk,accuracy\n')
+                for k in range(1, 1 + num_indivs):
+                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    f.write('top-%d,%.6f\n' % (k, topk))
+                    if k in topk_scores:
+                        logger.info(' top-%d: %.2f%%' % (k, topk))
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
