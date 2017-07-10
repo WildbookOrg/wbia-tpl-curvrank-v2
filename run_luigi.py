@@ -840,8 +840,6 @@ class SeparateDatabaseQueries(luigi.Task):
         description='The filename from which to load the qr_dict'
     )
 
-    num_individuals = luigi.IntParameter(default=None)
-
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
