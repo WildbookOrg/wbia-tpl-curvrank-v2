@@ -10,6 +10,7 @@ import logging
 import multiprocessing as mp
 import numpy as np
 
+from collections import defaultdict
 from functools import partial
 from luigi.util import inherits
 from time import time
@@ -1131,18 +1132,19 @@ class DescriptorsId(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
+        qr_fpath_dict_targets = db_qr_target.output()['queries']
 
+        to_process = defaultdict(list)
         # use the qr_dict to determine which encounters have not been quieried
-        with qr_fpath_dict_target.open('rb') as f:
-            qr_fpath_dict = pickle.load(f)
+        for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
 
-        to_process = []
-        for qind in qr_fpath_dict:
-            for qenc in qr_fpath_dict[qind]:
-                target = output[qind][qenc]
-                if not target.exists():
-                    to_process.append((qind, qenc))
+            for qind in qr_fpath_dict:
+                for qenc in qr_fpath_dict[qind]:
+                    target = output[i][qind][qenc]
+                    if not target.exists():
+                        to_process[i].append((qind, qenc))
 
         return to_process
 
@@ -1170,25 +1172,29 @@ class DescriptorsId(luigi.Task):
         kdir = '%d' % self.k
         unifdir = 'uniform' if self.uniform else 'standard'
         featdir = '%d' % self.feat_dim
-        outdir = join(
-            basedir, self.descriptor_type, kdir, unifdir, featdir, descdir,
-            '%s' % self.num_db_encounters
-        )
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
-        if not qr_fpath_dict_target.exists():
-            self.requires()['SeparateDatabaseQueries'].run()
-        with db_qr_target.output()['queries'].open('rb') as f:
-            qr_curv_dict = pickle.load(f)
         output = {}
-        for qind in qr_curv_dict:
-            if qind not in output:
-                output[qind] = {}
-            for qenc in qr_curv_dict[qind]:
-                # an encounter may belong to multiple individuals, hence qind
-                output[qind][qenc] = luigi.LocalTarget(
-                    join(outdir, qind, '%s.pickle' % qenc)
-                )
+        for i in range(self.runs):
+            outdir = join(
+                basedir, self.eval_dir,
+                self.descriptor_type, kdir, unifdir, featdir, descdir,
+                '%s' % self.num_db_encounters, '%s' % i
+            )
+            qr_fpath_dict_target = db_qr_target.output()['queries'][i]
+            if not qr_fpath_dict_target.exists():
+                self.requires()['SeparateDatabaseQueries'].run()
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_curv_dict = pickle.load(f)
+            eval_dict = {}
+            for qind in qr_curv_dict:
+                if qind not in output:
+                    eval_dict[qind] = {}
+                for qenc in qr_curv_dict[qind]:
+                    # an encounter may belong to multiple individuals
+                    eval_dict[qind][qenc] = luigi.LocalTarget(
+                        join(outdir, qind, '%s.pickle' % qenc)
+                    )
+            output[i] = eval_dict
 
         return output
 
@@ -1200,112 +1206,118 @@ class DescriptorsId(luigi.Task):
 
         desc_targets = self.requires()['Descriptors'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        db_fpath_dict_target = db_qr_target.output()['database']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
-
-        with db_fpath_dict_target.open('rb') as f:
-            db_fpath_dict = pickle.load(f)
-        with qr_fpath_dict_target.open('rb') as f:
-            qr_fpath_dict = pickle.load(f)
-
-        db_descs_list = [len(db_fpath_dict[ind]) for ind in db_fpath_dict]
-        qr_descs_list = []
-        for ind in qr_fpath_dict:
-            for enc in qr_fpath_dict[ind]:
-                qr_descs_list.append(len(qr_fpath_dict[ind][enc]))
-
-        logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
-            np.max(db_descs_list),
-            np.mean(db_descs_list),
-            np.min(db_descs_list))
-        )
-        logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
-            np.max(qr_descs_list),
-            np.mean(qr_descs_list),
-            np.min(qr_descs_list))
-        )
+        db_targets = db_qr_target.output()['database']
+        qr_targets = db_qr_target.output()['queries']
 
         descriptor_scales = self._get_descriptor_scales()
-        db_names_dict = defaultdict(list)
-        db_descs_dict = defaultdict(list)
-        logger.info('Loading descriptors for %d database individuals' % (
-            len(db_fpath_dict)))
+        t_start = time()
+        for run_idx, (db_target, qr_target) in enumerate(
+                zip(db_targets, qr_targets)):
+            with db_target.open('rb') as f:
+                db_fpath_dict = pickle.load(f)
+            with qr_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
 
-        dindivs = db_fpath_dict.keys()
-        for dind in tqdm(dindivs, total=len(db_fpath_dict), leave=False):
-            for fpath in db_fpath_dict[dind]:
-                target = desc_targets[fpath]['descriptors']
-                descriptors = dorsal_utils.load_descriptors_from_h5py(
-                    target, descriptor_scales
-                )
-                for sidx, s in enumerate(descriptor_scales):
-                    db_descs_dict[s].append(descriptors[s])
-                    # label each feature with the individual name
-                    for _ in range(descriptors[s].shape[0]):
-                        db_names_dict[s].append(dind)
+            db_descs_list = [len(db_fpath_dict[ind]) for ind in db_fpath_dict]
+            qr_descs_list = []
+            for ind in qr_fpath_dict:
+                for enc in qr_fpath_dict[ind]:
+                    qr_descs_list.append(len(qr_fpath_dict[ind][enc]))
 
-        # stack list of features per encounter into a single array
-        for s in db_descs_dict:
-            db_descs_dict[s] = np.vstack(db_descs_dict[s])
+            logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
+                np.max(db_descs_list),
+                np.mean(db_descs_list),
+                np.min(db_descs_list))
+            )
+            logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
+                np.max(qr_descs_list),
+                np.mean(qr_descs_list),
+                np.min(qr_descs_list))
+            )
 
-        # check that each descriptor is labeled with an individual name
-        for s in descriptor_scales:
-            num_names = len(db_names_dict[s])
-            num_descs = db_descs_dict[s].shape[0]
-            assert num_names == num_descs, '%d != %d' % (num_names, num_descs)
+            db_names_dict = defaultdict(list)
+            db_descs_dict = defaultdict(list)
+            logger.info('Loading descriptors for %d database individuals' % (
+                len(db_fpath_dict)))
 
-        index_fpath_dict = {
-            s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
-        }
-        indexes_to_build = [
-            (db_descs_dict[s], index_fpath_dict[s])
-            for s in descriptor_scales
-        ]
+            dindivs = db_fpath_dict.keys()
+            for dind in tqdm(dindivs, total=len(db_fpath_dict), leave=False):
+                for fpath in db_fpath_dict[dind]:
+                    target = desc_targets[fpath]['descriptors']
+                    descriptors = dorsal_utils.load_descriptors_from_h5py(
+                        target, descriptor_scales
+                    )
+                    for sidx, s in enumerate(descriptor_scales):
+                        db_descs_dict[s].append(descriptors[s])
+                        # label each feature with the individual name
+                        for _ in range(descriptors[s].shape[0]):
+                            db_names_dict[s].append(dind)
 
-        logger.info('Building %d kdtrees for scales: %s' % (
-            len(descriptor_scales),
-            ', '.join('%s' % s for s in descriptor_scales))
-        )
+            # stack list of features per encounter into a single array
+            for s in db_descs_dict:
+                db_descs_dict[s] = np.vstack(db_descs_dict[s])
 
-        if indexes_to_build:
-            try:
-                pool = mp.Pool(processes=len(indexes_to_build))
-                pool.map(build_annoy_index_star, indexes_to_build)
-            finally:
-                pool.close()
-                pool.join()
+            # check that each descriptor is labeled with an individual name
+            for s in descriptor_scales:
+                num_names = len(db_names_dict[s])
+                num_descs = db_descs_dict[s].shape[0]
+                assert num_names == num_descs, '%d != %d' % (num_names, num_descs)
 
-        to_process = self.get_incomplete()
-        qindivs = qr_fpath_dict.keys()
-        logger.info(
-            'Running identification for %d encounters from %d individuals'
-            ' using descriptor type = %s and feature dimension = %s' % (
-                len(to_process), len(qindivs), self.descriptor_type,
-                self.feat_dim)
-        )
-        output = self.output()
-        partial_identify_encounter_descriptors = partial(
-            identify_encounter_descriptors_star,
-            db_names=db_names_dict,
-            scales=descriptor_scales,
-            k=self.k,
-            qr_fpath_dict=qr_fpath_dict,
-            db_fpath_dict=db_fpath_dict,
-            input1_targets=desc_targets,
-            input2_targets=index_fpath_dict,
-            output_targets=output,
-        )
+            index_fpath_dict = {
+                s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
+            }
+            indexes_to_build = [
+                (db_descs_dict[s], index_fpath_dict[s])
+                for s in descriptor_scales
+            ]
 
-        if self.serial:
-            for (qind, qenc) in to_process:
-                partial_identify_encounter_descriptors((qind, qenc))
-        else:
-            try:
-                pool = mp.Pool(processes=None)
-                pool.map(partial_identify_encounter_descriptors, to_process)
-            finally:
-                pool.close()
-                pool.join()
+            logger.info('Building %d kdtrees for scales: %s' % (
+                len(descriptor_scales),
+                ', '.join('%s' % s for s in descriptor_scales))
+            )
+
+            if indexes_to_build:
+                try:
+                    pool = mp.Pool(processes=len(indexes_to_build))
+                    pool.map(build_annoy_index_star, indexes_to_build)
+                finally:
+                    pool.close()
+                    pool.join()
+
+            to_process = self.get_incomplete()[run_idx]
+            qindivs = qr_fpath_dict.keys()
+            logger.info(
+                'Running identification %d of %d for %d encounters from %d individuals'
+                ' using descriptor type = %s and feature dimension = %s' % (
+                    1 + run_idx, self.runs, len(to_process), len(qindivs),
+                    self.descriptor_type, self.feat_dim)
+            )
+            output = self.output()[run_idx]
+            partial_identify_encounter_descriptors = partial(
+                identify_encounter_descriptors_star,
+                db_names=db_names_dict,
+                scales=descriptor_scales,
+                k=self.k,
+                qr_fpath_dict=qr_fpath_dict,
+                db_fpath_dict=db_fpath_dict,
+                input1_targets=desc_targets,
+                input2_targets=index_fpath_dict,
+                output_targets=output,
+            )
+
+            if self.serial:
+                for (qind, qenc) in to_process:
+                    partial_identify_encounter_descriptors((qind, qenc))
+            else:
+                try:
+                    pool = mp.Pool(processes=None)
+                    pool.map(partial_identify_encounter_descriptors, to_process)
+                finally:
+                    pool.close()
+                    pool.join()
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
