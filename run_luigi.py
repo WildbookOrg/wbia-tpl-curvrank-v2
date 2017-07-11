@@ -1348,18 +1348,19 @@ class TimeWarpingId(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
+        qr_fpath_dict_targets = db_qr_target.output()['queries']
 
+        to_process = defaultdict(list)
         # use the qr_dict to determine which encounters have not been queried
-        with qr_fpath_dict_target.open('rb') as f:
-            qr_fpath_dict = pickle.load(f)
+        for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
 
-        to_process = []
-        for qind in qr_fpath_dict:
-            for qenc in qr_fpath_dict[qind]:
-                target = output[qind][qenc]
-                if not target.exists():
-                    to_process.append((qind, qenc))
+            for qind in qr_fpath_dict:
+                for qenc in qr_fpath_dict[qind]:
+                    target = output[i][qind][qenc]
+                    if not target.exists():
+                        to_process[i].append((qind, qenc))
 
         return to_process
 
@@ -1374,25 +1375,29 @@ class TimeWarpingId(luigi.Task):
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
 
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
-        if not qr_fpath_dict_target.exists():
-            self.requires()['SeparateDatabaseQueries'].run()
-        # query dict tells us which encounters become result objects
-        with db_qr_target.output()['queries'].open('rb') as f:
-            qr_curv_dict = pickle.load(f)
-
-        outdir = join(
-            basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
-        )
         output = {}
-        for qind in qr_curv_dict:
-            if qind not in output:
-                output[qind] = {}
-            for qenc in qr_curv_dict[qind]:
-                # an encounter may belong to multiple individuals, hence qind
-                output[qind][qenc] = luigi.LocalTarget(
-                    join(outdir, qind, '%s.pickle' % qenc)
-                )
+        for i in range(self.runs):
+            outdir = join(
+                basedir, self.eval_dir,
+                weightdir, curvdir, '%s' % self.num_db_encounters, '%s' % i
+            )
+            qr_fpath_dict_target = db_qr_target.output()['queries'][i]
+            if not qr_fpath_dict_target.exists():
+                self.requires()['SeparateDatabaseQueries'].run()
+            # query dict tells us which encounters become result objects
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_curv_dict = pickle.load(f)
+            eval_dict = {}
+            for qind in qr_curv_dict:
+                if qind not in output:
+                    eval_dict[qind] = {}
+                for qenc in qr_curv_dict[qind]:
+                    # an encounter may belong to multiple individuals
+                    eval_dict[qind][qenc] = luigi.LocalTarget(
+                        join(outdir, qind, '%s.pickle' % qenc)
+                    )
+
+            output[i] = eval_dict
 
         return output
 
@@ -1400,72 +1405,11 @@ class TimeWarpingId(luigi.Task):
         import dorsal_utils
         from scipy.interpolate import BPoly
         from workers import identify_encounter_star
+
         curv_targets = self.requires()['BlockCurvature'].output()
         db_qr_target = self.requires()['SeparateDatabaseQueries']
-        db_fpath_dict_target = db_qr_target.output()['database']
-        qr_fpath_dict_target = db_qr_target.output()['queries']
-
-        logger.info('Using %s as the database' % (db_fpath_dict_target.path))
-        logger.info('Using %s as the queries' % (qr_fpath_dict_target.path))
-        with db_fpath_dict_target.open('rb') as f:
-            db_fpath_dict = pickle.load(f)
-        with qr_fpath_dict_target.open('rb') as f:
-            qr_fpath_dict = pickle.load(f)
-
-        db_curv_dict = {}
-        num_db_curvs = np.sum(
-            [len(db_fpath_dict[dind]) for dind in db_fpath_dict]
-        )
-        logger.info(
-            'Loading %d curvature vectors for %d database individuals' %
-            (num_db_curvs, len(db_fpath_dict))
-        )
-        for dind in tqdm(db_fpath_dict, total=len(db_fpath_dict), leave=False):
-            if dind not in db_curv_dict:
-                db_curv_dict[dind] = []
-            for fpath in db_fpath_dict[dind]:
-                curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
-                    curv_targets[fpath]['curvature'],
-                    self.curv_scales, self.curv_length
-                )
-                db_curv_dict[dind].append(curv_matrix)
-
-        qr_curv_dict = {}
-        num_qr_curvs = np.sum([
-            len(qr_fpath_dict[qind][qenc]) for qind in qr_fpath_dict
-            for qenc in qr_fpath_dict[qind]
-        ])
-        logger.info('Loading %d curvature vectors for %d query individuals' % (
-            num_qr_curvs, len(qr_fpath_dict)))
-        for qind in tqdm(qr_fpath_dict, total=len(qr_fpath_dict), leave=False):
-            if qind not in qr_curv_dict:
-                qr_curv_dict[qind] = {}
-            for qenc in qr_fpath_dict[qind]:
-                if qenc not in qr_curv_dict[qind]:
-                    qr_curv_dict[qind][qenc] = []
-                for fpath in qr_fpath_dict[qind][qenc]:
-                    curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
-                        curv_targets[fpath]['curvature'],
-                        self.curv_scales, self.curv_length
-                    )
-                    qr_curv_dict[qind][qenc].append(curv_matrix)
-
-        db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
-        qr_curvs_list = []
-        for ind in qr_curv_dict:
-            for enc in qr_curv_dict[ind]:
-                qr_curvs_list.append(len(qr_curv_dict[ind][enc]))
-
-        logger.info('max/mean/min images per db encounter: %.2f/%.2f/%.2f' % (
-            np.max(db_curvs_list),
-            np.mean(db_curvs_list),
-            np.min(db_curvs_list))
-        )
-        logger.info('max/mean/min images per qr encounter: %.2f/%.2f/%.2f' % (
-            np.max(qr_curvs_list),
-            np.mean(qr_curvs_list),
-            np.min(qr_curvs_list))
-        )
+        db_targets = db_qr_target.output()['database']
+        qr_targets = db_qr_target.output()['queries']
 
         # coefficients for the sum of polynomials
         # coeffs for the SDRP Bottlenose dataset
@@ -1491,40 +1435,101 @@ class TimeWarpingId(luigi.Task):
         else:
             weights = np.ones(self.curv_length, dtype=np.float32)
         weights = weights.reshape(-1, 1).astype(np.float32)
+
         # set the appropriate distance measure for time-warping alignment
         cost_func = costs.get_cost_func(
             self.cost_func, weights=weights, window=self.window
         )
 
-        to_process = self.get_incomplete()
-        output = self.output()
-        qindivs = qr_curv_dict.keys()
-        logger.info(
-            'Running identification for %d encounters from %d individuals'
-            ' using cost function = %s and spatial weights = %s' % (
-                len(to_process), len(qindivs), self.cost_func,
-                self.spatial_weights)
-        )
-        partial_identify_encounters = partial(
-            identify_encounter_star,
-            qr_curv_dict=qr_curv_dict,
-            db_curv_dict=db_curv_dict,
-            simfunc=cost_func,
-            output_targets=output,
-        )
-
         t_start = time()
-        if self.serial:
-            for qind, qenc in tqdm(
-                    to_process, total=len(qindivs), leave=False):
-                partial_identify_encounters((qind, qenc))
-        else:
-            try:
-                pool = mp.Pool(processes=None)
-                pool.map(partial_identify_encounters, to_process)
-            finally:
-                pool.close()
-                pool.join()
+        logger.info('Using cost function = %s and spatial weights = %s' % (
+            self.cost_func, self.spatial_weights))
+        for run_idx, (db_target, qr_target) in enumerate(
+                zip(db_targets, qr_targets)):
+            with db_target.open('rb') as f:
+                db_fpath_dict = pickle.load(f)
+            with qr_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
+
+            db_curv_dict = {}
+            num_db_curvs = np.sum(
+                [len(db_fpath_dict[dind]) for dind in db_fpath_dict]
+            )
+            logger.info(
+                'Loading %d curv vectors for %d database individuals' %
+                (num_db_curvs, len(db_fpath_dict))
+            )
+            for dind in tqdm(db_fpath_dict, leave=False):
+                if dind not in db_curv_dict:
+                    db_curv_dict[dind] = []
+                for fpath in db_fpath_dict[dind]:
+                    curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
+                        curv_targets[fpath]['curvature'],
+                        self.curv_scales, self.curv_length
+                    )
+                    db_curv_dict[dind].append(curv_matrix)
+
+            qr_curv_dict = {}
+            num_qr_curvs = np.sum([
+                len(qr_fpath_dict[qind][qenc]) for qind in qr_fpath_dict
+                for qenc in qr_fpath_dict[qind]
+            ])
+            logger.info('Loading %d curv vectors for %d query individuals' % (
+                num_qr_curvs, len(qr_fpath_dict)))
+            for qind in tqdm(qr_fpath_dict, leave=False):
+                if qind not in qr_curv_dict:
+                    qr_curv_dict[qind] = {}
+                for qenc in qr_fpath_dict[qind]:
+                    if qenc not in qr_curv_dict[qind]:
+                        qr_curv_dict[qind][qenc] = []
+                    for fpath in qr_fpath_dict[qind][qenc]:
+                        curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
+                            curv_targets[fpath]['curvature'],
+                            self.curv_scales, self.curv_length
+                        )
+                        qr_curv_dict[qind][qenc].append(curv_matrix)
+
+            db_curvs_list = [len(db_curv_dict[ind]) for ind in db_curv_dict]
+            qr_curvs_list = []
+            for ind in qr_curv_dict:
+                for enc in qr_curv_dict[ind]:
+                    qr_curvs_list.append(len(qr_curv_dict[ind][enc]))
+
+            to_process = self.get_incomplete()[run_idx]
+            qindivs = qr_curv_dict.keys()
+            logger.info(
+                'Running id %d of %d for %d encounters from %d individuals' % (
+                    1 + run_idx, self.runs, len(to_process), len(qindivs)))
+            logger.info(
+                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)' % (
+                    np.max(db_curvs_list),
+                    np.mean(db_curvs_list),
+                    np.min(db_curvs_list),
+                    np.max(qr_curvs_list),
+                    np.mean(qr_curvs_list),
+                    np.min(db_curvs_list))
+            )
+            output = self.output()[run_idx]
+            partial_identify_encounters = partial(
+                identify_encounter_star,
+                qr_curv_dict=qr_curv_dict,
+                db_curv_dict=db_curv_dict,
+                simfunc=cost_func,
+                output_targets=output,
+            )
+
+            if self.serial:
+                for qind, qenc in tqdm(
+                        to_process, total=len(qindivs), leave=False):
+                    partial_identify_encounters((qind, qenc))
+            else:
+                try:
+                    pool = mp.Pool(processes=None)
+                    pool.map(partial_identify_encounters, to_process)
+                finally:
+                    pool.close()
+                    pool.join()
+
         t_end = time()
         logger.info('%s completed in %.3fs' % (
             self.__class__.__name__, t_end - t_start))
@@ -1550,82 +1555,115 @@ class TimeWarpingResults(luigi.Task):
 
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
         outdir = join(
-            basedir, weightdir, curvdir, '%s' % self.num_db_encounters,
+            basedir, self.eval_dir,
+            weightdir, curvdir, '%s' % self.num_db_encounters,
         )
-        return [
-            luigi.LocalTarget(
-                join(outdir, '%s_all.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_mrr.csv' % self.dataset)),
-            luigi.LocalTarget(
-                join(outdir, '%s_topk.csv' % self.dataset)),
+
+        all_targets = [
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
+            for i in range(self.runs)
         ]
+
+        mrr_targets = [
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        topk_targets = [
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
+
+        return {
+            'all': all_targets,
+            'mrr': mrr_targets,
+            'topk': topk_targets,
+            'agg': aggr_target,
+        }
 
     def run(self):
         from collections import defaultdict
         evaluation_targets = self.requires()['TimeWarpingId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
-        with db_qr_output['database'].open('rb') as f:
-            db_dict = pickle.load(f)
-        db_indivs = db_dict.keys()
-        indiv_rank_indices = defaultdict(list)
+        topk_aggr = defaultdict(list)
         t_start = time()
-        with self.output()[0].open('w') as f:
-            f.write('Enc,Ind,Rank,%s\n' % (
-                ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
-            )
-            for qind in tqdm(evaluation_targets, leave=False):
-                for qenc in evaluation_targets[qind]:
-                    with evaluation_targets[qind][qenc].open('rb') as f1:
-                        result_dict = pickle.load(f1)
-                    scores = np.zeros(len(db_indivs), dtype=np.float32)
-                    for i, dind in enumerate(db_indivs):
-                        result_matrix = result_dict[dind]
-                        scores[i] = result_matrix.min(axis=None)
+        for run_idx in range(self.runs):
+            with db_qr_output['database'][run_idx].open('rb') as f:
+                db_dict = pickle.load(f)
+            db_indivs = db_dict.keys()
+            indiv_rank_indices = defaultdict(list)
+            with self.output()['all'][run_idx].open('w') as f:
+                f.write('Enc,Ind,Rank,%s\n' % (
+                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                )
+                qind_eval_targets = evaluation_targets[run_idx]
+                for qind in tqdm(qind_eval_targets, leave=False):
+                    for qenc in qind_eval_targets[qind]:
+                        with qind_eval_targets[qind][qenc].open('rb') as f1:
+                            result_dict = pickle.load(f1)
+                        scores = np.zeros(len(db_indivs), dtype=np.float32)
+                        for i, dind in enumerate(db_indivs):
+                            result_matrix = result_dict[dind]
+                            scores[i] = result_matrix.min(axis=None)
 
-                    asc_scores_idx = np.argsort(scores)
-                    ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
-                    #ranked_scores = [scores[idx] for idx in asc_scores_idx]
+                        asc_scores_idx = np.argsort(scores)
+                        ranked_indivs = [
+                            db_indivs[idx] for idx in asc_scores_idx
+                        ]
+                        #ranked_scores = [
+                        #    scores[idx] for idx in asc_scores_idx
+                        #]
 
-                    # handle unknown individuals, or those not in the database
-                    try:
-                        rank = 1 + ranked_indivs.index(qind)
-                        indiv_rank_indices[qind].append(rank)
-                    except ValueError:
-                        rank = -1
+                        # handle unknown individuals
+                        try:
+                            rank = 1 + ranked_indivs.index(qind)
+                            indiv_rank_indices[qind].append(rank)
+                        except ValueError:
+                            rank = -1
 
-                    f.write('%s,%s,%s,%s\n' % (
-                        qenc, qind, rank,
-                        ','.join('%s' % r for r in ranked_indivs)
-                    ))
-                    #f.write('%s\n' % (
-                    #    ','.join(['%.6f' % s for s in ranked_scores])))
+                        f.write('%s,%s,%s,%s\n' % (
+                            qenc, qind, rank,
+                            ','.join('%s' % r for r in ranked_indivs)
+                        ))
+                        #f.write('%s\n' % (
+                        #    ','.join(['%.6f' % s for s in ranked_scores])))
 
-        with self.output()[1].open('w') as f:
-            f.write('individual,mrr\n')
-            for qind in indiv_rank_indices.keys():
-                mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
-                num = len(indiv_rank_indices[qind])
-                f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+            with self.output()['mrr'][run_idx].open('w') as f:
+                f.write('individual,mrr\n')
+                for qind in indiv_rank_indices.keys():
+                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    num = len(indiv_rank_indices[qind])
+                    f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
-        rank_indices = []
-        for ind in indiv_rank_indices:
-            for rank in indiv_rank_indices[ind]:
-                rank_indices.append(rank)
+            rank_indices = []
+            for ind in indiv_rank_indices:
+                for rank in indiv_rank_indices[ind]:
+                    rank_indices.append(rank)
 
-        topk_scores = [1, 5, 10, 25]
-        rank_indices = np.array(rank_indices)
-        num_queries = rank_indices.shape[0]
-        num_indivs = len(indiv_rank_indices)
-        logger.info('Accuracy scores for k = %s:' % (
-            ', '.join(['%d' % k for k in topk_scores])))
-        with self.output()[2].open('w') as f:
-            f.write('topk,accuracy\n')
-            for k in range(1, 1 + num_indivs):
-                topk = (100. / num_queries) * (rank_indices <= k).sum()
-                f.write('top-%d,%.6f\n' % (k, topk))
+            topk_scores = [1, 5, 10, 25]
+            rank_indices = np.array(rank_indices)
+            num_queries = rank_indices.shape[0]
+            num_indivs = len(indiv_rank_indices)
+            with self.output()['topk'][run_idx].open('w') as f:
+                f.write('topk,accuracy\n')
+                for k in range(1, 1 + num_indivs):
+                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk_aggr[run_idx].append(topk)
+                    f.write('top-%d,%.6f\n' % (k, topk))
+
+        aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
+        with self.output()['agg'].open('w') as f:
+            logger.info('Accuracy scores over %d runs for k = %s:' % (
+                self.runs, ', '.join(['%d' % k for k in topk_scores])))
+            f.write('mean,min,max,std\n')
+            for i, k in enumerate(range(1, 1 + num_indivs)):
+                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
+                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
+                ))
                 if k in topk_scores:
-                    logger.info(' top-%d: %.2f%%' % (k, topk))
+                    logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
