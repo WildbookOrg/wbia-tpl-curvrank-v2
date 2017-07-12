@@ -1535,6 +1535,139 @@ class TimeWarpingId(luigi.Task):
             self.__class__.__name__, t_end - t_start))
 
 
+@inherits(PrepareData)
+@inherits(SeparateDatabaseQueries)
+class HotSpotterId(luigi.Task):
+    def requires(self):
+        return {
+            'PrepareData': self.clone(PrepareData),
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+        }
+
+    def get_incomplete(self):
+        output = self.output()
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        qr_fpath_dict_targets = db_qr_target.output()['queries']
+
+        to_process = defaultdict(list)
+        # use the qr_dict to determine which encounters have not been quieried
+        for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
+
+            for qind in qr_fpath_dict:
+                for qenc in qr_fpath_dict[qind]:
+                    target = output[i][qind][qenc]
+                    if not target.exists():
+                        to_process[i].append((qind, qenc))
+
+        return to_process
+
+    def complete(self):
+        to_process = self.get_incomplete()
+        return not bool(to_process)
+
+    def output(self):
+        basedir = join(
+            '/home/hendrik/projects/dolphin-identification/data',
+            self.dataset, self.__class__.__name__
+        )
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        output = {}
+        ibs_target = luigi.LocalTarget(join(basedir, 'ibsdb'))
+        for i in range(self.runs):
+            outdir = join(
+                basedir, self.eval_dir,
+                '%s' % self.num_db_encounters, '%s' % i
+            )
+            qr_fpath_dict_target = db_qr_target.output()['queries'][i]
+            if not qr_fpath_dict_target.exists():
+                self.requires()['SeparateDatabaseQueries'].run()
+            with qr_fpath_dict_target.open('rb') as f:
+                qr_curv_dict = pickle.load(f)
+            eval_dict = {}
+            for qind in qr_curv_dict:
+                if qind not in output:
+                    eval_dict[qind] = {}
+                for qenc in qr_curv_dict[qind]:
+                    # an encounter may belong to multiple individuals
+                    eval_dict[qind][qenc] = luigi.LocalTarget(
+                        join(outdir, qind, '%s.pickle' % qenc)
+                    )
+            output[i] = eval_dict
+        output['ibs'] = ibs_target
+
+        return output
+
+    def run(self):
+        import ibeis
+        import utool as ut
+        db_qr_target = self.requires()['SeparateDatabaseQueries']
+        db_targets = db_qr_target.output()['database']
+        qr_targets = db_qr_target.output()['queries']
+
+        ibs = ibeis.opendb(
+            #self.output()[run_idx]['ibs'].path, allow_newdir=True
+            self.output()['ibs'].path
+        )
+        for run_idx, (db_target, qr_target) in enumerate(
+                zip(db_targets, qr_targets)):
+            image_list, name_list, db_qr_list = [], [], []
+            with db_target.open('rb') as f:
+                db_fpath_dict = pickle.load(f)
+            with qr_target.open('rb') as f:
+                qr_fpath_dict = pickle.load(f)
+
+            for ind in qr_fpath_dict:
+                for enc in qr_fpath_dict[ind]:
+                    for fpath in qr_fpath_dict[ind][enc]:
+                        image_list.append(fpath)
+                        name_list.append(ind)
+                        db_qr_list.append('qr')
+            for ind in db_fpath_dict:
+                for fpath in db_fpath_dict[ind]:
+                    image_list.append(fpath)
+                    name_list.append(ind)
+                    db_qr_list.append('db')
+
+            gid_list = ibs.add_images(image_list, as_annots=True)
+            aid_list = ibs.get_image_aids(gid_list)
+            aid_list = ut.flatten(aid_list)
+
+            qaids, daids = [], []
+            for aid, db_qr in zip(aid_list, db_qr_list):
+                if db_qr == 'db':
+                    daids.append(aid)
+                elif db_qr == 'qr':
+                    qaids.append(aid)
+                else:
+                    assert False, '%s' % db_qr
+
+            ibs.set_annot_names(aid_list, name_list, notify_wildbook=False)
+
+            qreq = ibs.new_query_request(qaids, daids, {'sv_on': False})
+            output_target = self.output()[run_idx]
+            chipmatch_list = qreq.execute()
+            #db_indivs = db_fpath_dict.keys()
+            qgids = ibs.get_annot_gids(qaids)
+            qinds = ibs.get_annot_names(qaids)
+            qfpaths = ibs.get_image_uris_original(qgids)
+            for (cm, qind, qfpath) in zip(chipmatch_list, qinds, qfpaths):
+                cm_all = cm.extend_results(qreq)
+                qdf = cm_all.pandas_name_info()
+                ranked_nids = list(qdf['dnid'].values)
+                ranked_indivs = ibs.get_name_texts(ranked_nids)
+                ranked_scores = list(-1. * qdf['score'].values)
+                scores = {
+                    dind: score
+                    for dind, score in zip(ranked_indivs, ranked_scores)
+                }
+
+                qenc = basename(qfpath)
+                with output_target[qind][qenc].open('wb') as f:
+                    pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
+
+
 @inherits(SeparateDatabaseQueries)
 @inherits(TimeWarpingId)
 class TimeWarpingResults(luigi.Task):
@@ -1736,6 +1869,137 @@ class DescriptorsResults(luigi.Task):
                     ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
                 )
                 qind_eval_targets = evaluation_targets[run_idx]
+                for qind in tqdm(qind_eval_targets, leave=False):
+                    for qenc in qind_eval_targets[qind]:
+                        with qind_eval_targets[qind][qenc].open('rb') as f1:
+                            result_dict = pickle.load(f1)
+                        scores = np.zeros(len(db_indivs), dtype=np.float32)
+                        for i, dind in enumerate(db_indivs):
+                            result_matrix = result_dict[dind]
+                            scores[i] = result_matrix
+
+                        asc_scores_idx = np.argsort(scores)
+                        ranked_indivs = [
+                            db_indivs[idx] for idx in asc_scores_idx
+                        ]
+                        #ranked_scores = [
+                        #    scores[idx] for idx in asc_scores_idx]
+                        #]
+
+                        # handle unknown individuals
+                        try:
+                            rank = 1 + ranked_indivs.index(qind)
+                            indiv_rank_indices[qind].append(rank)
+                        except ValueError:
+                            rank = -1
+
+                        f.write('%s,%s,%s,%s\n' % (
+                            qenc, qind, rank,
+                            ','.join('%s' % r for r in ranked_indivs)
+                        ))
+                        #f.write('%s\n' % (
+                        #    ','.join(['%.6f' % s for s in ranked_scores])))
+
+            with self.output()['mrr'][run_idx].open('w') as f:
+                f.write('individual,mrr\n')
+                for qind in indiv_rank_indices.keys():
+                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    num = len(indiv_rank_indices[qind])
+                    f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
+
+            rank_indices = []
+            for ind in indiv_rank_indices:
+                for rank in indiv_rank_indices[ind]:
+                    rank_indices.append(rank)
+
+            topk_scores = [1, 5, 10, 25]
+            rank_indices = np.array(rank_indices)
+            num_queries = rank_indices.shape[0]
+            num_indivs = len(indiv_rank_indices)
+            with self.output()['topk'][run_idx].open('w') as f:
+                f.write('topk,accuracy\n')
+                for k in range(1, 1 + num_indivs):
+                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk_aggr[run_idx].append(topk)
+                    f.write('top-%d,%.6f\n' % (k, topk))
+
+        aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
+        with self.output()['agg'].open('w') as f:
+            logger.info('Accuracy scores over %d runs for k = %s:' % (
+                self.runs, ', '.join(['%d' % k for k in topk_scores])))
+            f.write('mean,min,max,std\n')
+            for i, k in enumerate(range(1, 1 + num_indivs)):
+                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
+                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
+                ))
+                if k in topk_scores:
+                    logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
+
+        t_end = time()
+        logger.info('%s completed in %.3fs' % (
+            self.__class__.__name__, t_end - t_start))
+
+
+@inherits(SeparateDatabaseQueries)
+@inherits(HotSpotterId)
+class HotSpotterResults(luigi.Task):
+    serial = luigi.BoolParameter(
+        default=False, description='Disable use of multiprocessing.Pool'
+    )
+
+    def requires(self):
+        return {
+            'SeparateDatabaseQueries': self.clone(SeparateDatabaseQueries),
+            'HotSpotterId': self.clone(HotSpotterId),
+        }
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+        outdir = join(
+            basedir, self.eval_dir,
+            '%s' % self.num_db_encounters
+        )
+
+        all_targets = [
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        mrr_targets = [
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        topk_targets = [
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
+            for i in range(self.runs)
+        ]
+
+        aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
+
+        return {
+            'all': all_targets,
+            'mrr': mrr_targets,
+            'topk': topk_targets,
+            'agg': aggr_target,
+        }
+
+    def run(self):
+        from collections import defaultdict
+        evaluation_targets = self.requires()['HotSpotterId'].output()
+        db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
+        topk_aggr = defaultdict(list)
+        t_start = time()
+        for run_idx in range(self.runs):
+            with db_qr_output['database'][run_idx].open('rb') as f:
+                db_dict = pickle.load(f)
+            db_indivs = db_dict.keys()
+            indiv_rank_indices = defaultdict(list)
+            with self.output()['all'][run_idx].open('w') as f:
+                f.write('Enc,Ind,Rank,%s\n' % (
+                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                )
+                qind_eval_targets = evaluation_targets[run_idx]['eval']
                 for qind in tqdm(qind_eval_targets, leave=False):
                     for qenc in qind_eval_targets[qind]:
                         with qind_eval_targets[qind][qenc].open('rb') as f1:
