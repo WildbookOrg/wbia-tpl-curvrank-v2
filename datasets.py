@@ -177,6 +177,7 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
         if ind == '0':
             continue
         fname = splitext(basename(fpath))[0]
+        # FIXME: this will break if two files only differ in the extension
         if fname in curv_dict.keys():
             if ind not in ind_enc_curv_dict:
                 ind_enc_curv_dict[ind] = {}
