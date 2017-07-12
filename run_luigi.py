@@ -1893,7 +1893,7 @@ class DescriptorsResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
-                        f.write('%s,%s,%s,%s\n' % (
+                        f.write('"%s","%s",%s,%s\n' % (
                             qenc, qind, rank,
                             ','.join('%s' % r for r in ranked_indivs)
                         ))
@@ -1999,7 +1999,7 @@ class HotSpotterResults(luigi.Task):
                 f.write('Enc,Ind,Rank,%s\n' % (
                     ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
                 )
-                qind_eval_targets = evaluation_targets[run_idx]['eval']
+                qind_eval_targets = evaluation_targets[run_idx]
                 for qind in tqdm(qind_eval_targets, leave=False):
                     for qenc in qind_eval_targets[qind]:
                         with qind_eval_targets[qind][qenc].open('rb') as f1:
