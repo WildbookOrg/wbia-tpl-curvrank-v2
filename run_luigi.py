@@ -1756,7 +1756,7 @@ class TimeWarpingResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
-                        f.write('%s,%s,%s,%s\n' % (
+                        f.write('"%s","%s",%s,%s\n' % (
                             qenc, qind, rank,
                             ','.join('%s' % r for r in ranked_indivs)
                         ))
@@ -2024,7 +2024,7 @@ class HotSpotterResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
-                        f.write('%s,%s,%s,%s\n' % (
+                        f.write('"%s","%s",%s,%s\n' % (
                             qenc, qind, rank,
                             ','.join('%s' % r for r in ranked_indivs)
                         ))
