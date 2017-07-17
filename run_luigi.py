@@ -1618,12 +1618,14 @@ class HotSpotterId(luigi.Task):
             with qr_target.open('rb') as f:
                 qr_fpath_dict = pickle.load(f)
 
+            qr_enc_list = []
             for ind in qr_fpath_dict:
                 for enc in qr_fpath_dict[ind]:
                     for fpath in qr_fpath_dict[ind][enc]:
                         image_list.append(fpath)
                         name_list.append(ind)
                         db_qr_list.append('qr')
+                        qr_enc_list.append(enc)
             for ind in db_fpath_dict:
                 for fpath in db_fpath_dict[ind]:
                     image_list.append(fpath)
@@ -1644,28 +1646,37 @@ class HotSpotterId(luigi.Task):
                     assert False, '%s' % db_qr
 
             ibs.set_annot_names(aid_list, name_list, notify_wildbook=False)
+            ibs.set_annot_static_encounter(qaids, qr_enc_list)
 
             qreq = ibs.new_query_request(qaids, daids, {'sv_on': False})
-            output_target = self.output()[run_idx]
             chipmatch_list = qreq.execute()
-            #db_indivs = db_fpath_dict.keys()
-            qgids = ibs.get_annot_gids(qaids)
+            db_indivs = db_fpath_dict.keys()
+            #qgids = ibs.get_annot_gids(qaids)
             qinds = ibs.get_annot_names(qaids)
-            qfpaths = ibs.get_image_uris_original(qgids)
-            for (cm, qind, qfpath) in zip(chipmatch_list, qinds, qfpaths):
+            qencs = ibs.get_annot_static_encounter(qaids)
+
+            qr_cm_dict = {}
+            for (cm, qind, qenc) in zip(chipmatch_list, qinds, qencs):
                 cm_all = cm.extend_results(qreq)
                 qdf = cm_all.pandas_name_info()
+                if qind not in qr_cm_dict:
+                    qr_cm_dict[qind] = {}
+                if qenc not in qr_cm_dict[qind]:
+                    qr_cm_dict[qind][qenc] = defaultdict(list)
                 ranked_nids = list(qdf['dnid'].values)
                 ranked_indivs = ibs.get_name_texts(ranked_nids)
                 ranked_scores = list(-1. * qdf['score'].values)
-                scores = {
-                    dind: score
-                    for dind, score in zip(ranked_indivs, ranked_scores)
-                }
+                for dind, score in zip(ranked_indivs, ranked_scores):
 
-                qenc = basename(qfpath)
-                with output_target[qind][qenc].open('wb') as f:
-                    pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
+                    qr_cm_dict[qind][qenc][dind].append(score)
+
+            output_target = self.output()[run_idx]
+            for qind in qr_cm_dict:
+                for qenc in qr_cm_dict[qind]:
+
+                    with output_target[qind][qenc].open('wb') as f:
+                        scores = qr_cm_dict[qind][qenc]
+                        pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
 
 
 @inherits(SeparateDatabaseQueries)
@@ -2006,7 +2017,7 @@ class HotSpotterResults(luigi.Task):
                             result_dict = pickle.load(f1)
                         scores = np.zeros(len(db_indivs), dtype=np.float32)
                         for i, dind in enumerate(db_indivs):
-                            result_matrix = result_dict[dind]
+                            result_matrix = np.min(result_dict[dind])
                             scores[i] = result_matrix
 
                         asc_scores_idx = np.argsort(scores)
