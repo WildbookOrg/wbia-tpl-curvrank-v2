@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from itertools import combinations
 from scipy.signal import argrelextrema
+from scipy.ndimage import gaussian_filter1d
 
 
 def preprocess_images_star(fpath_side, imsize, output_targets):
@@ -272,23 +273,43 @@ def compute_curv_descriptors(fpath, scales,
                     )
                 # keypoints are the local maxima at each scale
                 else:
-                    maxima_idx, = argrelextrema(
-                        resampled[:, sidx], np.greater, order=1
-                    )
-                    sorted_idx = np.argsort(resampled[maxima_idx, sidx])[::-1]
-                    # leave two spots for the start and endpoints
-                    maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
+                    smoothed = gaussian_filter1d(resampled[:, sidx], 5.0)
+                    try:
+                        maxima_idx, = argrelextrema(
+                            smoothed, np.greater, order=3
+                        )
+                    except ValueError:
+                        maxima_idx = np.array([], dtype=np.int32)
+                    try:
+                        minima_idx, = argrelextrema(
+                            smoothed, np.less, order=3
+                        )
+                    except ValueError:
+                        minima_idx = np.array([], dtype=np.int32)
 
-                    sorted_maxima_idx = np.sort(maxima_idx)
-                    if sorted_maxima_idx.shape[0] > 0:
-                        if sorted_maxima_idx[0] in (0, 1):
-                            sorted_maxima_idx = sorted_maxima_idx[1:]
+                    extrema_idx = np.sort(np.hstack((minima_idx, maxima_idx)))
+                    # add a dummy index for comparing against the last idx
+                    dummy_idx = np.sort(np.hstack((
+                        extrema_idx, np.array([smoothed.shape[0] + 1]))
+                    ))
+                    valid_idx = (dummy_idx[1:] - dummy_idx[:-1] > 1)
+                    extrema_idx = extrema_idx[valid_idx]
+                    # sort based on distance to curv of 0.5 (straight line)
+                    extrema = abs(0.5 - smoothed[extrema_idx])
+                    sorted_idx = np.argsort(extrema)[::-1]
+                    # leave two spots for the start and endpoints
+                    extrema_idx =  extrema_idx[sorted_idx][0:num_keypoints - 2]
+
+                    sorted_extrema_idx = np.sort(extrema_idx)
+                    if sorted_extrema_idx.shape[0] > 0:
+                        if sorted_extrema_idx[0] in (0, 1):
+                            sorted_extrema_idx = sorted_extrema_idx[1:]
                     keypts = np.zeros(
-                        min(num_keypoints, 2 + sorted_maxima_idx.shape[0]),
+                        min(num_keypoints, 2 + sorted_extrema_idx.shape[0]),
                         dtype=np.int32
                     )
                     keypts[0], keypts[-1] = 0, resampled.shape[0]
-                    keypts[1:-1] = sorted_maxima_idx
+                    keypts[1:-1] = sorted_extrema_idx
 
                 endpts = list(combinations(keypts, 2))
                 # each entry stores the features for one scale
