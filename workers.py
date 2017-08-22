@@ -14,14 +14,14 @@ from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
 
 
-def preprocess_images_star(fpath_side, imsize, output_targets):
+def preprocess_images_star(fpath_side, height, width, output_targets):
     return preprocess_images(
         *fpath_side,
-        imsize=imsize, output_targets=output_targets
+        height=height, width=width, output_targets=output_targets
     )
 
 
-def preprocess_images(fpath, side, imsize, output_targets):
+def preprocess_images(fpath, side, height, width, output_targets):
     resz_target = output_targets[fpath]['resized']
     trns_target = output_targets[fpath]['transform']
 
@@ -30,7 +30,7 @@ def preprocess_images(fpath, side, imsize, output_targets):
     if side.lower() == 'right':
         img = img[:, ::-1, :]
 
-    resz, M = imutils.center_pad_with_transform(img, imsize)
+    resz, M = imutils.center_pad_with_transform(img, height, width)
     _, resz_buf = cv2.imencode('.png', resz)
 
     with resz_target.open('wb') as f1,\
