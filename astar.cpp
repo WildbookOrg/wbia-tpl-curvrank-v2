@@ -1,17 +1,18 @@
 #include <queue>
 #include <limits>
 #include <cmath>
-#include <iostream>
 
+// represents a single pixel
 class Node {
   public:
-    int idx;
-    float cost;
+    int idx;     // index in the flattened grid
+    float cost;  // cost of traversing this pixel
 
     Node(int i, float c) : idx(i),cost(c) {}
 };
 
-// the top of the priority queue is the greatest element
+// the top of the priority queue is the greatest element by default,
+// but we want the smallest, so flip the sign
 bool operator<(const Node &n1, const Node &n2) {
   return n1.cost > n2.cost;
 }
@@ -20,30 +21,18 @@ bool operator==(const Node &n1, const Node &n2) {
   return n1.idx == n2.idx;
 }
 
+// manhattan distance: requires each move to cost >= 1
 float heuristic(int i0, int j0, int i1, int j1) {
   return std::abs(i0 - i1) + std::abs(j0 - j1);
 }
 
-std::vector<int> get_neighbors(int idx, int height, int width) {
-  int i = idx / width;
-  int j = idx % width;
-
-  std::vector<int> neighbors;
-  if ((i - 1) >= 0)
-    neighbors.push_back((i - 1) * width + j);
-  if ((j - 1) >= 0)
-    neighbors.push_back(i * width + (j - 1));
-  if ((i + 1) < height)
-    neighbors.push_back((i + 1) * width + j);
-  if ((j + 1) < width)
-    neighbors.push_back(i * width + (j + 1));
-
-  return neighbors;
-}
-
-extern "C" float astar(
-      const float* weights, int height, int width,
-      int start, int goal, int* paths) {
+// weights:        flattened h x w grid of costs
+// start, goal:    index of start/goal in flattened grid
+// paths (output): for each node, stores previous node in path
+extern "C" int astar(
+      const float* weights, const int height, const int width,
+      const int start, const int goal,
+      int* paths) {
 
   const float INF = std::numeric_limits<float>::infinity();
 
@@ -58,32 +47,45 @@ extern "C" float astar(
   std::priority_queue<Node> nodes_to_visit; 
   nodes_to_visit.push(start_node);
 
-  while (!nodes_to_visit.empty()) {
-    Node current = nodes_to_visit.top();
+  int* nbrs = new int[4];
 
-    if (current == goal_node) {
+  int solution_found = 0;
+  while (!nodes_to_visit.empty()) {
+    // .top() doesn't actually remove the node
+    Node cur = nodes_to_visit.top();
+
+    if (cur == goal_node) {
+      solution_found = 1;
       break;
     }
 
     nodes_to_visit.pop();
 
-    std::vector<int> nbrs = get_neighbors(current.idx, height, width);
-    for (std::vector<int>::const_iterator nitr = nbrs.begin(); 
-         nitr != nbrs.end(); ++nitr) {
-      float new_cost = costs[current.idx] + weights[*nitr];
-      if (new_cost < costs[*nitr]) {
-        costs[*nitr] = new_cost;
-        float priority = new_cost + heuristic((*nitr) / width, 
-                                              (*nitr) % width, 
-                                              goal / width, 
-                                              goal % width);
-        nodes_to_visit.push(Node(*nitr, priority));
-        paths[*nitr] = current.idx;
+    // check bounds and find up to four neighbors
+    nbrs[0] = (cur.idx / width > 0) ? (cur.idx - width) : -1;
+    nbrs[1] = (cur.idx % width > 0) ? (cur.idx - 1) : -1;
+    nbrs[2] = (cur.idx / width + 1 < height) ? (cur.idx + width) : -1;
+    nbrs[3] = (cur.idx % width + 1 < width) ? (cur.idx + 1) : -1;
+    for (int i = 0; i < 4; ++i) {
+      if (nbrs[i] >= 0) {
+        // the sum of the cost so far and the cost of this move
+        float new_cost = costs[cur.idx] + weights[nbrs[i]];
+        if (new_cost < costs[nbrs[i]]) {
+          costs[nbrs[i]] = new_cost;
+          float priority = new_cost + heuristic(nbrs[i] / width, 
+                                                nbrs[i] % width, 
+                                                goal / width, 
+                                                goal % width);
+          // paths with lower expected cost are explored first
+          nodes_to_visit.push(Node(nbrs[i], priority));
+          paths[nbrs[i]] = cur.idx;
+        }
       }
     }
   }
 
   delete[] costs;
+  delete[] nbrs;
 
-  return 0.;
+  return solution_found;
 }

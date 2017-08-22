@@ -8,7 +8,7 @@ ndmat_f_type = np.ctypeslib.ndpointer(
     dtype=np.float32, ndim=1, flags='C_CONTIGUOUS')
 ndmat_i_type = np.ctypeslib.ndpointer(
     dtype=np.int32, ndim=1, flags='C_CONTIGUOUS')
-astar.restype = ctypes.c_float
+astar.restype = ctypes.c_int
 astar.argtypes = [ndmat_f_type, ctypes.c_int, ctypes.c_int,
                   ctypes.c_int, ctypes.c_int,
                   ndmat_i_type]
