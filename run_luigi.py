@@ -366,6 +366,79 @@ class Localization(luigi.Task):
 
 
 @inherits(PrepareData)
+@inherits(Preprocess)
+@inherits(Localization)
+class Refinement(luigi.Task):
+    def requires(self):
+        return {
+            'PrepareData': self.clone(PrepareData),
+            'Preprocess': self.clone(Preprocess),
+            'Localization': self.clone(Localization),
+        }
+
+    def get_incomplete(self):
+        output = self.output()
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
+                      not exists(output[fpath]['refn'].path) or
+                      not exists(output[fpath]['mask'].path)]
+        logger.info('%s has %d of %d images to process' % (
+            self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
+
+        return to_process
+
+    def output(self):
+        basedir = join('data', self.dataset, self.__class__.__name__)
+
+        input_filepaths = self.requires()['PrepareData'].get_input_list()
+
+        outputs = {}
+        for fpath, _, _, _ in input_filepaths:
+            fname =  splitext(basename(fpath))[0]
+            png_fname = '%s.png' % fname
+            pkl_fname = '%s.pickle' % fname
+            outputs[fpath] = {
+                'refn': luigi.LocalTarget(
+                    join(basedir, 'refn', png_fname)),
+                'mask': luigi.LocalTarget(
+                    join(basedir, 'mask', pkl_fname)),
+            }
+
+        return outputs
+
+    def run(self):
+        import imutils
+        preprocess_images_targets = self.requires()['Preprocess'].output()
+        localization_targets = self.requires()['Localization'].output()
+        to_process = self.get_incomplete()
+        output = self.output()
+
+        for fpath in to_process:
+            img_orig = cv2.imread(fpath)
+            tpath = preprocess_images_targets[fpath]['transform'].path
+            with open(tpath, 'rb') as f:
+                pre_transform = pickle.load(f)
+            lpath = localization_targets[fpath]['transform'].path
+            with open(lpath, 'rb') as f:
+                loc_transform = pickle.load(f)
+            msk_orig = np.ones_like(img_orig).astype(np.float32)
+            img_loc_hr, mask_loc_hr = imutils.refine_localization(
+                img_orig, msk_orig, pre_transform, loc_transform,
+                self.scale, self.height, self.width
+            )
+
+            loc_hr_target = output[fpath]['refn']
+            mask_target = output[fpath]['mask']
+
+            _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
+            with loc_hr_target.open('wb') as f1,\
+                    mask_target.open('wb') as f2:
+                f1.write(img_loc_hr_buf)
+                pickle.dump(loc_transform, f2, pickle.HIGHEST_PROTOCOL)
+
+
+@inherits(PrepareData)
 @inherits(Localization)
 class Segmentation(luigi.Task):
     batch_size = luigi.IntParameter(

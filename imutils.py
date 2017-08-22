@@ -45,12 +45,12 @@ def refine_segmentation(segm, s):
     return segm_refined
 
 
-def refine_localization(img, mask, M, L, s, imsize):
-    out_height, out_width = (s * np.ceil((imsize, imsize))).astype(np.int32)
+def refine_localization(img, mask, M, L, s, height, width):
+    out_height, out_width = (s * np.ceil((height, width))).astype(np.int32)
 
-    T10 = affine.build_downsample_matrix(imsize, imsize)
+    T10 = affine.build_downsample_matrix(height, width)
     T21 = L
-    T32 = affine.build_upsample_matrix(imsize, imsize)
+    T32 = affine.build_upsample_matrix(height, width)
     T43 = cv2.invertAffineTransform(M[:2])
     T70 = affine.build_scale_matrix(s)
 
