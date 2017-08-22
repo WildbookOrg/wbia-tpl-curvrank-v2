@@ -259,10 +259,6 @@ class Localization(luigi.Task):
             outputs[fpath] = {
                 'localization': luigi.LocalTarget(
                     join(basedir, 'localization', png_fname)),
-                'localization-full': luigi.LocalTarget(
-                    join(basedir, 'localization-full', png_fname)),
-                'mask': luigi.LocalTarget(
-                    join(basedir, 'mask', pkl_fname)),
                 'transform': luigi.LocalTarget(
                     join(basedir, 'transform', pkl_fname)),
             }
@@ -270,7 +266,6 @@ class Localization(luigi.Task):
         return outputs
 
     def run(self):
-        import imutils
         import localization
         import theano_funcs
 
@@ -309,29 +304,19 @@ class Localization(luigi.Task):
             X_batch = np.empty(
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
-            trns_batch = np.empty(
-                (len(idx_range), 3, 3), dtype=np.float32
-            )
 
             for i, idx in enumerate(idx_range):
                 fpath, side = to_process[idx]
                 impath = preprocess_images_targets[fpath]['resized'].path
                 img = cv2.imread(impath)
-                tpath = preprocess_images_targets[fpath]['transform'].path
-                with open(tpath, 'rb') as f:
-                    trns_batch[i] = pickle.load(f)
-
                 X_batch[i] = img.transpose(2, 0, 1) / 255.
 
             L_batch_loc, X_batch_loc = localization_func(X_batch)
             for i, idx in enumerate(idx_range):
                 fpath, side = to_process[idx]
                 loc_lr_target = output[fpath]['localization']
-                loc_hr_target = output[fpath]['localization-full']
-                mask_target = output[fpath]['mask']
                 trns_target = output[fpath]['transform']
 
-                prep_trns = trns_batch[i]
                 lclz_trns = np.vstack((
                     L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
                 ))
@@ -341,24 +326,13 @@ class Localization(luigi.Task):
                 img_orig = cv2.imread(fpath)
                 if side.lower() == 'right':
                     img_orig = img_orig[:, ::-1, :]
-                # don't need to store the mask, reconstruct it here
-                msk_orig = np.ones_like(img_orig).astype(np.float32)
-                img_loc_hr, mask_loc_hr = imutils.refine_localization(
-                    img_orig, msk_orig, prep_trns, lclz_trns,
-                    self.scale, self.imsize
-                )
 
                 _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
-                _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
 
                 with loc_lr_target.open('wb') as f1,\
-                        loc_hr_target.open('wb') as f2,\
-                        mask_target.open('wb') as f3,\
-                        trns_target.open('wb') as f4:
+                        trns_target.open('wb') as f2:
                     f1.write(img_loc_lr_buf)
-                    f2.write(img_loc_hr_buf)
-                    pickle.dump(mask_loc_hr, f3, pickle.HIGHEST_PROTOCOL)
-                    pickle.dump(lclz_trns, f4, pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
@@ -422,8 +396,9 @@ class Refinement(luigi.Task):
             lpath = localization_targets[fpath]['transform'].path
             with open(lpath, 'rb') as f:
                 loc_transform = pickle.load(f)
-            msk_orig = np.ones_like(img_orig).astype(np.float32)
-            img_loc_hr, mask_loc_hr = imutils.refine_localization(
+            # no need to store mask as float, will be converted anyway
+            msk_orig = np.full(img_orig.shape[0:2], 255, dtype=np.uint8)
+            img_loc_hr, msk_loc_hr = imutils.refine_localization(
                 img_orig, msk_orig, pre_transform, loc_transform,
                 self.scale, self.height, self.width
             )
@@ -432,14 +407,15 @@ class Refinement(luigi.Task):
             mask_target = output[fpath]['mask']
 
             _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
+            _, msk_loc_hr_buf = cv2.imencode('.png', msk_loc_hr)
             with loc_hr_target.open('wb') as f1,\
                     mask_target.open('wb') as f2:
                 f1.write(img_loc_hr_buf)
-                pickle.dump(loc_transform, f2, pickle.HIGHEST_PROTOCOL)
+                f2.write(msk_loc_hr_buf)
 
 
 @inherits(PrepareData)
-@inherits(Localization)
+@inherits(Refinement)
 class Segmentation(luigi.Task):
     batch_size = luigi.IntParameter(
         default=32, description='Batch size of data passed to GPU.'
@@ -449,7 +425,7 @@ class Segmentation(luigi.Task):
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
-            'Localization': self.clone(Localization),
+            'Refinement': self.clone(Refinement),
         }
 
     def get_incomplete(self):
@@ -521,7 +497,7 @@ class Segmentation(luigi.Task):
         segm_func = theano_funcs.create_segmentation_func(layers_segm)
 
         output = self.output()
-        localization_targets = self.requires()['Localization'].output()
+        refinement_targets = self.requires()['Refinement'].output()
 
         to_process = self.get_incomplete()
         num_batches = (
@@ -535,21 +511,19 @@ class Segmentation(luigi.Task):
                 (len(idx_range), 3, height, width), dtype=np.float32
             )
             M_batch = np.empty(
-                (len(idx_range), 3, self.scale * height, self.scale * width),
+                (len(idx_range), 1, self.scale * height, self.scale * width),
                 dtype=np.float32
             )
 
             for i, idx in enumerate(idx_range):
                 fpath = to_process[idx]
-                img_path =\
-                    localization_targets[fpath]['localization-full'].path
-                msk_path = localization_targets[fpath]['mask'].path
+                img_path = refinement_targets[fpath]['refn'].path
+                msk_path = refinement_targets[fpath]['mask'].path
                 img = cv2.imread(img_path)
 
                 resz = cv2.resize(img, (width, height))
                 X_batch[i] = resz.transpose(2, 0, 1) / 255.
-                with open(msk_path, 'rb') as f:
-                    M_batch[i] = pickle.load(f).transpose(2, 0, 1)
+                M_batch[i, 0] = cv2.imread(msk_path, cv2.IMREAD_GRAYSCALE)
 
             S_batch  = segm_func(X_batch)
             for i, idx in enumerate(idx_range):
@@ -564,7 +538,7 @@ class Segmentation(luigi.Task):
 
                 segm_refn = imutils.refine_segmentation(segm, self.scale)
 
-                segm_refn[mask[:, :, 0] < 1] = 0.
+                segm_refn[mask[:, :, 0] < 255] = 0.
 
                 _, segm_buf = cv2.imencode('.png', 255. * segm)
                 _, segm_refn_buf = cv2.imencode('.png', 255. * segm_refn)
