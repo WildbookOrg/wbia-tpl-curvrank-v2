@@ -228,4 +228,12 @@ def test_full_size_inference():
 
 if __name__ == '__main__':
     #test_build_model_batchnorm()
-    test_full_size_inference()
+    #test_full_size_inference()
+    import theano_funcs
+    import numpy as np
+    input_shape = (32, 3, 480, 128)
+    X = np.random.random(input_shape).astype(np.float32)
+    layer_dict = build_model_batchnorm_full(input_shape)
+    infer_func = theano_funcs.create_segmentation_infer_func(layer_dict)
+    Z = infer_func(X)
+    print Z.shape
