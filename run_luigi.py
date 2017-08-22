@@ -57,7 +57,7 @@ class PrepareData(luigi.Task):
         logger.info('%d data tuples returned' % (len(data_list)))
 
         with output['csv'].open('w') as f:
-            f.write('impath,individual,encounter\n')
+            f.write('impath,individual,encounter,side\n')
             for img_fpath, indiv_name, enc_name, side in data_list:
                 f.write('%s,%s,%s,%s\n' % (
                     img_fpath, indiv_name, enc_name, side)
@@ -425,6 +425,7 @@ class Segmentation(luigi.Task):
 
         t_start = time()
         height, width = 256, 256
+        #height, width = 128, 384
         input_shape = (None, 3, height, width)
 
         logger.info('Building segmentation model with input shape %r' % (
@@ -433,6 +434,7 @@ class Segmentation(luigi.Task):
 
         segmentation_weightsfile = join(
             'data', 'weights', 'weights_segmentation.pickle'
+            #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
         logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
@@ -467,7 +469,7 @@ class Segmentation(luigi.Task):
                 msk_path = localization_targets[fpath]['mask'].path
                 img = cv2.imread(img_path)
 
-                resz = cv2.resize(img, (height, width))
+                resz = cv2.resize(img, (width, height))
                 X_batch[i] = resz.transpose(2, 0, 1) / 255.
                 with open(msk_path, 'rb') as f:
                     M_batch[i] = pickle.load(f).transpose(2, 0, 1)
@@ -1650,7 +1652,7 @@ class HotSpotterId(luigi.Task):
 
             qreq = ibs.new_query_request(qaids, daids, {'sv_on': False})
             chipmatch_list = qreq.execute()
-            db_indivs = db_fpath_dict.keys()
+            #db_indivs = db_fpath_dict.keys()
             #qgids = ibs.get_annot_gids(qaids)
             qinds = ibs.get_annot_names(qaids)
             qencs = ibs.get_annot_static_encounter(qaids)

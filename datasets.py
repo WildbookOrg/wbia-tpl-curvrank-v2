@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas as pd
 import sqlite3
 from datetime import datetime
 from os import listdir
@@ -11,6 +12,10 @@ def load_dataset(name):
         return load_nz_dataset()
     elif name == 'sdrp':
         return load_sdrp_dataset([2013, 2014, 2015, 2016])
+    elif name == 'fb':
+        return load_fb_dataset()
+    elif name == 'crc':
+        return load_crc_dataset()
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -111,6 +116,48 @@ def load_sdrp_dataset(years):
                 alias,
                 '%s-%s' % (survey, sighting),
                 side,
+            ))
+
+    return data_list
+
+
+def load_fb_dataset():
+    data_dir = '/media/hdd/hendrik/datasets/fb-humpbacks'
+    csv_fpath = join(data_dir, 'filelist.csv')
+
+    df = pd.read_csv(csv_fpath, header='infer',
+                     usecols=['Filepath', 'Individual', 'Encounter', 'Side'])
+
+    filepaths = df['Filepath'].values
+    individuals = df['Individual'].values
+    encounters = df['Encounter'].values
+    sides = df['Side'].values
+
+    data_list = []
+    for fpath, indiv, enc, side in zip(
+            filepaths, individuals, encounters, sides):
+        data_list.append((
+            fpath, indiv, enc, side
+        ))
+
+    return data_list
+
+
+def load_crc_dataset():
+    data_dir = '/media/hdd/hendrik/datasets/crc-humpbacks'
+    dir_names = ['2014a', '2014b', 'reference']
+
+    data_list = []
+    for dir_name in dir_names:
+        csv_fpath = join(data_dir, 'filelists', '%s.csv' % dir_name)
+        df = pd.read_csv(csv_fpath, header='infer',
+                         usecols=['Filename', 'CRCID'])
+        filenames = df['Filename'].values
+        names = df['CRCID'].values
+        for enc, (fname, name) in enumerate(zip(filenames, names)):
+            fpath = join(data_dir, dir_name, 'images', fname)
+            data_list.append((
+                fpath, name, enc, 'Left'
             ))
 
     return data_list
