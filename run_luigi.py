@@ -147,8 +147,11 @@ class EncounterStats(luigi.Task):
 
 @inherits(PrepareData)
 class Preprocess(luigi.Task):
-    imsize = luigi.IntParameter(
-        default=256, description='Side length of images after resizing.'
+    height = luigi.IntParameter(
+        default=256, description='Height of images after resizing.'
+    )
+    width = luigi.IntParameter(
+        default=256, description='Width of images after resizing.'
     )
 
     def requires(self):
@@ -198,7 +201,8 @@ class Preprocess(luigi.Task):
 
         partial_preprocess_images = partial(
             preprocess_images_star,
-            imsize=self.imsize,
+            height=self.height,
+            width=self.width,
             output_targets=output,
         )
         #for fpath in tqdm(to_process, total=len(to_process)):

@@ -3,16 +3,20 @@ import cv2
 import numpy as np
 
 
-def center_pad_with_transform(img, imsize):
+def center_pad_with_transform(img, height, width):
     old_height, old_width = img.shape[0:2]
-    s = 1. * imsize / max(old_height, old_width)
-    if old_height > old_width:
-        tx = int(np.round((imsize - s * old_width) / 2.))
+    hs = 1. * old_height / height
+    ws = 1. * old_width / width
+    if hs > ws:
+        s = 1. / hs
+        tx = int(np.round(abs(width - s * old_width) / 2.))
         ty = 0
-    elif old_height < old_width:
+    elif hs < ws:
+        s = 1. / ws
         tx = 0
-        ty = int(np.round((imsize - s * old_height) / 2.))
+        ty = int(np.round(abs(height - s * old_height) / 2.))
     else:
+        s = ws
         tx = 0
         ty = 0
 
@@ -20,7 +24,7 @@ def center_pad_with_transform(img, imsize):
                   [0., s, ty],
                   [0., 0., 1.]])
 
-    resz = cv2.warpAffine(img, M[:2], (imsize, imsize))
+    resz = cv2.warpAffine(img, M[:2], (width, height))
 
     return resz, M
 
@@ -67,13 +71,16 @@ def refine_localization(img, mask, M, L, s, imsize):
 
 
 def test_center_pad_with_transform():
+    h, w = 128, 384
     img = np.full((384, 512), 255, dtype=np.uint8)
-    resz, M = center_pad_with_transform(img, 256)
+    resz, M = center_pad_with_transform(img, h, w)
+    cv2.imwrite('img1.png', resz)
     img = np.full((512, 384), 255, dtype=np.uint8)
-    resz, M = center_pad_with_transform(img, 256)
+    resz, M = center_pad_with_transform(img, h, w)
+    cv2.imwrite('img2.png', resz)
     img = np.full((512, 512), 255, dtype=np.uint8)
-    resz, M = center_pad_with_transform(img, 256)
-    cv2.imwrite('img.png', resz)
+    resz, M = center_pad_with_transform(img, h, w)
+    cv2.imwrite('img3.png', resz)
 
 
 if __name__ == '__main__':
