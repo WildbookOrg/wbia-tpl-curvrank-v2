@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
+from tqdm import tqdm
 
 
 def preprocess_images_star(fpath_side, height, width, output_targets):
@@ -37,6 +38,62 @@ def preprocess_images(fpath, side, height, width, output_targets):
             trns_target.open('wb') as f2:
         f1.write(resz_buf)
         pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
+
+
+def localization_identity(fpath, height, width,
+                          input_targets, output_targets):
+    impath = input_targets[fpath]['resized'].path
+    img = cv2.imread(impath)
+    loc_lr_target = output_targets[fpath]['localization']
+    trns_target = output_targets[fpath]['transform']
+    lclz_trns = np.eye(3, dtype=np.float32)
+
+    _, img_loc_lr_buf = cv2.imencode('.png', img)
+
+    with loc_lr_target.open('wb') as f1,\
+            trns_target.open('wb') as f2:
+        f1.write(img_loc_lr_buf)
+        pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
+
+
+# to_process: [fpath1, fpath2, ...] (for batching to gpu)
+def localization_stn(to_process, batch_size, height, width, func,
+                     input_targets, output_targets):
+    num_batches = (len(to_process) + batch_size - 1) / batch_size
+    #logger.info('%d batches of size %d to process' % (
+    #    num_batches, self.batch_size))
+    for i in tqdm(range(num_batches), total=num_batches, leave=False):
+        idx_range = range(i * batch_size,
+                          min((i + 1) * batch_size, len(to_process)))
+        X_batch = np.empty(
+            (len(idx_range), 3, height, width), dtype=np.float32
+        )
+
+        for i, idx in enumerate(idx_range):
+            fpath = to_process[idx]
+            impath = input_targets[fpath]['resized'].path
+            img = cv2.imread(impath)
+            X_batch[i] = img.transpose(2, 0, 1) / 255.
+
+        L_batch_loc, X_batch_loc = func(X_batch)
+        for i, idx in enumerate(idx_range):
+            fpath = to_process[idx]
+            loc_lr_target = output_targets[fpath]['localization']
+            trns_target = output_targets[fpath]['transform']
+
+            lclz_trns = np.vstack((
+                L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
+            ))
+
+            img_loc_lr = (255. * X_batch_loc[i]).astype(
+                np.uint8).transpose(1, 2, 0)
+
+            _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
+
+            with loc_lr_target.open('wb') as f1,\
+                    trns_target.open('wb') as f2:
+                f1.write(img_loc_lr_buf)
+                pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
 
 
 # input1_targets: localization_targets

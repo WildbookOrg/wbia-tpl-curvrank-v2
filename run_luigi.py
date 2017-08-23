@@ -225,6 +225,9 @@ class Localization(luigi.Task):
         default=32, description='Batch size of data passed to GPU.'
     )
     scale = luigi.IntParameter(default=4)
+    no_localization = luigi.BoolParameter(
+        default=False, description='Use the identity transform instead of STN.'
+    )
 
     def requires(self):
         return {
@@ -235,7 +238,7 @@ class Localization(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
+        to_process = [fpath for fpath, _, _, _ in input_filepaths if
                       not exists(output[fpath]['localization'].path) or
                       not exists(output[fpath]['transform'].path)]
         logger.info('%s has %d of %d images to process' % (
@@ -268,69 +271,52 @@ class Localization(luigi.Task):
         import theano_funcs
 
         t_start = time()
-        height, width = 256, 256
-        logger.info('Building localization model')
-        layers = localization.build_model(
-            (None, 3, height, width), downsample=1)
-
-        localization_weightsfile = join(
-            'data', 'weights', 'weights_localization.pickle'
-        )
-        logger.info('Loading weights for the localization network from %s' % (
-            localization_weightsfile))
-        model.load_weights([
-            layers['trans'], layers['loc']],
-            localization_weightsfile
-        )
-
-        logger.info('Compiling theano functions for localization')
-        localization_func = theano_funcs.create_localization_infer_func(layers)
-
+        #height, width = 256, 256
         output = self.output()
-        preprocess_images_targets = self.requires()['Preprocess'].output()
-
         to_process = self.get_incomplete()
-        # we don't parallelize this function because it uses the gpu
-
-        num_batches = (
-            len(to_process) + self.batch_size - 1) / self.batch_size
-        logger.info('%d batches of size %d to process' % (
-            num_batches, self.batch_size))
-        for i in tqdm(range(num_batches), total=num_batches, leave=False):
-            idx_range = range(i * self.batch_size,
-                              min((i + 1) * self.batch_size, len(to_process)))
-            X_batch = np.empty(
-                (len(idx_range), 3, height, width), dtype=np.float32
+        preprocess_images_targets = self.requires()['Preprocess'].output()
+        if self.no_localization:
+            from workers import localization_identity
+            partial_localization_identity = partial(
+                localization_identity,
+                height=self.height,
+                width=self.width,
+                input_targets=preprocess_images_targets,
+                output_targets=output
             )
 
-            for i, idx in enumerate(idx_range):
-                fpath, side = to_process[idx]
-                impath = preprocess_images_targets[fpath]['resized'].path
-                img = cv2.imread(impath)
-                X_batch[i] = img.transpose(2, 0, 1) / 255.
+            try:
+                pool = mp.Pool(processes=None)
+                pool.map(partial_localization_identity, to_process)
+            finally:
+                pool.close()
+                pool.join()
+        else:
+            from workers import localization_stn
+            logger.info('Building localization model')
+            layers = localization.build_model(
+                (None, 3, self.height, self.width), downsample=1)
 
-            L_batch_loc, X_batch_loc = localization_func(X_batch)
-            for i, idx in enumerate(idx_range):
-                fpath, side = to_process[idx]
-                loc_lr_target = output[fpath]['localization']
-                trns_target = output[fpath]['transform']
+            localization_weightsfile = join(
+                'data', 'weights', 'weights_localization.pickle'
+            )
+            logger.info(
+                'Loading weights for the localization network from %s' % (
+                    localization_weightsfile))
+            model.load_weights([
+                layers['trans'], layers['loc']],
+                localization_weightsfile
+            )
 
-                lclz_trns = np.vstack((
-                    L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
-                ))
+            logger.info('Compiling theano functions for localization')
+            localization_func = theano_funcs.create_localization_infer_func(
+                layers)
 
-                img_loc_lr = (255. * X_batch_loc[i]).astype(
-                    np.uint8).transpose(1, 2, 0)
-                img_orig = cv2.imread(fpath)
-                if side.lower() == 'right':
-                    img_orig = img_orig[:, ::-1, :]
-
-                _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
-
-                with loc_lr_target.open('wb') as f1,\
-                        trns_target.open('wb') as f2:
-                    f1.write(img_loc_lr_buf)
-                    pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
+            # we don't parallelize this function because it uses the gpu
+            localization_stn(to_process,
+                             self.batch_size, self.height, self.width,
+                             localization_func,
+                             preprocess_images_targets, output)
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
@@ -351,7 +337,7 @@ class Refinement(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
+        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
                       not exists(output[fpath]['refn'].path) or
                       not exists(output[fpath]['mask'].path)]
         logger.info('%s has %d of %d images to process' % (
@@ -386,8 +372,10 @@ class Refinement(luigi.Task):
         to_process = self.get_incomplete()
         output = self.output()
 
-        for fpath in to_process:
+        for fpath, side in to_process:
             img_orig = cv2.imread(fpath)
+            if side.lower() == 'right':
+                img_orig = img_orig[:, ::-1, :]
             tpath = preprocess_images_targets[fpath]['transform'].path
             with open(tpath, 'rb') as f:
                 pre_transform = pickle.load(f)
@@ -475,17 +463,17 @@ class Segmentation(luigi.Task):
         import theano_funcs
 
         t_start = time()
-        height, width = 256, 256
+        #height, width = 256, 256
         #height, width = 128, 384
-        input_shape = (None, 3, height, width)
+        input_shape = (None, 3, self.height, self.width)
 
         logger.info('Building segmentation model with input shape %r' % (
             input_shape,))
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
-            'data', 'weights', 'weights_segmentation.pickle'
-            #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
+            #'data', 'weights', 'weights_segmentation.pickle'
+            'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
         logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
@@ -506,10 +494,11 @@ class Segmentation(luigi.Task):
             idx_range = range(i * self.batch_size,
                               min((i + 1) * self.batch_size, len(to_process)))
             X_batch = np.empty(
-                (len(idx_range), 3, height, width), dtype=np.float32
+                (len(idx_range), 3, self.height, self.width), dtype=np.float32
             )
             M_batch = np.empty(
-                (len(idx_range), 1, self.scale * height, self.scale * width),
+                (len(idx_range), 1,
+                    self.scale * self.height, self.scale * self.width),
                 dtype=np.float32
             )
 
@@ -519,7 +508,7 @@ class Segmentation(luigi.Task):
                 msk_path = refinement_targets[fpath]['mask'].path
                 img = cv2.imread(img_path)
 
-                resz = cv2.resize(img, (width, height))
+                resz = cv2.resize(img, (self.width, self.height))
                 X_batch[i] = resz.transpose(2, 0, 1) / 255.
                 M_batch[i, 0] = cv2.imread(msk_path, cv2.IMREAD_GRAYSCALE)
 
