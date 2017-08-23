@@ -237,8 +237,6 @@ class Localization(luigi.Task):
         input_filepaths = self.requires()['PrepareData'].get_input_list()
         to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
                       not exists(output[fpath]['localization'].path) or
-                      not exists(output[fpath]['localization-full'].path) or
-                      not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
