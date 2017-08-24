@@ -478,8 +478,8 @@ class Segmentation(luigi.Task):
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
-            'data', 'weights', 'weights_segmentation.pickle'
-            #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
+            #'data', 'weights', 'weights_segmentation.pickle'
+            'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
         logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
@@ -620,7 +620,7 @@ class Keypoints(luigi.Task):
 
 
 @inherits(PrepareData)
-@inherits(Localization)
+@inherits(Refinement)
 @inherits(Segmentation)
 @inherits(Keypoints)
 class ExtractOutline(luigi.Task):
@@ -628,7 +628,7 @@ class ExtractOutline(luigi.Task):
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
-            'Localization': self.clone(Localization),
+            'Refinement': self.clone(Refinement),
             'Segmentation': self.clone(Segmentation),
             'Keypoints': self.clone(Keypoints),
         }
@@ -668,7 +668,7 @@ class ExtractOutline(luigi.Task):
 
         t_start = time()
         output = self.output()
-        localization_targets = self.requires()['Localization'].output()
+        refinement_targets = self.requires()['Refinement'].output()
         segmentation_targets = self.requires()['Segmentation'].output()
         keypoints_targets = self.requires()['Keypoints'].output()
         to_process = self.get_incomplete()
@@ -676,7 +676,7 @@ class ExtractOutline(luigi.Task):
         partial_extract_outline = partial(
             extract_outline,
             scale=self.scale,
-            input1_targets=localization_targets,
+            input1_targets=refinement_targets,
             input2_targets=segmentation_targets,
             input3_targets=keypoints_targets,
             output_targets=output,
@@ -696,14 +696,14 @@ class ExtractOutline(luigi.Task):
 
 
 @inherits(PrepareData)
-@inherits(Localization)
+@inherits(Refinement)
 @inherits(ExtractOutline)
 class SeparateEdges(luigi.Task):
 
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
-            'Localization': self.clone(Localization),
+            'Refinement': self.clone(Refinement),
             'ExtractOutline': self.clone(ExtractOutline),
         }
 
@@ -746,14 +746,14 @@ class SeparateEdges(luigi.Task):
         from workers import separate_edges
 
         t_start = time()
-        localization_targets = self.requires()['Localization'].output()
+        refinement_targets = self.requires()['Refinement'].output()
         extract_outline_targets = self.requires()['ExtractOutline'].output()
         output = self.output()
         to_process = self.get_incomplete()
 
         partial_separate_edges = partial(
             separate_edges,
-            input1_targets=localization_targets,
+            input1_targets=refinement_targets,
             input2_targets=extract_outline_targets,
             output_targets=output,
         )

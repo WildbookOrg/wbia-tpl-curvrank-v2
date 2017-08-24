@@ -164,7 +164,7 @@ def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
         f2.write(visual_buf)
 
 
-# input1_targets: localization_targets
+# input1_targets: refinement_targets
 # input2_targets: segmentation_targets
 # input3_targets: keypoints_targets
 def extract_outline(fpath, scale,
@@ -173,8 +173,8 @@ def extract_outline(fpath, scale,
     coords_target = output_targets[fpath]['outline-coords']
     visual_target = output_targets[fpath]['outline-visual']
 
-    loc_fpath = input1_targets[fpath]['localization-full'].path
-    loc = cv2.imread(loc_fpath)
+    rfn_fpath = input1_targets[fpath]['refn'].path
+    rfn = cv2.imread(rfn_fpath)
 
     seg_fpath = input2_targets[fpath]['segmentation-full-data']
     key_fpath = input3_targets[fpath]['keypoints-coords']
@@ -189,28 +189,28 @@ def extract_outline(fpath, scale,
         points_refn = affine.transform_points(Mscale, points_orig)
 
         start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
-        outline = dorsal_utils.extract_outline(loc, segm, start_refn, end_refn)
+        outline = dorsal_utils.extract_outline(rfn, segm, start_refn, end_refn)
     else:
         outline = np.array([])
 
     # TODO: what to write for failed extractions?
     if outline.shape[0] > 0:
-        loc[outline[:, 0], outline[:, 1]] = (255, 0, 0)
+        rfn[outline[:, 0], outline[:, 1]] = (255, 0, 0)
 
-    _, visual_buf = cv2.imencode('.png', loc)
+    _, visual_buf = cv2.imencode('.png', rfn)
     with coords_target.open('wb') as f1,\
             visual_target.open('wb') as f2:
         pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
         f2.write(visual_buf)
 
 
-#input1_targets: localization_targets
+#input1_targets: refinement_targets
 #input2_targets: extract_outline_targets
 def separate_edges(fpath, input1_targets, input2_targets, output_targets):
-    localization_target = input1_targets[fpath]['localization-full']
+    refinement_target = input1_targets[fpath]['refn']
     outline_coords_target = input2_targets[fpath]['outline-coords']
 
-    loc = cv2.imread(localization_target.path)
+    rfn = cv2.imread(refinement_target.path)
     with open(outline_coords_target.path, 'rb') as f:
         outline = pickle.load(f)
 
@@ -221,18 +221,18 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
             leading_edge = outline[:idx]
             trailing_edge = outline[idx:]
 
-            loc[leading_edge[:, 0], leading_edge[:, 1]] = (255, 0, 0)
-            loc[trailing_edge[:, 0], trailing_edge[:, 1]] = (0, 0, 255)
+            rfn[leading_edge[:, 0], leading_edge[:, 1]] = (255, 0, 0)
+            rfn[trailing_edge[:, 0], trailing_edge[:, 1]] = (0, 0, 255)
         else:
             leading_edge, trailing_edge = None, None
     else:
         leading_edge, trailing_edge = None, None
 
     vis_target = output_targets[fpath]['visual']
-    _, loc_buf = cv2.imencode('.png', loc)
+    _, rfn_buf = cv2.imencode('.png', rfn)
 
     with vis_target.open('wb') as f1:
-        f1.write(loc_buf)
+        f1.write(rfn_buf)
 
     leading_target = output_targets[fpath]['leading-coords']
     trailing_target = output_targets[fpath]['trailing-coords']
