@@ -4,6 +4,7 @@ import cv2
 import cPickle as pickle
 import numpy as np
 import dorsal_utils
+import fluke_utils
 import imutils
 import matplotlib
 matplotlib.use('Agg')  # NOQA
@@ -109,7 +110,8 @@ def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
     with open(seg_fpath, 'rb') as f:
         seg = pickle.load(f)
 
-    start, end = dorsal_utils.find_keypoints(seg[:, :, 0])
+    #start, end = dorsal_utils.find_keypoints(seg[:, :, 0])
+    start, end = fluke_utils.find_keypoints(seg[:, :, 0])
 
     # TODO: what to write for failed extractions?
     if start is not None:

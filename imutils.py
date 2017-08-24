@@ -24,7 +24,7 @@ def center_pad_with_transform(img, height, width):
                   [0., s, ty],
                   [0., 0., 1.]])
 
-    resz = cv2.warpAffine(img, M[:2], (width, height))
+    resz = cv2.warpAffine(img, M[:2], (width, height), flags=cv2.INTER_AREA)
 
     return resz, M
 

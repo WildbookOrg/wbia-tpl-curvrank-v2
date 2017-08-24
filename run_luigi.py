@@ -599,14 +599,14 @@ class Keypoints(luigi.Task):
             input2_targets=segmentation_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(image_filepaths)):
-        #    partial_find_keypoints(fpath)
-        try:
-            pool = mp.Pool(processes=None)
-            pool.map(partial_find_keypoints, to_process)
-        finally:
-            pool.close()
-            pool.join()
+        for fpath in tqdm(to_process, total=len(to_process)):
+            partial_find_keypoints(fpath)
+        #try:
+        #    pool = mp.Pool(processes=None)
+        #    pool.map(partial_find_keypoints, to_process)
+        #finally:
+        #    pool.close()
+        #    pool.join()
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
