@@ -26,35 +26,47 @@ def preprocess_images_star(fpath_side, height, width, output_targets):
 def preprocess_images(fpath, side, height, width, output_targets):
     resz_target = output_targets[fpath]['resized']
     trns_target = output_targets[fpath]['transform']
+    mask_target = output_targets[fpath]['mask']
 
     img = cv2.imread(fpath)
     # mirror images marked as "Right" to simulate a left-view
     if side.lower() == 'right':
         img = img[:, ::-1, :]
 
+    mask = np.full(img.shape[0:2], 255, dtype=np.uint8)
     resz, M = imutils.center_pad_with_transform(img, height, width)
+    mask = cv2.warpAffine(mask, M[:2], (width, height), flags=cv2.INTER_AREA)
     _, resz_buf = cv2.imencode('.png', resz)
+    _, mask_buf = cv2.imencode('.png', mask)
 
     with resz_target.open('wb') as f1,\
-            trns_target.open('wb') as f2:
+            trns_target.open('wb') as f2,\
+            mask_target.open('wb') as f3:
         f1.write(resz_buf)
         pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
+        f3.write(mask_buf)
 
 
 def localization_identity(fpath, height, width,
                           input_targets, output_targets):
-    impath = input_targets[fpath]['resized'].path
-    img = cv2.imread(impath)
+    img_path = input_targets[fpath]['resized'].path
+    msk_path = input_targets[fpath]['mask'].path
+    img = cv2.imread(img_path)
+    msk = cv2.imread(msk_path)
     loc_lr_target = output_targets[fpath]['localization']
     trns_target = output_targets[fpath]['transform']
+    mask_target = output_targets[fpath]['mask']
     lclz_trns = np.eye(3, dtype=np.float32)
 
     _, img_loc_lr_buf = cv2.imencode('.png', img)
+    _, msk_loc_lr_buf = cv2.imencode('.png', msk)
 
     with loc_lr_target.open('wb') as f1,\
-            trns_target.open('wb') as f2:
+            trns_target.open('wb') as f2,\
+            mask_target.open('wb') as f3:
         f1.write(img_loc_lr_buf)
         pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
+        f3.write(msk_loc_lr_buf)
 
 
 # to_process: [fpath1, fpath2, ...] (for batching to gpu)
@@ -72,29 +84,49 @@ def localization_stn(to_process, batch_size, height, width, func,
 
         for i, idx in enumerate(idx_range):
             fpath = to_process[idx]
-            impath = input_targets[fpath]['resized'].path
-            img = cv2.imread(impath)
+            img_path = input_targets[fpath]['resized'].path
+            img = cv2.imread(img_path)
             X_batch[i] = img.transpose(2, 0, 1) / 255.
 
         L_batch_loc, X_batch_loc = func(X_batch)
         for i, idx in enumerate(idx_range):
             fpath = to_process[idx]
+
             loc_lr_target = output_targets[fpath]['localization']
             trns_target = output_targets[fpath]['transform']
+            mask_target = output_targets[fpath]['mask']
+
+            msk_path = input_targets[fpath]['mask'].path
+            msk = cv2.imread(msk_path)
 
             lclz_trns = np.vstack((
                 L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
             ))
 
+            A = affine.multiply_matrices([
+                affine.build_upsample_matrix(height, width),
+                lclz_trns,
+                affine.build_downsample_matrix(height, width),
+            ])
+
+            msk = cv2.warpAffine(
+                msk.astype(np.float32), A[:2], (width, height),
+                flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+            )
+
             img_loc_lr = (255. * X_batch_loc[i]).astype(
                 np.uint8).transpose(1, 2, 0)
+            msk_loc_lr = msk.astype(np.uint8)
 
             _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
+            _, msk_loc_lr_buf = cv2.imencode('.png', msk_loc_lr)
 
             with loc_lr_target.open('wb') as f1,\
-                    trns_target.open('wb') as f2:
+                    trns_target.open('wb') as f2,\
+                    mask_target.open('wb') as f3:
                 f1.write(img_loc_lr_buf)
                 pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
+                f3.write(msk_loc_lr_buf)
 
 
 # input1_targets: localization_targets
@@ -104,14 +136,21 @@ def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
     visual_target = output_targets[fpath]['keypoints-visual']
 
     loc_fpath = input1_targets[fpath]['localization'].path
+    msk_fpath = input1_targets[fpath]['mask'].path
     loc = cv2.imread(loc_fpath)
+    msk = cv2.imread(msk_fpath, cv2.IMREAD_GRAYSCALE)
 
     seg_fpath = input2_targets[fpath]['segmentation-data'].path
     with open(seg_fpath, 'rb') as f:
         seg = pickle.load(f)
 
-    #start, end = dorsal_utils.find_keypoints(seg[:, :, 0])
-    start, end = fluke_utils.find_keypoints(seg[:, :, 0])
+    seg = seg[:, :, 0]
+    # use the mask to zero out regions of the response not corresponding to the
+    # original image
+    rsp = np.zeros(seg.shape[0:2], dtype=np.float32)
+    rsp[msk > 0] = seg[msk > 0]
+    start, end = dorsal_utils.find_keypoints(rsp)
+    #start, end = fluke_utils.find_keypoints(rsp)
 
     # TODO: what to write for failed extractions?
     if start is not None:

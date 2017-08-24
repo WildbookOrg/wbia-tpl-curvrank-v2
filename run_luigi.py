@@ -167,6 +167,7 @@ class Preprocess(luigi.Task):
 
         to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
                       not exists(output[fpath]['resized'].path) or
+                      not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
 
         logger.info('%s has %d of %d images to process' % (
@@ -188,6 +189,8 @@ class Preprocess(luigi.Task):
                     join(basedir, 'resized', png_fname)),
                 'transform': luigi.LocalTarget(
                     join(basedir, 'transform', pkl_fname)),
+                'mask': luigi.LocalTarget(
+                    join(basedir, 'mask', png_fname)),
             }
 
         return outputs
@@ -240,6 +243,7 @@ class Localization(luigi.Task):
         input_filepaths = self.requires()['PrepareData'].get_input_list()
         to_process = [fpath for fpath, _, _, _ in input_filepaths if
                       not exists(output[fpath]['localization'].path) or
+                      not exists(output[fpath]['mask'].path) or
                       not exists(output[fpath]['transform'].path)]
         logger.info('%s has %d of %d images to process' % (
             self.__class__.__name__, len(to_process), len(input_filepaths))
@@ -260,6 +264,8 @@ class Localization(luigi.Task):
             outputs[fpath] = {
                 'localization': luigi.LocalTarget(
                     join(basedir, 'localization', png_fname)),
+                'mask': luigi.LocalTarget(
+                    join(basedir, 'mask', png_fname)),
                 'transform': luigi.LocalTarget(
                     join(basedir, 'transform', pkl_fname)),
             }
@@ -472,8 +478,8 @@ class Segmentation(luigi.Task):
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
-            #'data', 'weights', 'weights_segmentation.pickle'
-            'data', 'weights', 'weights_humpbacks_segmentation.pickle'
+            'data', 'weights', 'weights_segmentation.pickle'
+            #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
         logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
