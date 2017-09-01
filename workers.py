@@ -4,7 +4,7 @@ import cv2
 import cPickle as pickle
 import numpy as np
 import dorsal_utils
-import fluke_utils
+#import fluke_utils
 import imutils
 import matplotlib
 matplotlib.use('Agg')  # NOQA

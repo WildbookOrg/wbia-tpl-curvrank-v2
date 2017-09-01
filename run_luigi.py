@@ -277,7 +277,6 @@ class Localization(luigi.Task):
         import theano_funcs
 
         t_start = time()
-        #height, width = 256, 256
         output = self.output()
         to_process = self.get_incomplete()
         preprocess_images_targets = self.requires()['Preprocess'].output()
@@ -469,8 +468,6 @@ class Segmentation(luigi.Task):
         import theano_funcs
 
         t_start = time()
-        #height, width = 256, 256
-        #height, width = 128, 384
         input_shape = (None, 3, self.height, self.width)
 
         logger.info('Building segmentation model with input shape %r' % (
@@ -478,8 +475,8 @@ class Segmentation(luigi.Task):
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
-            #'data', 'weights', 'weights_segmentation.pickle'
-            'data', 'weights', 'weights_humpbacks_segmentation.pickle'
+            'data', 'weights', 'weights_segmentation.pickle'
+            #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
         logger.info('Loading weights for the segmentation network from %s' % (
             segmentation_weightsfile))
