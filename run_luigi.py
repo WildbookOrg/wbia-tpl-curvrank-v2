@@ -371,38 +371,28 @@ class Refinement(luigi.Task):
         return outputs
 
     def run(self):
-        import imutils
+        from workers import refine_localization_star
         preprocess_images_targets = self.requires()['Preprocess'].output()
         localization_targets = self.requires()['Localization'].output()
         to_process = self.get_incomplete()
         output = self.output()
 
-        for fpath, side in to_process:
-            img_orig = cv2.imread(fpath)
-            if side.lower() == 'right':
-                img_orig = img_orig[:, ::-1, :]
-            tpath = preprocess_images_targets[fpath]['transform'].path
-            with open(tpath, 'rb') as f:
-                pre_transform = pickle.load(f)
-            lpath = localization_targets[fpath]['transform'].path
-            with open(lpath, 'rb') as f:
-                loc_transform = pickle.load(f)
-            # no need to store mask as float, will be converted anyway
-            msk_orig = np.full(img_orig.shape[0:2], 255, dtype=np.uint8)
-            img_loc_hr, msk_loc_hr = imutils.refine_localization(
-                img_orig, msk_orig, pre_transform, loc_transform,
-                self.scale, self.height, self.width
-            )
+        partial_refine_localizations = partial(
+            refine_localization_star,
+            scale=self.scale,
+            height=self.height,
+            width=self.width,
+            input1_targets=preprocess_images_targets,
+            input2_targets=localization_targets,
+            output_targets=output,
+        )
 
-            loc_hr_target = output[fpath]['refn']
-            mask_target = output[fpath]['mask']
-
-            _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
-            _, msk_loc_hr_buf = cv2.imencode('.png', msk_loc_hr)
-            with loc_hr_target.open('wb') as f1,\
-                    mask_target.open('wb') as f2:
-                f1.write(img_loc_hr_buf)
-                f2.write(msk_loc_hr_buf)
+        try:
+            pool = mp.Pool(processes=None)
+            pool.map(partial_refine_localizations, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
 
 @inherits(PrepareData)
@@ -602,14 +592,14 @@ class Keypoints(luigi.Task):
             input2_targets=segmentation_targets,
             output_targets=output,
         )
-        for fpath in tqdm(to_process, total=len(to_process)):
-            partial_find_keypoints(fpath)
-        #try:
-        #    pool = mp.Pool(processes=None)
-        #    pool.map(partial_find_keypoints, to_process)
-        #finally:
-        #    pool.close()
-        #    pool.join()
+        #for fpath in tqdm(to_process, total=len(to_process)):
+        #    partial_find_keypoints(fpath)
+        try:
+            pool = mp.Pool(processes=None)
+            pool.map(partial_find_keypoints, to_process)
+        finally:
+            pool.close()
+            pool.join()
 
         t_end = time()
         logger.info('%s completed in %.3fs' % (
