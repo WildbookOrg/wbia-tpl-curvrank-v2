@@ -1301,13 +1301,12 @@ class DescriptorsId(luigi.Task):
                 ', '.join('%s' % s for s in descriptor_scales))
             )
 
-            if indexes_to_build:
-                try:
-                    pool = mp.Pool(processes=len(indexes_to_build))
-                    pool.map(build_annoy_index_star, indexes_to_build)
-                finally:
-                    pool.close()
-                    pool.join()
+            try:
+                pool = mp.Pool(processes=len(indexes_to_build))
+                pool.map(build_annoy_index_star, indexes_to_build)
+            finally:
+                pool.close()
+                pool.join()
 
             to_process = self.get_incomplete()[run_idx]
             qindivs = qr_fpath_dict.keys()
