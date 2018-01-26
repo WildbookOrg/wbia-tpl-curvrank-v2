@@ -1300,13 +1300,22 @@ class DescriptorsId(luigi.Task):
                 len(descriptor_scales),
                 ', '.join('%s' % s for s in descriptor_scales))
             )
+            data_dims = ', '.join([
+                '%s' % (db_descs_dict[s].shape,) for s in descriptor_scales
+            ])
+            logger.info('Data dims: %s' % data_dims)
 
+            t_trees_start = time()
             try:
                 pool = mp.Pool(processes=len(indexes_to_build))
                 pool.map(build_annoy_index_star, indexes_to_build)
             finally:
                 pool.close()
                 pool.join()
+            t_trees_end = time()
+            logger.info('Built %d kdtrees in %.3fs' % (
+                len(descriptor_scales), (t_trees_end - t_trees_start))
+            )
 
             to_process = self.get_incomplete()[run_idx]
             qindivs = qr_fpath_dict.keys()
