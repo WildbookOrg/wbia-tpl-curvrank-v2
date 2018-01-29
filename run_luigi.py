@@ -686,6 +686,9 @@ class ExtractOutline(luigi.Task):
 @inherits(Refinement)
 @inherits(ExtractOutline)
 class SeparateEdges(luigi.Task):
+    no_separate_edges = luigi.BoolParameter(
+        default=False, description='Extract descriptors from entire contour.'
+    )
 
     def requires(self):
         return {
@@ -730,16 +733,24 @@ class SeparateEdges(luigi.Task):
         return outputs
 
     def run(self):
+        from dorsal_utils import separate_leading_trailing_edges
         from workers import separate_edges
 
         t_start = time()
         refinement_targets = self.requires()['Refinement'].output()
         extract_outline_targets = self.requires()['ExtractOutline'].output()
         output = self.output()
+
         to_process = self.get_incomplete()
+
+        if self.no_separate_edges:
+            method = None
+        else:
+            method = separate_leading_trailing_edges
 
         partial_separate_edges = partial(
             separate_edges,
+            method=method,
             input1_targets=refinement_targets,
             input2_targets=extract_outline_targets,
             output_targets=output,

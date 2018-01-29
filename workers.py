@@ -248,7 +248,8 @@ def extract_outline(fpath, scale,
 
 #input1_targets: refinement_targets
 #input2_targets: extract_outline_targets
-def separate_edges(fpath, input1_targets, input2_targets, output_targets):
+def separate_edges(fpath, method,
+                   input1_targets, input2_targets, output_targets):
     refinement_target = input1_targets[fpath]['refn']
     outline_coords_target = input2_targets[fpath]['outline-coords']
 
@@ -258,7 +259,10 @@ def separate_edges(fpath, input1_targets, input2_targets, output_targets):
 
     # no successful outline could be found
     if outline.shape[0] > 0:
-        idx = dorsal_utils.separate_leading_trailing_edges(outline)
+        if method is None:
+            idx = 0
+        else:
+            idx = method(outline)
         if idx is not None:
             leading_edge = outline[:idx]
             trailing_edge = outline[idx:]
