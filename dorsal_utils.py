@@ -40,7 +40,7 @@ def local_max2d(X):
     return np.vstack((i, j)).T
 
 
-def find_keypoints(X):
+def find_dorsal_keypoints(X):
     coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
     i, j = np.round(
         np.average(coordinates, weights=X.flatten(), axis=0)
@@ -69,7 +69,39 @@ def find_keypoints(X):
     return start, end
 
 
-def extract_outline(img, segm, start, end):
+def find_fluke_keypoints(X):
+    coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
+    i, j = np.round(
+        np.average(coordinates, weights=X.flatten(), axis=0)
+    ).astype(np.int32)
+
+    leading, trailing = X[:, :j], X[:, j:]
+
+    leading_max_idx = local_max2d(leading)
+    trailing_max_idx = local_max2d(trailing)
+
+    # TODO: hack for when we cannot find any maxima
+    if leading_max_idx.shape[0] > 0:
+        leading_first_idx = np.linalg.norm(
+            leading_max_idx - np.array([0, 0]), axis=1
+        ).argmin()
+        start = leading_max_idx[leading_first_idx]
+    else:
+        start = None
+
+    if trailing_max_idx.shape[0] > 0:
+        trailing_max_idx += np.array([0, j])
+        trailing_last_idx = np.linalg.norm(
+            trailing_max_idx - np.array([0, X.shape[1] - 1]), axis=1
+        ).argmin()
+        end = trailing_max_idx[trailing_last_idx]
+    else:
+        end = None
+
+    return start, end
+
+
+def extract_outline(img, msk, segm, start, end, allow_diagonal):
     assert img.ndim == 3, 'img.dim = %d != 3' % (img.ndim)
     assert segm.ndim == 2, 'segm.ndim = %d != 2' % (segm.ndim)
 
@@ -82,13 +114,18 @@ def extract_outline(img, segm, start, end):
     #gray = np.round(
     #    np.sum(np.array([0.114, 0.587, 0.299]) * img, axis=2)
     #).astype(np.uint8)
+    ksize = 3
     grad = cv2.magnitude(
-        cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
-        cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3),
+        cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=ksize),
+        cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=ksize),
     )
+    kernel = np.ones((ksize, ksize), dtype=np.uint8)
+    msk = cv2.erode(msk, kernel=kernel, iterations=1) / 255
+    grad[msk[:, :, 0] < 1] = 0.
     grad_norm = cv2.normalize(
         grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
+
     segm_norm = segm.astype(np.float32)
     segm_norm = cv2.normalize(
         segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
@@ -104,9 +141,13 @@ def extract_outline(img, segm, start, end):
         dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
 
-    W = 1. / np.clip(grad_norm * dist, 1e-15, 1.)
+    norm = cv2.normalize(
+        grad_norm * dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
 
-    outline = astar_path(W, start, end)
+    W = np.exp(5. * (1. - norm))
+
+    outline = astar_path(W, start, end, allow_diagonal=allow_diagonal)
 
     return outline
 

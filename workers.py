@@ -173,7 +173,8 @@ def refine_localization(fpath, side, scale, height, width,
 
 # input1_targets: localization_targets
 # input2_targets: segmentation_targets
-def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
+def find_keypoints(fpath, method,
+                   input1_targets, input2_targets, output_targets):
     coords_target = output_targets[fpath]['keypoints-coords']
     visual_target = output_targets[fpath]['keypoints-visual']
 
@@ -191,7 +192,7 @@ def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
     # original image
     rsp = np.zeros(seg.shape[0:2], dtype=np.float32)
     rsp[msk > 0] = seg[msk > 0]
-    start, end = dorsal_utils.find_keypoints(rsp)
+    start, end = method(rsp)
     #start, end = fluke_utils.find_keypoints(rsp)
 
     # TODO: what to write for failed extractions?
@@ -209,14 +210,16 @@ def find_keypoints(fpath, input1_targets, input2_targets, output_targets):
 # input1_targets: refinement_targets
 # input2_targets: segmentation_targets
 # input3_targets: keypoints_targets
-def extract_outline(fpath, scale,
+def extract_outline(fpath, scale, allow_diagonal,
                     input1_targets, input2_targets, input3_targets,
                     output_targets):
     coords_target = output_targets[fpath]['outline-coords']
     visual_target = output_targets[fpath]['outline-visual']
 
     rfn_fpath = input1_targets[fpath]['refn'].path
+    msk_fpath = input1_targets[fpath]['mask'].path
     rfn = cv2.imread(rfn_fpath)
+    msk = cv2.imread(msk_fpath)
 
     seg_fpath = input2_targets[fpath]['segmentation-full-data']
     key_fpath = input3_targets[fpath]['keypoints-coords']
@@ -230,8 +233,11 @@ def extract_outline(fpath, scale,
         points_orig = np.vstack((start, end))[:, ::-1]  # ij -> xy
         points_refn = affine.transform_points(Mscale, points_orig)
 
+        # points are ij
         start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
-        outline = dorsal_utils.extract_outline(rfn, segm, start_refn, end_refn)
+        outline = dorsal_utils.extract_outline(
+            rfn, msk, segm, start_refn, end_refn, allow_diagonal
+        )
     else:
         outline = np.array([])
 

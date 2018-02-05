@@ -586,8 +586,18 @@ class Keypoints(luigi.Task):
         segmentation_targets = self.requires()['Segmentation'].output()
         to_process = self.get_incomplete()
 
+        if self.dataset in ('sdrp', 'nz'):
+            from dorsal_utils import find_dorsal_keypoints
+            method = find_dorsal_keypoints
+        elif self.dataset in ('crc', 'fb'):
+            from dorsal_utils import find_fluke_keypoints
+            method = find_fluke_keypoints
+        else:
+            assert False, 'No keypoint method for dataset %s' % (self.dataset)
+
         partial_find_keypoints = partial(
             find_keypoints,
+            method=method,
             input1_targets=localization_targets,
             input2_targets=segmentation_targets,
             output_targets=output,
@@ -653,6 +663,13 @@ class ExtractOutline(luigi.Task):
     def run(self):
         from workers import extract_outline
 
+        if self.dataset in ('sdrp', 'nz'):
+            allow_diagonal = False
+        elif self.dataset in ('crc', 'fb'):
+            allow_diagonal = True
+        else:
+            assert False, 'No keypoint method for dataset %s' % (self.dataset)
+
         t_start = time()
         output = self.output()
         refinement_targets = self.requires()['Refinement'].output()
@@ -663,6 +680,7 @@ class ExtractOutline(luigi.Task):
         partial_extract_outline = partial(
             extract_outline,
             scale=self.scale,
+            allow_diagonal=allow_diagonal,
             input1_targets=refinement_targets,
             input2_targets=segmentation_targets,
             input3_targets=keypoints_targets,
