@@ -210,7 +210,7 @@ def find_keypoints(fpath, method,
 # input1_targets: refinement_targets
 # input2_targets: segmentation_targets
 # input3_targets: keypoints_targets
-def extract_outline(fpath, scale, allow_diagonal,
+def extract_outline(fpath, scale, allow_diagonal, cost_func,
                     input1_targets, input2_targets, input3_targets,
                     output_targets):
     coords_target = output_targets[fpath]['outline-coords']
@@ -236,7 +236,7 @@ def extract_outline(fpath, scale, allow_diagonal,
         # points are ij
         start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
         outline = dorsal_utils.extract_outline(
-            rfn, msk, segm, start_refn, end_refn, allow_diagonal
+            rfn, msk, segm, cost_func, start_refn, end_refn, allow_diagonal
         )
     else:
         outline = np.array([])
@@ -244,6 +244,8 @@ def extract_outline(fpath, scale, allow_diagonal,
     # TODO: what to write for failed extractions?
     if outline.shape[0] > 0:
         rfn[outline[:, 0], outline[:, 1]] = (255, 0, 0)
+        rfn[start_refn[0], start_refn[1]] = (0, 0, 255)
+        rfn[end_refn[0], end_refn[1]] = (0, 0, 255)
 
     _, visual_buf = cv2.imencode('.png', rfn)
     with coords_target.open('wb') as f1,\

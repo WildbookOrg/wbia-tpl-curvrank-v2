@@ -101,7 +101,23 @@ def find_fluke_keypoints(X):
     return start, end
 
 
-def extract_outline(img, msk, segm, start, end, allow_diagonal):
+def dorsal_cost_func(grad, dist):
+    W = 1. / np.clip(grad * dist, 1e-5, 1.)
+
+    return W
+
+
+def fluke_cost_func(grad, dist):
+    norm = cv2.normalize(
+        grad * dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
+
+    W = np.exp(5. * (1. - norm))
+
+    return W
+
+
+def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
     assert img.ndim == 3, 'img.dim = %d != 3' % (img.ndim)
     assert segm.ndim == 2, 'segm.ndim = %d != 2' % (segm.ndim)
 
@@ -141,13 +157,10 @@ def extract_outline(img, msk, segm, start, end, allow_diagonal):
         dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
 
-    norm = cv2.normalize(
-        grad_norm * dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
-
-    W = np.exp(5. * (1. - norm))
+    W = cost_func(grad_norm, dist)
 
     outline = astar_path(W, start, end, allow_diagonal=allow_diagonal)
+    #outline = astar_path(W, end, start, allow_diagonal=allow_diagonal)
 
     return outline
 

@@ -664,9 +664,13 @@ class ExtractOutline(luigi.Task):
         from workers import extract_outline
 
         if self.dataset in ('sdrp', 'nz'):
+            from dorsal_utils import dorsal_cost_func
             allow_diagonal = False
+            cost_func = dorsal_cost_func
         elif self.dataset in ('crc', 'fb'):
+            from dorsal_utils import fluke_cost_func
             allow_diagonal = True
+            cost_func = fluke_cost_func
         else:
             assert False, 'No keypoint method for dataset %s' % (self.dataset)
 
@@ -681,6 +685,7 @@ class ExtractOutline(luigi.Task):
             extract_outline,
             scale=self.scale,
             allow_diagonal=allow_diagonal,
+            cost_func=cost_func,
             input1_targets=refinement_targets,
             input2_targets=segmentation_targets,
             input3_targets=keypoints_targets,
