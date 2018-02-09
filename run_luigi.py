@@ -709,9 +709,6 @@ class ExtractOutline(luigi.Task):
 @inherits(Refinement)
 @inherits(ExtractOutline)
 class SeparateEdges(luigi.Task):
-    no_separate_edges = luigi.BoolParameter(
-        default=False, description='Extract descriptors from entire contour.'
-    )
 
     def requires(self):
         return {
@@ -759,17 +756,17 @@ class SeparateEdges(luigi.Task):
         from dorsal_utils import separate_leading_trailing_edges
         from workers import separate_edges
 
+        if self.dataset in ('sdrp', 'nz'):
+            method = separate_leading_trailing_edges
+        elif self.dataset in ('crc', 'fb'):
+            method = None
+
         t_start = time()
         refinement_targets = self.requires()['Refinement'].output()
         extract_outline_targets = self.requires()['ExtractOutline'].output()
         output = self.output()
 
         to_process = self.get_incomplete()
-
-        if self.no_separate_edges:
-            method = None
-        else:
-            method = separate_leading_trailing_edges
 
         partial_separate_edges = partial(
             separate_edges,
@@ -796,10 +793,6 @@ class SeparateEdges(luigi.Task):
 @inherits(SeparateEdges)
 class BlockCurvature(luigi.Task):
     serial = luigi.BoolParameter(default=False)
-    trans_dims = luigi.BoolParameter(
-        default=False,
-        description='Transpose (x, y) -> (y, x) (use for humpback flukes).'
-    )
 
     curv_scales = luigi.ListParameter(
         description='List providing fractions of height and/or width '
@@ -865,6 +858,11 @@ class BlockCurvature(luigi.Task):
     def run(self):
         from workers import compute_curvature_star
 
+        if self.dataset in ('sdrp', 'nz'):
+            transpose_dims = False
+        elif self.dataset in ('crc', 'fb'):
+            transpose_dims = True
+
         t_start = time()
         separate_edges_targets = self.requires()['SeparateEdges'].output()
         output = self.output()
@@ -872,7 +870,7 @@ class BlockCurvature(luigi.Task):
 
         partial_compute_block_curvature = partial(
             compute_curvature_star,
-            transpose_dims=self.trans_dims,
+            transpose_dims=transpose_dims,
             input_targets=separate_edges_targets,
             output_targets=output,
         )
@@ -1180,7 +1178,7 @@ class CurvatureDescriptors(luigi.Task):
 @inherits(GaussDescriptors)
 @inherits(SeparateDatabaseQueries)
 class DescriptorsId(luigi.Task):
-    k = luigi.IntParameter(default=3)
+    k = luigi.IntParameter(default=2)
     descriptor_type = luigi.ChoiceParameter(
         choices=['gauss', 'curv'], var_type=str
     )
