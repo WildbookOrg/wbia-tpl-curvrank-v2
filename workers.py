@@ -5,6 +5,7 @@ import cPickle as pickle
 import numpy as np
 import dorsal_utils
 #import fluke_utils
+import functional as F
 import imutils
 import matplotlib
 matplotlib.use('Agg')  # NOQA
@@ -30,12 +31,9 @@ def preprocess_images(fpath, side, height, width, output_targets):
 
     img = cv2.imread(fpath)
     # mirror images marked as "Right" to simulate a left-view
-    if side.lower() == 'right':
-        img = img[:, ::-1, :]
+    flip = side.lower() == 'right'
+    resz, mask, M = F.preprocess_image(img, flip, height, width)
 
-    mask = np.full(img.shape[0:2], 255, dtype=np.uint8)
-    resz, M = imutils.center_pad_with_transform(img, height, width)
-    mask = cv2.warpAffine(mask, M[:2], (width, height), flags=cv2.INTER_AREA)
     _, resz_buf = cv2.imencode('.png', resz)
     _, mask_buf = cv2.imencode('.png', mask)
 
