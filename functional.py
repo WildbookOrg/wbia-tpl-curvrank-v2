@@ -62,3 +62,15 @@ def separate_edges(method, outline):
         return outline[:idx], outline[idx:]
     else:
         return None, None
+
+
+# For humpback whales, set transpose_dims = True for positive curvature.
+def compute_curvature(contour, scales, transpose_dims):
+    # Contour is ij but compute_curvature expects xy.
+    contour = contour[::-1] if transpose_dims else contour[:, ::-1]
+
+    # Scales are chosen dynamically based on the variation of the i-dimension.
+    radii = scales * (contour[:, 1].max() - contour[:, 1].min())
+    curv = dorsal_utils.oriented_curvature(contour, radii)
+
+    return curv

@@ -296,18 +296,7 @@ def compute_curvature(fpath, scales, transpose_dims,
 
     scales = np.array(scales)
     if trailing_edge is not None:
-        # curvs are stored as (i, j), but compute_curvature expects (x, y)
-        # thus, for humpback flukes, we set transpose_dims = True
-        # so that they are oriented similar to dorsal fins
-        if not transpose_dims:
-            trailing_edge = trailing_edge[:, ::-1]
-        # reverse contour to get positive curvature vectors
-        else:
-            trailing_edge = trailing_edge[::-1]
-        radii = scales * (
-            trailing_edge[:, 1].max() - trailing_edge[:, 1].min()
-        )
-        curv = dorsal_utils.oriented_curvature(trailing_edge, radii)
+        curv = F.compute_curvature(trailing_edge, scales)
         assert not np.isnan(curv).any(), 'nan in curvature for %s' % (fpath)
     # write the failures too or it seems like the task did not complete
     else:
