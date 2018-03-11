@@ -6,7 +6,6 @@ import numpy as np
 import dorsal_utils
 #import fluke_utils
 import functional as F
-import imutils
 import matplotlib
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
@@ -143,26 +142,25 @@ def refine_localization_star(fpath_side, scale, height, width,
 def refine_localization(fpath, side, scale, height, width,
                         input1_targets, input2_targets,
                         output_targets):
-    img_orig = cv2.imread(fpath)
-    if side.lower() == 'right':
-        img_orig = img_orig[:, ::-1, :]
     tpath = input1_targets[fpath]['transform'].path
     with open(tpath, 'rb') as f:
         pre_transform = pickle.load(f)
     lpath = input2_targets[fpath]['transform'].path
     with open(lpath, 'rb') as f:
         loc_transform = pickle.load(f)
-    # no need to store mask as float, will be converted anyway
-    msk_orig = np.full(img_orig.shape[0:2], 255, dtype=np.uint8)
-    img_loc_hr, msk_loc_hr = imutils.refine_localization(
-        img_orig, msk_orig, pre_transform, loc_transform, scale, height, width
+
+    img_orig = cv2.imread(fpath)
+    flip = side.lower() == 'right'
+
+    img_refn, msk_refn = F.refine_localization(
+        img_orig, flip, pre_transform, loc_transform, scale, height, width
     )
 
     loc_hr_target = output_targets[fpath]['refn']
     mask_target = output_targets[fpath]['mask']
 
-    _, img_loc_hr_buf = cv2.imencode('.png', img_loc_hr)
-    _, msk_loc_hr_buf = cv2.imencode('.png', msk_loc_hr)
+    _, img_loc_hr_buf = cv2.imencode('.png', img_refn)
+    _, msk_loc_hr_buf = cv2.imencode('.png', msk_refn)
     with loc_hr_target.open('wb') as f1,\
             mask_target.open('wb') as f2:
         f1.write(img_loc_hr_buf)
