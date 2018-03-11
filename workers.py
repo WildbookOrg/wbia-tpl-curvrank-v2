@@ -1,4 +1,3 @@
-import affine
 import annoy
 import cv2
 import cPickle as pickle
@@ -72,55 +71,41 @@ def localization_stn(to_process, batch_size, height, width, func,
     for i in tqdm(range(num_batches), total=num_batches, leave=False):
         idx_range = range(i * batch_size,
                           min((i + 1) * batch_size, len(to_process)))
-        X_batch = np.empty(
-            (len(idx_range), 3, height, width), dtype=np.float32
-        )
-
+        fpaths_batch, imgs_batch, masks_batch = [], [], []
         for i, idx in enumerate(idx_range):
             fpath = to_process[idx]
+
             img_path = input_targets[fpath]['resized'].path
             img = cv2.imread(img_path)
-            X_batch[i] = img.transpose(2, 0, 1) / 255.
-
-        L_batch_loc, X_batch_loc = func(X_batch)
-        for i, idx in enumerate(idx_range):
-            fpath = to_process[idx]
-
-            loc_lr_target = output_targets[fpath]['localization']
-            trns_target = output_targets[fpath]['transform']
-            mask_target = output_targets[fpath]['mask']
 
             msk_path = input_targets[fpath]['mask'].path
             msk = cv2.imread(msk_path)
 
-            lclz_trns = np.vstack((
-                L_batch_loc[i].reshape((2, 3)), np.array([0, 0, 1])
-            ))
+            fpaths_batch.append(fpath)
+            imgs_batch.append(img)
+            masks_batch.append(msk)
 
-            A = affine.multiply_matrices([
-                affine.build_upsample_matrix(height, width),
-                lclz_trns,
-                affine.build_downsample_matrix(height, width),
-            ])
+        localized, masks, transforms = F.localize(
+            imgs_batch, masks_batch, height, width, func
+        )
+        for i, fpath in enumerate(fpaths_batch):
+            loc_lr_target = output_targets[fpath]['localization']
+            trns_target = output_targets[fpath]['transform']
+            mask_target = output_targets[fpath]['mask']
 
-            msk = cv2.warpAffine(
-                msk.astype(np.float32), A[:2], (width, height),
-                flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
-            )
+            img = localized[i]
+            msk = masks[i]
+            trns = transforms[i]
 
-            img_loc_lr = (255. * X_batch_loc[i]).astype(
-                np.uint8).transpose(1, 2, 0)
-            msk_loc_lr = msk.astype(np.uint8)
-
-            _, img_loc_lr_buf = cv2.imencode('.png', img_loc_lr)
-            _, msk_loc_lr_buf = cv2.imencode('.png', msk_loc_lr)
+            _, img_buf = cv2.imencode('.png', img)
+            _, msk_buf = cv2.imencode('.png', msk)
 
             with loc_lr_target.open('wb') as f1,\
                     trns_target.open('wb') as f2,\
                     mask_target.open('wb') as f3:
-                f1.write(img_loc_lr_buf)
-                pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
-                f3.write(msk_loc_lr_buf)
+                f1.write(img_buf)
+                pickle.dump(trns, f2, pickle.HIGHEST_PROTOCOL)
+                f3.write(msk_buf)
 
 
 def refine_localization_star(fpath_side, scale, height, width,

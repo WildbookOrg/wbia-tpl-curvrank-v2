@@ -20,6 +20,32 @@ def preprocess_image(img, flip, height, width):
     return resz, mask, M
 
 
+def localize(imgs, masks, height, width, func):
+    X = np.empty((len(imgs), 3, height, width), dtype=np.float32)
+    for i, img in enumerate(imgs):
+        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.
+    L, Z = func(X)
+    imgs_out, masks_out, xforms_out = [], [], []
+    for i in range(X.shape[0]):
+        M = np.vstack((L[i].reshape((2, 3)), np.array([0., 0., 1.])))
+        A = affine.multiply_matrices((
+            affine.build_upsample_matrix(height, width),
+            M,
+            affine.build_downsample_matrix(height, width),
+        ))
+
+        mask = cv2.warpAffine(
+            masks[i].astype(np.float32), A[:2], (width, height),
+            flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+        )
+
+        imgs_out.append((Z[i] * 255.).transpose(1, 2, 0).astype(np.uint8))
+        masks_out.append(mask)
+        xforms_out.append(M)
+
+    return imgs_out, masks_out, xforms_out
+
+
 def refine_localization(img, flip, pre_xform, loc_xform, scale, height, width):
     if flip:
         img = img[:, ::-1]
