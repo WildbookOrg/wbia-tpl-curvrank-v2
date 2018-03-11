@@ -54,3 +54,11 @@ def extract_outline(img, mask, segm, scale,
     )
 
     return outline
+
+
+def separate_edges(method, outline):
+    idx = method(outline)
+    if idx is not None:
+        return outline[:idx], outline[idx:]
+    else:
+        return None, None

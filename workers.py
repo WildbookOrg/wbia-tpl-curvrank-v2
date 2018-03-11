@@ -250,20 +250,17 @@ def separate_edges(fpath, method,
     with open(outline_coords_target.path, 'rb') as f:
         outline = pickle.load(f)
 
-    # no successful outline could be found
+    # Two failure cases are possible:
+    # (1) No outline exists, so no separation is possible.
+    # (2) The separation of the edges fails.
     if outline.shape[0] > 0:
         if method is None:
-            idx = 0
+            leading_edge, trailing_edge = outline[:0], outline[0:]
         else:
-            idx = method(outline)
-        if idx is not None:
-            leading_edge = outline[:idx]
-            trailing_edge = outline[idx:]
-
+            leading_edge, trailing_edge = F.separate_edges(method, outline)
+        if leading_edge is not None and trailing_edge is not None:
             rfn[leading_edge[:, 0], leading_edge[:, 1]] = (255, 0, 0)
             rfn[trailing_edge[:, 0], trailing_edge[:, 1]] = (0, 0, 255)
-        else:
-            leading_edge, trailing_edge = None, None
     else:
         leading_edge, trailing_edge = None, None
 
