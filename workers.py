@@ -183,13 +183,8 @@ def find_keypoints(fpath, method,
     with open(seg_fpath, 'rb') as f:
         seg = pickle.load(f)
 
-    seg = seg[:, :, 0]
-    # use the mask to zero out regions of the response not corresponding to the
-    # original image
-    rsp = np.zeros(seg.shape[0:2], dtype=np.float32)
-    rsp[msk > 0] = seg[msk > 0]
-    start, end = method(rsp)
     #start, end = fluke_utils.find_keypoints(rsp)
+    start, end = F.find_keypoints(method, seg, msk)
 
     # TODO: what to write for failed extractions?
     if start is not None:

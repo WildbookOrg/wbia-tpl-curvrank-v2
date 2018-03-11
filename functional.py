@@ -24,3 +24,16 @@ def refine_localization(img, flip, pre_xform, loc_xform, scale, height, width):
     )
 
     return img_refn, msk_refn
+
+
+# start, end: (i_0, j_0), (i_n, j_n)
+def find_keypoints(method, segm, mask):
+    segm = segm[:, :, 0]
+
+    # use the mask to zero out regions of the response not corresponding to the
+    # original image
+    probs = np.zeros(segm.shape[0:2], dtype=np.float32)
+    probs[mask > 0] = segm[mask > 0]
+    start, end = method(probs)
+
+    return start, end
