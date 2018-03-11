@@ -446,28 +446,13 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
             descriptors_dict[s].append(descriptors[s])
 
     db_indivs = db_fpath_dict.keys()
-    # lnbnn classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
-    # performance is about the same using: https://arxiv.org/abs/1609.06323
-    scores = {dind: 0.0 for dind in db_indivs}
+    aggr_scores = {dind: 0.0 for dind in db_indivs}
     for s in descriptors_dict:
         names = db_names[s]
-        fdim = descriptors_dict[s][0].shape[1]
-        index = annoy.AnnoyIndex(fdim, metric='euclidean')
-        index.load(input2_targets[s])
-        # data: Nxd, (number of features, feature dimensionality)
-        for data in descriptors_dict[s]:
-            for i in range(data.shape[0]):
-                ind, dist = index.get_nns_by_vector(
-                    data[i], k + 1, search_k=-1, include_distances=True
-                )
-                # entry at k + 1 is the normalizing distance
-                classes = np.array([names[idx] for idx in ind[:-1]])
-                for c in np.unique(classes):
-                    j, = np.where(classes == c)
-                    # multiple descriptors in the top-k may belong to the
-                    # same class
-                    score = dist[j.min()] - dist[-1]
-                    scores[c] += score
+        index_fpath = input2_targets[s]
+        scores = F.lnbnn_identify(index_fpath, k, descriptors_dict[s], names)
+        for name in db_indivs:
+            aggr_scores[name] += scores[name]
 
     with output_targets[qind][qenc].open('wb') as f:
         pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
@@ -487,21 +472,11 @@ def identify_encounter_star(qind_qenc, qr_curv_dict, db_curv_dict, simfunc,
 def identify_encounter(qind, qenc, qr_curv_dict, db_curv_dict, simfunc,
                        output_targets):
     dindivs = db_curv_dict.keys()
-    #assert qencs, 'empty encounter list for %s' % qind
-    result_dict = {}
     qcurvs = qr_curv_dict[qind][qenc]
-    for dind in dindivs:
-        dcurvs = db_curv_dict[dind]
-        # mxn matrix: m query curvs, n db curvs for an individual
-        S = np.zeros((len(qcurvs), len(dcurvs)), dtype=np.float32)
-        for i, qcurv in enumerate(qcurvs):
-            for j, dcurv in enumerate(dcurvs):
-                S[i, j] = simfunc(qcurv, dcurv)
-
-        result_dict[dind] = S
+    scores = F.dtwsw_identify(qcurvs, db_curv_dict, dindivs, simfunc)
 
     with output_targets[qind][qenc].open('wb') as f:
-        pickle.dump(result_dict, f, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
 
 
 # input1_targets: evaluation_targets (the result dicts)

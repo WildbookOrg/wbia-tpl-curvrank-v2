@@ -1,4 +1,5 @@
 import affine
+import annoy
 import cv2
 import dorsal_utils
 import imutils
@@ -154,3 +155,44 @@ def compute_curvature_descriptors(curv, curv_length, scales,
         feat_mats.append(descriptors)
 
     return feat_mats
+
+
+# LNBNN classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
+# Performance is about the same using: https://arxiv.org/abs/1609.06323
+def lnbnn_identify(index_fpath, k, descriptors, names):
+    fdim = descriptors[0].shape[1]
+    index = annoy.AnnoyIndex(fdim, metric='euclidean')
+    index.load(index_fpath)
+
+    # NOTE: Names may contain duplicates.  This works, but is it confusing?
+    scores = {name: 0.0 for name in names}
+    for data in descriptors:
+        for i in range(data.shape[0]):
+            ind, dist = index.get_nns_by_vector(
+                data[i], k + 1, search_k=-1, include_distances=True
+            )
+            # entry at k + 1 is the normalizing distance
+            classes = np.array([names[idx] for idx in ind[:-1]])
+            for c in np.unique(classes):
+                j, = np.where(classes == c)
+                # multiple descriptors in the top-k may belong to the
+                # same class
+                score = dist[j.min()] - dist[-1]
+                scores[c] += score
+
+    return scores
+
+
+def dtwsw_identify(query_curvs, database_curvs, names, simfunc):
+    scores = {name: 0.0 for name in names}
+    for name in names:
+        dcurvs = database_curvs[name]
+        # mxn matrix: m query curvs, n db curvs for an individual
+        S = np.zeros((len(query_curvs), len(dcurvs)), dtype=np.float32)
+        for i, qcurv in enumerate(query_curvs):
+            for j, dcurv in enumerate(dcurvs):
+                S[i, j] = simfunc(qcurv, dcurv)
+
+        scores[name] = S.min(axis=None)
+
+    return scores
