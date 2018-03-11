@@ -1,4 +1,6 @@
+import affine
 import cv2
+import dorsal_utils
 import imutils
 import numpy as np
 
@@ -37,3 +39,18 @@ def find_keypoints(method, segm, mask):
     start, end = method(probs)
 
     return start, end
+
+
+def extract_outline(img, mask, segm, scale,
+                    start, end, cost_func, allow_diagonal):
+    Mscale = affine.build_scale_matrix(scale)
+    points_orig = np.vstack((start, end))[:, ::-1]  # ij -> xy
+    points_refn = affine.transform_points(Mscale, points_orig)
+
+    # points are ij
+    start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
+    outline = dorsal_utils.extract_outline(
+        img, mask, segm, cost_func, start_refn, end_refn, allow_diagonal
+    )
+
+    return outline

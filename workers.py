@@ -220,14 +220,8 @@ def extract_outline(fpath, scale, allow_diagonal, cost_func,
         (start, end) = pickle.load(f2)
 
     if start is not None and end is not None:
-        Mscale = affine.build_scale_matrix(scale)
-        points_orig = np.vstack((start, end))[:, ::-1]  # ij -> xy
-        points_refn = affine.transform_points(Mscale, points_orig)
-
-        # points are ij
-        start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
-        outline = dorsal_utils.extract_outline(
-            rfn, msk, segm, cost_func, start_refn, end_refn, allow_diagonal
+        outline = F.extract_outline(
+            rfn, msk, segm, scale, start, end, cost_func, allow_diagonal
         )
     else:
         outline = np.array([])
@@ -235,8 +229,8 @@ def extract_outline(fpath, scale, allow_diagonal, cost_func,
     # TODO: what to write for failed extractions?
     if outline.shape[0] > 0:
         rfn[outline[:, 0], outline[:, 1]] = (255, 0, 0)
-        rfn[start_refn[0], start_refn[1]] = (0, 0, 255)
-        rfn[end_refn[0], end_refn[1]] = (0, 0, 255)
+        rfn[outline[0, 0], outline[0, 1]] = (0, 0, 255)
+        rfn[outline[-1, 0], outline[-1, 1]] = (0, 0, 255)
 
     _, visual_buf = cv2.imencode('.png', rfn)
     with coords_target.open('wb') as f1,\
