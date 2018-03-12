@@ -196,7 +196,7 @@ def example():
     # The names corresponding to the images in the database.
     db_names = ['F272', 'F272', 'F274', 'F274', 'F276', 'F276']
 
-    # Two images from the same encounter to be used as queries.
+    # Two images from the same encounter to be used as a query.
     qr_fnames = ['23441.JPG', '23442.JPG']
     qr_sides = ['Right', 'Left']
     qr_fpaths = [join(qr_dir, f) for f in qr_fnames]
@@ -207,18 +207,25 @@ def example():
     db_images = [cv2.imread(db_fpath) for db_fpath in db_fpaths]
     db_flips = [True if side == 'Right' else False for side in db_sides]
 
+    # Pass the database images through the pipeline.
     db_lnbnn_data = pipeline(db_images, db_names, db_flips)
 
-    # Build LNBNN index parameters
+    # Build LNBNN index parameters.
     for s in db_lnbnn_data:
+        # NOTE: This mem-mapped file must be persistent across queries!
         index_fpath = '%.3f.ann' % s
         if not isfile(index_fpath):
-            F.build_lnbnn_index(db_lnbnn_data[s][0], index_fpath)
+            # Only need the descriptors to build the index.  The labels are
+            # only used at inference time.
+            D, _ = db_lnbnn_data[s][0]
+            F.build_lnbnn_index(D, index_fpath)
 
     print('Loading query images for one encounter.')
     qr_images = [cv2.imread(qr_fpath) for qr_fpath in qr_fpaths]
     qr_flips = [True if side == 'Right' else False for side in qr_sides]
 
+    # Pass the query images through the pipeline.  It's okay not to know the
+    # names, but all images must be of the same individual.
     qr_lnbnn_data = pipeline(qr_images, qr_names, qr_flips)
 
     # The neighbor index used to compute the norm. distance in LNBNN..
