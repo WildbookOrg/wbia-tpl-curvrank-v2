@@ -58,6 +58,26 @@ def refine_localization(img, flip, pre_xform, loc_xform, scale, height, width):
     return img_refn, msk_refn
 
 
+def segment_contour(imgs, masks, scale, height, width, func):
+    X = np.empty((len(imgs), 3, height, width), dtype=np.float32)
+    for i, img in enumerate(imgs):
+        img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
+        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.
+    S = func(X)
+
+    segms_out, refns_out = [], []
+    for i in range(X.shape[0]):
+        segm = S[i].transpose(1, 2, 0)
+        refn = imutils.refine_segmentation(segm, scale)
+        mask = masks[i]
+        refn[mask < 255] = 0.
+
+        segms_out.append(segm)
+        refns_out.append(refn)
+
+    return segms_out, refns_out
+
+
 # start, end: (i_0, j_0), (i_n, j_n)
 def find_keypoints(method, segm, mask):
     segm = segm[:, :, 0]
@@ -183,10 +203,20 @@ def compute_curvature_descriptors(curv, curv_length, scales,
     return feat_mats
 
 
+def build_lnbnn_index(data, fpath):
+    f = data.shape[1]  # feature dimension
+    index = annoy.AnnoyIndex(f, metric='euclidean')
+    for i, _ in enumerate(data):
+        index.add_item(i, data[i])
+    index.build(10)
+    index.save(fpath)
+    return index
+
+
 # LNBNN classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
 # Performance is about the same using: https://arxiv.org/abs/1609.06323
 def lnbnn_identify(index_fpath, k, descriptors, names):
-    fdim = descriptors[0].shape[1]
+    fdim = descriptors.shape[1]
     index = annoy.AnnoyIndex(fdim, metric='euclidean')
     index.load(index_fpath)
 
@@ -195,7 +225,7 @@ def lnbnn_identify(index_fpath, k, descriptors, names):
     for data in descriptors:
         for i in range(data.shape[0]):
             ind, dist = index.get_nns_by_vector(
-                data[i], k + 1, search_k=-1, include_distances=True
+                data, k + 1, search_k=-1, include_distances=True
             )
             # entry at k + 1 is the normalizing distance
             classes = np.array([names[idx] for idx in ind[:-1]])

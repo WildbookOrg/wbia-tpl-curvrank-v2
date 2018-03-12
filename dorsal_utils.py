@@ -137,7 +137,8 @@ def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
     )
     kernel = np.ones((ksize, ksize), dtype=np.uint8)
     msk = cv2.erode(msk, kernel=kernel, iterations=1) / 255
-    grad[msk[:, :, 0] < 1] = 0.
+    # NOTE: Need to update Segmentation to match the dims of msk.
+    grad[msk < 1] = 0.
     grad_norm = cv2.normalize(
         grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
     )
