@@ -217,7 +217,7 @@ def example():
         if not isfile(index_fpath):
             # Only need the descriptors to build the index.  The labels are
             # only used at inference time.
-            D, _ = db_lnbnn_data[s][0]
+            D, _ = db_lnbnn_data[s]
             F.build_lnbnn_index(D, index_fpath)
 
     print('Loading query images for one encounter.')
