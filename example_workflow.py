@@ -51,9 +51,7 @@ def pipeline(images, names, flips):
     # Localization
     print('Localization')
     layers = localization.build_model((None, 3, height, width))
-    localization_weightsfile = join(
-        'data', 'weights', 'weights_localization.pickle'
-    )
+    localization_weightsfile = 'weights_localization.pickle'
     model.load_weights([
         layers['trans'], layers['loc']],
         localization_weightsfile
@@ -82,9 +80,7 @@ def pipeline(images, names, flips):
     segmentation_layers =\
         segmentation.build_model_batchnorm_full((None, 3, height, width))
 
-    segmentation_weightsfile = join(
-        'data', 'weights', 'weights_segmentation.pickle'
-    )
+    segmentation_weightsfile = 'weights_segmentation.pickle'
     model.load_weights(segmentation_layers['seg_out'],
                        segmentation_weightsfile)
     segmentation_func = theano_funcs.create_segmentation_func(
