@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 import numpy as np
 import theano
 import theano.tensor as T
@@ -223,7 +224,7 @@ def create_segmentation_func(layers):
 
 
 def test_localization_funcs():
-    import localization
+    from ibeis_curverank import localization
     print('testing localization')
     print('  building model')
     layers = localization.build_model((None, 3, 256, 256), downsample=2)
@@ -255,7 +256,7 @@ def test_localization_funcs():
 
 
 def test_segmentation_funcs():
-    import segmentation
+    from ibeis_curverank import segmentation
     print('testing segmentation')
     print('  building model')
     layers = segmentation.build_model((None, 3, 128, 128))

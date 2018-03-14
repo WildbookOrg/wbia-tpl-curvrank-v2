@@ -1,10 +1,8 @@
+from __future__ import absolute_import, division, print_function
+from ibeis_curverank import localization, model, segmentation, theano_funcs
 import cv2
 import functional as F
-import localization
-import model
 import numpy as np
-import segmentation
-import theano_funcs
 from dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
 from dorsal_utils import separate_leading_trailing_edges
 from os.path import isfile, join

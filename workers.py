@@ -1,8 +1,9 @@
+from __future__ import absolute_import, division, print_function
+from ibeis_curverank import dorsal_utils
 import annoy
 import cv2
 import cPickle as pickle
 import numpy as np
-import dorsal_utils
 #import fluke_utils
 import functional as F
 import matplotlib

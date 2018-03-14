@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 import numpy as np
 from lasagne.layers import batch_norm
 from lasagne.layers import Conv2DLayer
@@ -176,7 +177,7 @@ def build_model_batchnorm(input_shape, downsample=1):
 
 
 def test_build_model():
-    import model
+    from ibeis_curverank import model
     layer_dict = build_model((None, 3, 256, 256), downsample=2)
     model.print_info([layer_dict['loc'], layer_dict['trans']])
 

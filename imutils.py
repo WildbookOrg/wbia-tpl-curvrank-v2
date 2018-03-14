@@ -1,4 +1,5 @@
-import affine
+from __future__ import absolute_import, division, print_function
+from ibeis_curverank import affine
 import cv2
 import numpy as np
 

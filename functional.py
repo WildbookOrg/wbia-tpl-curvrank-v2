@@ -1,8 +1,7 @@
-import affine
+from __future__ import absolute_import, division, print_function
+from ibeis_curverank import affine, dorsal_utils, imutils
 import annoy
 import cv2
-import dorsal_utils
-import imutils
 import numpy as np
 from itertools import combinations
 from scipy.signal import argrelextrema

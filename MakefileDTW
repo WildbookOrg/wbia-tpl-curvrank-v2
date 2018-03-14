@@ -1,7 +1,0 @@
-CC=g++
-CFLAGS=-O3 -Wall -shared -fpic
-LDFLAGS=-I/usr/include/eigen3
-SOURCES=dtw.cpp
-OBJECTS=$(SOURCES:.cpp=.so)
-all:
-	$(CC) $(LDFLAGS) $(SOURCES) -o $(OBJECTS) $(CFLAGS)

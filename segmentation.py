@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 from lasagne.layers import batch_norm
 from lasagne.layers import Conv2DLayer
 from lasagne.layers import Deconv2DLayer
@@ -190,15 +191,14 @@ def build_model_batchnorm(input_shape):
 
 
 def test_build_model_batchnorm():
-    import model
+    from ibeis_curverank import model
     layer_dict = build_model_batchnorm((None, 3, 128, 128))
     model.print_info(layer_dict['seg_out'])
 
 
 def test_full_size_inference():
+    from ibeis_curverank import model, theano_funcs
     import cv2
-    import model
-    import theano_funcs
     import numpy as np
     from os.path import join
     layer_dict = build_model_batchnorm((None, 3, None, None))
@@ -229,11 +229,11 @@ def test_full_size_inference():
 if __name__ == '__main__':
     #test_build_model_batchnorm()
     #test_full_size_inference()
-    import theano_funcs
+    from ibeis_curverank import theano_funcs
     import numpy as np
     input_shape = (32, 3, 480, 128)
     X = np.random.random(input_shape).astype(np.float32)
     layer_dict = build_model_batchnorm_full(input_shape)
     infer_func = theano_funcs.create_segmentation_infer_func(layer_dict)
     Z = infer_func(X)
-    print Z.shape
+    print(Z.shape)

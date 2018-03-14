@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 import cPickle as pickle
 import numpy as np
 from lasagne.layers import get_all_params
