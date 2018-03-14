@@ -181,7 +181,7 @@ def pipeline(images, names, flips):
 def example(output_path=None):
     assert exists(PATH)
 
-    db_dir = join(PATH, '..', '_examples', 'db')
+    db_dir = join(PATH, '..', '_images', 'db')
 
     if output_path is None:
         import utool as ut
@@ -198,7 +198,7 @@ def example(output_path=None):
     # CurvRank only handles left-view images.  The pipeline uses this to flip
     # right-view images.
     db_sides = ['Right', 'Right', 'Right', 'Left', 'Right', 'Right']
-    qr_dir = join(PATH, '..', '_examples', 'qr')
+    qr_dir = join(PATH, '..', '_images', 'qr')
     assert exists(qr_dir)
     db_fpaths = [join(db_dir, f) for f in db_fnames]
     # The names corresponding to the images in the database.
