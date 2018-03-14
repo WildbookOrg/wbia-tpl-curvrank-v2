@@ -5,7 +5,7 @@ from itertools import combinations
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
-from pyastar import astar_path
+from ibeis_curverank.pyastar import astar_path
 
 
 # TODO: find a better way to structure these two functions
@@ -168,7 +168,7 @@ def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
 
 
 def separate_leading_trailing_edges(contour):
-    steps = contour.shape[0] / 2 + 1
+    steps = contour.shape[0] // 2 + 1
     norm = diff_of_gauss_norm(contour, steps, m=2, s=1)
     maxima_idx, = argrelextrema(norm, np.greater, order=250)
 

@@ -6,3 +6,4 @@
 *.png
 *.jpg
 .DS_Store
+*.ann

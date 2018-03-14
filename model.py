@@ -1,9 +1,13 @@
 from __future__ import absolute_import, division, print_function
-import cPickle as pickle
 import numpy as np
 from lasagne.layers import get_all_params
 from lasagne.layers import count_params
 from lasagne.layers import get_all_layers
+import six
+if six.PY2:
+    import cPickle as pickle
+else:
+    import pickle
 
 
 def save_weights(weights, filename):
@@ -13,7 +17,10 @@ def save_weights(weights, filename):
 
 def load_weights(layer, filename):
     with open(filename, 'rb') as f:
-        src_params_list = pickle.load(f)
+        try:
+            src_params_list = pickle.load(f)
+        except UnicodeDecodeError:
+            src_params_list = pickle.load(f, encoding='latin1')
 
     dst_params_list = get_all_params(layer)
     # assign the parameter values stored on disk to the model

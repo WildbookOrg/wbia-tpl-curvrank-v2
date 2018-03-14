@@ -2,15 +2,18 @@ from __future__ import absolute_import, division, print_function
 from ibeis_curverank import dorsal_utils
 import annoy
 import cv2
-import cPickle as pickle
 import numpy as np
 #import fluke_utils
-import functional as F
+import ibeis_curverank.functional as F
+from tqdm import tqdm
 import matplotlib
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
-
-from tqdm import tqdm
+import six
+if six.PY2:
+    import cPickle as pickle
+else:
+    import pickle
 
 
 def preprocess_images_star(fpath_side, height, width, output_targets):
@@ -66,7 +69,7 @@ def localization_identity(fpath, height, width,
 # to_process: [fpath1, fpath2, ...] (for batching to gpu)
 def localization_stn(to_process, batch_size, height, width, func,
                      input_targets, output_targets):
-    num_batches = (len(to_process) + batch_size - 1) / batch_size
+    num_batches = (len(to_process) + batch_size - 1) // batch_size
     #logger.info('%d batches of size %d to process' % (
     #    num_batches, self.batch_size))
     for i in tqdm(range(num_batches), total=num_batches, leave=False):

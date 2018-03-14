@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division, print_function
 from ibeis_curverank import costs, datasets, model
-import cPickle as pickle
 import cv2
 import h5py
 import pandas as pd
@@ -15,7 +14,11 @@ from luigi.util import inherits
 from time import time
 from tqdm import tqdm
 from os.path import basename, exists, isfile, join, splitext
-
+import six
+if six.PY2:
+    import cPickle as pickle
+else:
+    import pickle
 
 logger = logging.getLogger('luigi-interface')
 
@@ -478,8 +481,7 @@ class Segmentation(luigi.Task):
         refinement_targets = self.requires()['Refinement'].output()
 
         to_process = self.get_incomplete()
-        num_batches = (
-            len(to_process) + self.batch_size - 1) / self.batch_size
+        num_batches = (len(to_process) + self.batch_size - 1) // self.batch_size
         logger.info('%d batches of size %d to process' % (
             num_batches, self.batch_size))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):

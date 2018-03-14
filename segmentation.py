@@ -17,11 +17,11 @@ def build_model_batchnorm_full(input_shape):
     # 256 x 256
     l_conv1 = batch_norm(Conv2DLayer(
         l_in, name='seg_conv1', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv2 = batch_norm(Conv2DLayer(
         l_conv1, name='seg_conv2', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv3 = batch_norm(Conv2DLayer(
         l_conv2, name='seg_conv3', num_filters=2 * num_filters,
@@ -31,11 +31,11 @@ def build_model_batchnorm_full(input_shape):
     # 128 x 128
     l_conv4 = batch_norm(Conv2DLayer(
         l_conv3, name='seg_conv4', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv5 = batch_norm(Conv2DLayer(
         l_conv4, name='seg_conv5', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv6 = batch_norm(Conv2DLayer(
         l_conv5, name='seg_conv6', num_filters=4 * num_filters,
@@ -45,11 +45,11 @@ def build_model_batchnorm_full(input_shape):
     # 64 x 64
     l_conv7 = batch_norm(Conv2DLayer(
         l_conv6, name='seg_conv7', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv8 = batch_norm(Conv2DLayer(
         l_conv7, name='seg_conv8', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv9 = batch_norm(Conv2DLayer(
         l_conv8, name='seg_conv9', num_filters=8 * num_filters,
@@ -59,11 +59,11 @@ def build_model_batchnorm_full(input_shape):
     # 32 x 32
     l_conv10 = batch_norm(Conv2DLayer(
         l_conv9, name='seg_conv10', num_filters=8 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv11 = batch_norm(Conv2DLayer(
         l_conv10, name='seg_conv11', num_filters=8 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv12 = batch_norm(Deconv2DLayer(
         l_conv11, name='seg_conv12', num_filters=4 * num_filters,
@@ -73,11 +73,11 @@ def build_model_batchnorm_full(input_shape):
     # 64 x 64
     l_conv13 = batch_norm(Conv2DLayer(
         l_conv12, name='seg_conv13', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv14 = batch_norm(Conv2DLayer(
         l_conv13, name='seg_conv14', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv15 = batch_norm(Deconv2DLayer(
         l_conv14, name='seg_conv15', num_filters=2 * num_filters,
@@ -87,11 +87,11 @@ def build_model_batchnorm_full(input_shape):
     # 128 x 128
     l_conv16 = batch_norm(Conv2DLayer(
         l_conv15, name='seg_conv16', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv17 = batch_norm(Conv2DLayer(
         l_conv16, name='seg_conv17', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv18 = batch_norm(Deconv2DLayer(
         l_conv17, name='seg_conv18', num_filters=num_filters,
@@ -101,11 +101,11 @@ def build_model_batchnorm_full(input_shape):
     # 256 x 256
     l_conv19 = batch_norm(Conv2DLayer(
         l_conv18, name='seg_conv19', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_out = Conv2DLayer(
         l_conv19, name='seg_out', num_filters=1,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2,
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2,
         nonlinearity=sigmoid, W=Orthogonal(gain=1.0),
     )
 
@@ -122,11 +122,11 @@ def build_model_batchnorm(input_shape):
     # 128 x 128
     l_conv1 = batch_norm(Conv2DLayer(
         l_in, name='seg_conv1', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv2 = batch_norm(Conv2DLayer(
         l_conv1, name='seg_conv2', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv3 = batch_norm(Conv2DLayer(
         l_conv2, name='seg_conv3', num_filters=2 * num_filters,
@@ -136,11 +136,11 @@ def build_model_batchnorm(input_shape):
     # 64 x 64
     l_conv4 = batch_norm(Conv2DLayer(
         l_conv3, name='seg_conv4', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv5 = batch_norm(Conv2DLayer(
         l_conv4, name='seg_conv5', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv6 = batch_norm(Conv2DLayer(
         l_conv5, name='seg_conv6', num_filters=4 * num_filters,
@@ -150,11 +150,11 @@ def build_model_batchnorm(input_shape):
     # 32 x 32
     l_conv7 = batch_norm(Conv2DLayer(
         l_conv6, name='seg_conv7', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv8 = batch_norm(Conv2DLayer(
         l_conv7, name='seg_conv8', num_filters=4 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv9 = batch_norm(Deconv2DLayer(
         l_conv8, name='seg_conv9', num_filters=2 * num_filters,
@@ -164,11 +164,11 @@ def build_model_batchnorm(input_shape):
     # 64 x 64
     l_conv10 = batch_norm(Conv2DLayer(
         l_conv9, name='seg_conv10', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv11 = batch_norm(Conv2DLayer(
         l_conv10, name='seg_conv11', num_filters=2 * num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_conv12 = batch_norm(Deconv2DLayer(
         l_conv11, name='seg_conv12', num_filters=num_filters,
@@ -178,11 +178,11 @@ def build_model_batchnorm(input_shape):
     # 128 x 128
     l_conv13 = batch_norm(Conv2DLayer(
         l_conv12, name='seg_conv13', num_filters=num_filters,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2, **common
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2, **common
     ))
     l_out = Conv2DLayer(
         l_conv13, name='seg_out', num_filters=1,
-        filter_size=(3, 3), stride=(1, 1), pad=3 / 2,
+        filter_size=(3, 3), stride=(1, 1), pad=3 // 2,
         nonlinearity=sigmoid, W=Orthogonal(gain=1.0),
     )
 

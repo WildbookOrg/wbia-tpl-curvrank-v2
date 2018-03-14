@@ -1,8 +1,13 @@
 from __future__ import absolute_import, division, print_function
 import ctypes
 import numpy as np
+from os.path import split, abspath, join
 
-lib = ctypes.cdll.LoadLibrary('astar.so')
+
+PATH = split(abspath(__file__))[0]
+
+
+lib = ctypes.cdll.LoadLibrary(join(PATH, 'astar.so'))
 
 astar = lib.astar
 ndmat_f_type = np.ctypeslib.ndpointer(

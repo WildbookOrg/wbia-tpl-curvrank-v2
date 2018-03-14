@@ -1,11 +1,14 @@
 from __future__ import absolute_import, division, print_function
 from ibeis_curverank import localization, model, segmentation, theano_funcs
-import cv2
-import functional as F
+from ibeis_curverank.dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
+from ibeis_curverank.dorsal_utils import separate_leading_trailing_edges
+from os.path import isfile, join, abspath, split, exists
+import ibeis_curverank.functional as F
 import numpy as np
-from dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
-from dorsal_utils import separate_leading_trailing_edges
-from os.path import isfile, join
+import cv2
+
+
+PATH = split(abspath(__file__))[0]
 
 
 # images, list of np.ndarray: untouched input images.
@@ -49,7 +52,7 @@ def pipeline(images, names, flips):
     # Localization
     print('Localization')
     layers = localization.build_model((None, 3, height, width))
-    localization_weightsfile = 'weights_localization.pickle'
+    localization_weightsfile = join(PATH, '..', '_weights', 'weights_localization.pickle')
     model.load_weights([
         layers['trans'], layers['loc']],
         localization_weightsfile
@@ -78,7 +81,7 @@ def pipeline(images, names, flips):
     segmentation_layers =\
         segmentation.build_model_batchnorm_full((None, 3, height, width))
 
-    segmentation_weightsfile = 'weights_segmentation.pickle'
+    segmentation_weightsfile = join(PATH, '..', '_weights', 'weights_segmentation.pickle')
     model.load_weights(segmentation_layers['seg_out'],
                        segmentation_weightsfile)
     segmentation_func = theano_funcs.create_segmentation_func(
@@ -161,7 +164,7 @@ def pipeline(images, names, flips):
     # Aggregate the feature matrices.  Each descriptor is labeled with the
     # name of the individual from which it was taken, or None if unknown.
     lnbnn_data = {}
-    fmats_by_scale = zip(*valid_fmats)
+    fmats_by_scale = list(zip(*valid_fmats))
     for i, s in enumerate(scales):
         N = np.hstack([
             [name] * fmat.shape[0]
@@ -175,8 +178,18 @@ def pipeline(images, names, flips):
     return lnbnn_data
 
 
-def example():
-    db_dir = join('examples', 'db')
+def example(output_path=None):
+    assert exists(PATH)
+
+    db_dir = join(PATH, '..', '_examples', 'db')
+
+    if output_path is None:
+        import utool as ut
+        output_path = join(PATH, '..', '_output')
+        ut.ensuredir(output_path)
+        print('Using output_path=%r' % (output_path, ))
+
+    assert exists(db_dir)
     db_fnames = [
         '17874.JPG', '17541.JPG',
         '23496.JPG', '25697.JPG',
@@ -185,7 +198,8 @@ def example():
     # CurvRank only handles left-view images.  The pipeline uses this to flip
     # right-view images.
     db_sides = ['Right', 'Right', 'Right', 'Left', 'Right', 'Right']
-    qr_dir = join('examples', 'qr')
+    qr_dir = join(PATH, '..', '_examples', 'qr')
+    assert exists(qr_dir)
     db_fpaths = [join(db_dir, f) for f in db_fnames]
     # The names corresponding to the images in the database.
     db_names = ['F272', 'F272', 'F274', 'F274', 'F276', 'F276']

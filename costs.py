@@ -2,8 +2,8 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from functools import partial
 
-from pydtw import dtw_weighted_euclidean
-from pydtw import dtw_weighted_chi_square
+from ibeis_curverank.pydtw import dtw_weighted_euclidean
+from ibeis_curverank.pydtw import dtw_weighted_chi_square
 
 
 def get_cost_func_dict():

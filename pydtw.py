@@ -1,9 +1,13 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import ctypes
+from os.path import split, abspath, join
 
 
-costs_lib = ctypes.cdll.LoadLibrary('dtw.so')
+PATH = split(abspath(__file__))[0]
+
+
+costs_lib = ctypes.cdll.LoadLibrary(join(PATH, 'dtw.so'))
 
 ndmat_f_type = np.ctypeslib.ndpointer(
     dtype=np.float32, ndim=2, flags='C_CONTIGUOUS')
