@@ -1,9 +1,9 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curverank import localization, model, segmentation, theano_funcs
-from ibeis_curverank.dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
-from ibeis_curverank.dorsal_utils import separate_leading_trailing_edges
+from ibeis_curvrank import localization, model, segmentation, theano_funcs
+from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
+from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 from os.path import isfile, join, abspath, split, exists
-import ibeis_curverank.functional as F
+import ibeis_curvrank.functional as F
 import numpy as np
 import cv2
 

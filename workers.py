@@ -1,10 +1,10 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curverank import dorsal_utils
+from ibeis_curvrank import dorsal_utils
 import annoy
 import cv2
 import numpy as np
 #import fluke_utils
-import ibeis_curverank.functional as F
+import ibeis_curvrank.functional as F
 from tqdm import tqdm
 import matplotlib
 matplotlib.use('Agg')  # NOQA

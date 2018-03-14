@@ -5,7 +5,7 @@ from itertools import combinations
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
-from ibeis_curverank.pyastar import astar_path
+from ibeis_curvrank.pyastar import astar_path
 
 
 # TODO: find a better way to structure these two functions

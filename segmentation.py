@@ -191,13 +191,13 @@ def build_model_batchnorm(input_shape):
 
 
 def test_build_model_batchnorm():
-    from ibeis_curverank import model
+    from ibeis_curvrank import model
     layer_dict = build_model_batchnorm((None, 3, 128, 128))
     model.print_info(layer_dict['seg_out'])
 
 
 def test_full_size_inference():
-    from ibeis_curverank import model, theano_funcs
+    from ibeis_curvrank import model, theano_funcs
     import cv2
     import numpy as np
     from os.path import join
@@ -229,7 +229,7 @@ def test_full_size_inference():
 if __name__ == '__main__':
     #test_build_model_batchnorm()
     #test_full_size_inference()
-    from ibeis_curverank import theano_funcs
+    from ibeis_curvrank import theano_funcs
     import numpy as np
     input_shape = (32, 3, 480, 128)
     X = np.random.random(input_shape).astype(np.float32)

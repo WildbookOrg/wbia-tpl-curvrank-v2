@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curverank import costs, datasets, model
+from ibeis_curvrank import costs, datasets, model
 import cv2
 import h5py
 import pandas as pd

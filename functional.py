@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curverank import affine, dorsal_utils, imutils
+from ibeis_curvrank import affine, dorsal_utils, imutils
 import annoy
 import cv2
 import numpy as np
