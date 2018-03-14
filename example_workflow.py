@@ -185,7 +185,7 @@ def example(output_path=None):
 
     if output_path is None:
         import utool as ut
-        output_path = join(PATH, '..', '_output')
+        output_path = abspath(join(PATH, '..', '_output'))
         ut.ensuredir(output_path)
         print('Using output_path=%r' % (output_path, ))
 
@@ -221,7 +221,7 @@ def example(output_path=None):
     # Build LNBNN index parameters.
     for s in db_lnbnn_data:
         # NOTE: This mem-mapped file must be persistent across queries!
-        index_fpath = '%.3f.ann' % s
+        index_fpath = join(output_path, '%.3f.ann' % s)
         if not isfile(index_fpath):
             # Only need the descriptors to build the index.  The labels are
             # only used at inference time.
@@ -244,7 +244,7 @@ def example(output_path=None):
     agg_scores = {name: 0.0 for name in unique_db_names}
     # Run LNBNN identification for each scale independently and aggregate.
     for s in qr_lnbnn_data:
-        index_fpath = '%.3f.ann' % s
+        index_fpath = join(output_path, '%.3f.ann' % s)
         # Need the descriptor labels from the database for a query.
         _, N = db_lnbnn_data[s]
         # Don't know the descriptor labels for a query.
