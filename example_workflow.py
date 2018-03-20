@@ -67,7 +67,7 @@ def pipeline(images, names, flips):
     refined_localizations, refined_masks = [], []
     for i, _ in enumerate(images):
         refined_localization, refined_mask = F.refine_localization(
-            localized_images[i], flips[i],
+            images[i], flips[i],
             pre_transforms[i], loc_transforms[i],
             scale, height, width
         )
@@ -123,7 +123,7 @@ def pipeline(images, names, flips):
     for i, _ in enumerate(images):
         if success[i]:
             _, trailing_edge = F.separate_edges(
-                separate_leading_trailing_edges, outline)
+                separate_leading_trailing_edges, outlines[i])
             if trailing_edge is None:
                 success[i] = None
         else:
@@ -147,7 +147,7 @@ def pipeline(images, names, flips):
     for i, _ in enumerate(images):
         if success[i]:
             feature_matrices = F.compute_curvature_descriptors(
-                curvature, curv_length, scales,
+                curvatures[i], curv_length, scales,
                 num_keypoints, uniform, feat_dim)
         else:
             feature_matrices = None
@@ -173,6 +173,7 @@ def pipeline(images, names, flips):
 
         lnbnn_data[s] = (D, N)
         assert D.shape[0] == N.shape[0], 'D.shape[0] != N.shape[0]'
+        assert np.allclose(np.linalg.norm(D, axis=1), np.ones(D.shape[0]))
 
     return lnbnn_data
 
@@ -210,11 +211,10 @@ def example():
     for s in db_lnbnn_data:
         # NOTE: This mem-mapped file must be persistent across queries!
         index_fpath = '%.3f.ann' % s
-        if not isfile(index_fpath):
-            # Only need the descriptors to build the index.  The labels are
-            # only used at inference time.
-            D, _ = db_lnbnn_data[s]
-            F.build_lnbnn_index(D, index_fpath)
+        # Only need the descriptors to build the index.  The labels are
+        # only used at inference time.
+        D, _ = db_lnbnn_data[s]
+        F.build_lnbnn_index(D, index_fpath)
 
     print('Loading query images for one encounter.')
     qr_images = [cv2.imread(qr_fpath) for qr_fpath in qr_fpaths]

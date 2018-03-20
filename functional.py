@@ -223,18 +223,17 @@ def lnbnn_identify(index_fpath, k, descriptors, names):
     # NOTE: Names may contain duplicates.  This works, but is it confusing?
     scores = {name: 0.0 for name in names}
     for data in descriptors:
-        for i in range(data.shape[0]):
-            ind, dist = index.get_nns_by_vector(
-                data, k + 1, search_k=-1, include_distances=True
-            )
-            # entry at k + 1 is the normalizing distance
-            classes = np.array([names[idx] for idx in ind[:-1]])
-            for c in np.unique(classes):
-                j, = np.where(classes == c)
-                # multiple descriptors in the top-k may belong to the
-                # same class
-                score = dist[j.min()] - dist[-1]
-                scores[c] += score
+        ind, dist = index.get_nns_by_vector(
+            data, k + 1, search_k=-1, include_distances=True
+        )
+        # entry at k + 1 is the normalizing distance
+        classes = np.array([names[idx] for idx in ind[:-1]])
+        for c in np.unique(classes):
+            j, = np.where(classes == c)
+            # multiple descriptors in the top-k may belong to the
+            # same class
+            score = dist[j.min()] - dist[-1]
+            scores[c] += score
 
     return scores
 
