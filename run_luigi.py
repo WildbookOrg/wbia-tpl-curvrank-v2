@@ -36,7 +36,7 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 class PrepareData(luigi.Task):
     dataset = luigi.ChoiceParameter(
-        choices=['nz', 'sdrp', 'fb', 'crc', 'crc2018'], var_type=str,
+        choices=['nz', 'sdrp', 'fb', 'crc', 'crc2018', 'coa'], var_type=str,
         description='Name of the dataset to use.'
     )
 
@@ -860,7 +860,7 @@ class BlockCurvature(luigi.Task):
 
         if self.dataset in ('sdrp', 'nz'):
             transpose_dims = False
-        elif self.dataset in ('crc', 'fb', 'crc2018'):
+        elif self.dataset in ('crc', 'fb', 'crc2018', 'coa'):
             transpose_dims = True
 
         t_start = time()
