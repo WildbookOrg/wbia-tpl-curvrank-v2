@@ -36,7 +36,7 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 class PrepareData(luigi.Task):
     dataset = luigi.ChoiceParameter(
-        choices=['nz', 'sdrp', 'fb', 'crc'], var_type=str,
+        choices=['nz', 'sdrp', 'fb', 'crc', 'crc2018'], var_type=str,
         description='Name of the dataset to use.'
     )
 
@@ -860,7 +860,7 @@ class BlockCurvature(luigi.Task):
 
         if self.dataset in ('sdrp', 'nz'):
             transpose_dims = False
-        elif self.dataset in ('crc', 'fb'):
+        elif self.dataset in ('crc', 'fb', 'crc2018'):
             transpose_dims = True
 
         t_start = time()
@@ -1893,6 +1893,8 @@ class DescriptorsResults(luigi.Task):
     serial = luigi.BoolParameter(
         default=False, description='Disable use of multiprocessing.Pool'
     )
+    max_names = luigi.IntParameter(
+        default=-1, description='Number of individuals to include in ranking')
 
     def requires(self):
         return {
@@ -1977,9 +1979,14 @@ class DescriptorsResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
+                        if self.max_names > 0:
+                            max_names = self.max_names
+                        else:
+                            max_names = len(ranked_indivs)
+                        fmt_ranking = ','.join(
+                            '%s' % r for r in ranked_indivs[0:max_names])
                         f.write('"%s","%s",%s,%s\n' % (
-                            qenc, qind, rank,
-                            ','.join('%s' % r for r in ranked_indivs)
+                            qenc, qind, rank, fmt_ranking
                         ))
                         #f.write('%s\n' % (
                         #    ','.join(['%.6f' % s for s in ranked_scores])))
