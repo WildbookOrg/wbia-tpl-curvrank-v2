@@ -1862,7 +1862,7 @@ class TimeWarpingResults(luigi.Task):
             topk_scores = [1, 5, 10, 25]
             rank_indices = np.array(rank_indices)
             num_queries = rank_indices.shape[0]
-            num_indivs = len(indiv_rank_indices)
+            num_indivs = len(db_indivs)
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
@@ -2006,7 +2006,7 @@ class DescriptorsResults(luigi.Task):
             topk_scores = [1, 5, 10, 25]
             rank_indices = np.array(rank_indices)
             num_queries = rank_indices.shape[0]
-            num_indivs = len(indiv_rank_indices)
+            num_indivs = len(db_indivs)
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
@@ -2137,7 +2137,7 @@ class HotSpotterResults(luigi.Task):
             topk_scores = [1, 5, 10, 25]
             rank_indices = np.array(rank_indices)
             num_queries = rank_indices.shape[0]
-            num_indivs = len(indiv_rank_indices)
+            num_indivs = len(db_indivs)
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
