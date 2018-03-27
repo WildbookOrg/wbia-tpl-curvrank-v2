@@ -525,7 +525,6 @@ def build_annoy_index(data, fpath):
         index.add_item(i, data[i])
     index.build(10)
     index.save(fpath)
-    return index
 
 
 def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
