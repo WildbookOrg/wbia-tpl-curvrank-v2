@@ -7,11 +7,12 @@ register_api = controller_inject.get_ibeis_flask_api(__name__)
 
 
 @register_ibs_method
+@register_api('/api/plugin/curvrank/helloworld/', methods=['GET'])
+def ibeis_plugin_curvrank_hello_world(ibs, **kwargs):
+    return kwargs
+
+
+@register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
     from ibeis_curvrank.example_workflow import example
     example()
-
-
-@register_api('/api/plugin/example/helloworld/', methods=['GET'])
-def ibeis_plugin_example_hello_world_rest(ibs):
-    return ibs.ibeis_plugin_example_hello_world()
