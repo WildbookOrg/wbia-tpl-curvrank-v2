@@ -8,8 +8,8 @@ register_api = controller_inject.get_ibeis_flask_api(__name__)
 
 @register_ibs_method
 @register_api('/api/plugin/curvrank/helloworld/', methods=['GET'])
-def ibeis_plugin_curvrank_hello_world(ibs, **kwargs):
-    return kwargs
+def ibeis_plugin_curvrank_hello_world(ibs, *args, **kwargs):
+    return args, kwargs
 
 
 @register_ibs_method
