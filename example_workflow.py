@@ -15,6 +15,9 @@ PATH = split(abspath(__file__))[0]
 # names, list: names of the individuals in images (one per image).
 # flips, list: boolean indicating whether or not to L/R flip an image.
 def pipeline(images, names, flips):
+    import ibeis
+    from ibeis.init import sysres
+
     # General parameters
     height, width = 256, 256
     scale = 4
@@ -38,16 +41,27 @@ def pipeline(images, names, flips):
     # corresponding entry to False so that it is ignored downstream.
     success = len(images) * [True]
 
-    # Preprocessing
-    print('Preprocessing')
-    resized_images, resized_masks, pre_transforms = [], [], []
-    for i, _ in enumerate(images):
-        resized_image, resized_mask, pre_transform =\
-            F.preprocess_image(images[i], flips[i], height, width)
+    ############################################################################
 
-        resized_images.append(resized_image)
-        resized_masks.append(resized_mask)
-        pre_transforms.append(pre_transform)
+    dbdir = sysres.ensure_testdb_curvrank()
+    ibs = ibeis.opendb(dbdir=dbdir)
+
+    # Preprocessing
+    # print('Preprocessing')
+    # resized_images, resized_masks, pre_transforms = [], [], []
+    # for i, _ in enumerate(images):
+    #     resized_image, resized_mask, pre_transform =\
+    #         F.preprocess_image(images[i], flips[i], height, width)
+
+    #     resized_images.append(resized_image)
+    #     resized_masks.append(resized_mask)
+    #     pre_transforms.append(pre_transform)
+
+    print('Preprocessing')
+    imageset_rowid = ibs.get_imageset_imgsetids_from_text('database')
+    gid_list = ibs.get_imageset_gids(imageset_rowid)
+    values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, height=height, width=width)
+    resized_images, resized_masks, pre_transforms = values
 
     # Localization
     print('Localization')
