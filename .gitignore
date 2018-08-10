@@ -1,4 +1,4 @@
-*.swp
+.swp
 *.swo
 *.so
 *.csv
@@ -7,3 +7,5 @@
 *.jpg
 .DS_Store
 *.ann
+
+timeings.txt

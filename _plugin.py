@@ -213,12 +213,12 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
-        >>> assert ut.hash_data(localized_image) == 'pbgpmewfannhnrsrfxixdnhwczbkordr'
-        >>> assert ut.hash_data(localized_mask)  == 'pzzhgfsbhcsayowiwusjjekzlxaxbrpu'
+        >>> assert ut.hash_data(localized_image) == 'mbwtvdojxaidtmcrqvyamkgpchzupfsh'
+        >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
         >>> result = loc_transform
         >>> print(result)
-        [[ 0.63338047  0.12626281 -0.11245003]
-         [-0.12531438  0.63420326 -0.00189855]
+        [[ 0.63338043  0.12626288 -0.11245001]
+         [-0.12531439  0.63420324 -0.00189856]
          [ 0.          0.          1.        ]]
     """
     import ibeis_curvrank.functional as F
@@ -237,6 +237,13 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     values = F.localize(resized_images, resized_masks, height, width,
                         localization_func)
     localized_images, localized_masks, loc_transforms = values
+
+    # Convert these to uint8 for compatibility with depc
+    localized_masks = [
+        np.around(localized_mask).astype(np.uint8)
+        for localized_mask in localized_masks
+    ]
+
     return localized_images, localized_masks, loc_transforms
 
 
@@ -289,13 +296,12 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
-        >>> ut.embed()
-        >>> assert ut.hash_data(localized_image) == 'pbgpmewfannhnrsrfxixdnhwczbkordr'
-        >>> assert ut.hash_data(localized_mask)  == 'pzzhgfsbhcsayowiwusjjekzlxaxbrpu'
+        >>> assert ut.hash_data(localized_image) == 'mbwtvdojxaidtmcrqvyamkgpchzupfsh'
+        >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
         >>> result = loc_transform
         >>> print(result)
-        [[ 0.63338047  0.12626281 -0.11245003]
-         [-0.12531438  0.63420326 -0.00189855]
+        [[ 0.63338043  0.12626288 -0.11245001]
+         [-0.12531439  0.63420324 -0.00189856]
          [ 0.          0.          1.        ]]
     """
 
