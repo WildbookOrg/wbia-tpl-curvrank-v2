@@ -77,12 +77,12 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         >>> resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
         >>> resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
         >>> pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=config)
-        >>> resized_images = resized_images[0]
-        >>> resized_masks  = resized_masks[0]
-        >>> pre_transforms = pre_transforms[0]
-        >>> assert ut.hash_data(resized_images) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
-        >>> assert ut.hash_data(resized_masks) == 'mnhartnytowmmhskblocubqmzhbofynr'
-        >>> result = pre_transforms
+        >>> resized_image = resized_images[0]
+        >>> resized_mask  = resized_masks[0]
+        >>> pre_transform = pre_transforms[0]
+        >>> assert ut.hash_data(resized_image) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
+        >>> assert ut.hash_data(resized_mask)  == 'mnhartnytowmmhskblocubqmzhbofynr'
+        >>> result = pre_transform
         >>> print(result)
         [[ 0.11077456  0.          0.        ]
          [ 0.          0.11077456 38.        ]
@@ -138,12 +138,12 @@ def ibeis_plugin_curvrank_preprocessing(ibs, gid_list, height=256, width=256):
         >>> gid_list = ibs.get_valid_gids()[0:1]
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, width=256, height=256)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> resized_images = resized_images[0]
-        >>> resized_masks  = resized_masks[0]
-        >>> pre_transforms = pre_transforms[0]
-        >>> assert ut.hash_data(resized_images) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
-        >>> assert ut.hash_data(resized_masks) == 'mnhartnytowmmhskblocubqmzhbofynr'
-        >>> result = pre_transforms
+        >>> resized_image = resized_images[0]
+        >>> resized_mask  = resized_masks[0]
+        >>> pre_transform = pre_transforms[0]
+        >>> assert ut.hash_data(resized_image) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
+        >>> assert ut.hash_data(resized_mask) == 'mnhartnytowmmhskblocubqmzhbofynr'
+        >>> result = pre_transform
         >>> print(result)
         [[ 0.11077456  0.          0.        ]
          [ 0.          0.11077456 38.        ]
