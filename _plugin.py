@@ -52,7 +52,7 @@ class PreprocessConfig(dtool.Config):
     colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
     coltypes=[('extern', vt.imread, vt.imwrite), int, int, ('extern', ut.partial(vt.imread, grayscale=True), vt.imwrite), int, int, np.ndarray],
     configclass=PreprocessConfig,
-    fname='preprocess',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -210,7 +210,16 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images,resized_masks, width=256, height=256)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> ut.embed()
+        >>> localized_image = localized_images[0]
+        >>> localized_mask  = localized_masks[0]
+        >>> loc_transform = loc_transforms[0]
+        >>> assert ut.hash_data(localized_image) == 'pbgpmewfannhnrsrfxixdnhwczbkordr'
+        >>> assert ut.hash_data(localized_mask)  == 'pzzhgfsbhcsayowiwusjjekzlxaxbrpu'
+        >>> result = loc_transform
+        >>> print(result)
+        [[ 0.63338047  0.12626281 -0.11245003]
+         [-0.12531438  0.63420326 -0.00189855]
+         [ 0.          0.          1.        ]]
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank import localization, model, theano_funcs
@@ -229,6 +238,95 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
                         localization_func)
     localized_images, localized_masks, loc_transforms = values
     return localized_images, localized_masks, loc_transforms
+
+
+class LocalizationConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('localization_model_tag', 'localization'),
+            ut.ParamInfo('localization_height', 256),
+            ut.ParamInfo('localization_width', 256),
+            ut.ParamInfo('ext', '.png', hideif='.png'),
+        ]
+
+
+@register_preproc_image(
+    tablename='localization', parents=['preprocess'],
+    colnames=['localized_img', 'localized_width', 'localized_height', 'mask_img', 'mask_width', 'mask_height', 'transform'],
+    coltypes=[('extern', vt.imread, vt.imwrite), int, int, ('extern', ut.partial(vt.imread, grayscale=True), vt.imwrite), int, int, np.ndarray],
+    configclass=LocalizationConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=None):
+    r"""
+    Localize images for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization_depc
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> config = {
+        >>>     'preprocess_height': 256,
+        >>>     'preprocess_width': 256,
+        >>>     'localization_height': 256,
+        >>>     'localization_width': 256,
+        >>>     'localization_model_tag': 'localization'
+        >>> }
+        >>> localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img',  config=config)
+        >>> localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',     config=config)
+        >>> loc_transforms = ibs.depc_image.get('localization', gid_list, 'transform', config=config)
+        >>> localized_image = localized_images[0]
+        >>> localized_mask  = localized_masks[0]
+        >>> loc_transform = loc_transforms[0]
+        >>> ut.embed()
+        >>> assert ut.hash_data(localized_image) == 'pbgpmewfannhnrsrfxixdnhwczbkordr'
+        >>> assert ut.hash_data(localized_mask)  == 'pzzhgfsbhcsayowiwusjjekzlxaxbrpu'
+        >>> result = loc_transform
+        >>> print(result)
+        [[ 0.63338047  0.12626281 -0.11245003]
+         [-0.12531438  0.63420326 -0.00189855]
+         [ 0.          0.          1.        ]]
+    """
+
+    height = config['localization_height']
+    width  = config['localization_width']
+    model_tag = config['localization_model_tag']
+    ibs = depc.controller
+    # fetch resized image
+    resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img')
+    # fetch resized mask
+    resized_masks = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
+    # call function above
+    values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
+                                                    model_tag=model_tag, height=height,
+                                                    width=width)
+    localized_images, localized_masks, loc_transforms = values
+
+    # yield each column defined in register_preproc_image
+    zipped = zip(localized_images, localized_masks, loc_transforms)
+    for localized_image, localized_mask, loc_transform in zipped:
+        localized_width, localized_height = vt.get_size(localized_image)
+        mask_width, mask_height = vt.get_size(localized_mask)
+        yield (
+            localized_image,
+            localized_width,
+            localized_height,
+            localized_mask,
+            mask_width,
+            mask_height,
+            loc_transform,
+        )
 
 
 if __name__ == '__main__':
