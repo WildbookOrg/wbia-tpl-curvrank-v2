@@ -11,6 +11,9 @@ import cv2
 PATH = split(abspath(__file__))[0]
 
 
+USE_DEPC = True
+
+
 # images, list of np.ndarray: untouched input images.
 # names, list: names of the individuals in images (one per image).
 # flips, list: boolean indicating whether or not to L/R flip an image.
@@ -60,8 +63,18 @@ def pipeline(images, names, flips):
     print('Preprocessing')
     imageset_rowid = ibs.get_imageset_imgsetids_from_text('database')
     gid_list = ibs.get_imageset_gids(imageset_rowid)
-    values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, height=height, width=width)
-    resized_images, resized_masks, pre_transforms = values
+
+    if USE_DEPC:
+        config = {
+            'preprocess_height': height,
+            'preprocess_width':  width,
+        }
+        resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
+        resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
+        pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=config)
+    else:
+        values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, height=height, width=width)
+        resized_images, resized_masks, pre_transforms = values
 
     # Localization
     print('Localization')
