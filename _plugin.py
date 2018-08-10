@@ -1,15 +1,21 @@
 from __future__ import absolute_import, division, print_function
 from ibeis.control import controller_inject  # NOQA
-import ibeis.constants as const
 import numpy as np
 import utool as ut
 import vtool as vt
 import dtool
 
+
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 register_api = controller_inject.get_ibeis_flask_api(__name__)
 register_preproc_image = controller_inject.register_preprocs['image']
 register_preproc_annot = controller_inject.register_preprocs['annot']
+
+
+URL_DICT = {
+    'localization': 'https://lev.cs.rpi.edu/public/models/curvrank.localization.weights.pkl',
+    'segmentation': 'https://lev.cs.rpi.edu/public/models/curvrank.segmentation.weights.pkl',
+}
 
 
 @register_ibs_method
@@ -167,6 +173,62 @@ def ibeis_plugin_curvrank_preprocessing(ibs, gid_list, height=256, width=256):
         pre_transforms.append(pre_transform)
 
     return resized_images, resized_masks, pre_transforms
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
+                                       model_tag='localization', height=256,
+                                       width=256):
+    r"""
+    Localize images for CurvRank
+
+    Args:
+        ibs       (IBEISController): IBEIS controller object
+        model_tag  (string): Key to URL_DICT entry for this model
+        resized_images (list of np.ndarray): widthXheightX3 color channels
+        resized_masks (list of np.ndarray): heightXwidth greyscale images
+        height: height of resized images
+        width: width of resized images
+
+    Returns:
+        localized_images
+        localized_masks
+        loc_transforms
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, width=256, height=256)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images,resized_masks, width=256, height=256)
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> ut.embed()
+    """
+    import ibeis_curvrank.functional as F
+    from ibeis_curvrank import localization, model, theano_funcs
+
+    model_url = URL_DICT.get(model_tag, None)
+    assert model_url is not None
+    weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+    layers = localization.build_model((None, 3, height, width))
+    model.load_weights([
+        layers['trans'], layers['loc']],
+        weight_filepath
+    )
+    localization_func = theano_funcs.create_localization_infer_func(layers)
+
+    values = F.localize(resized_images, resized_masks, height, width,
+                        localization_func)
+    localized_images, localized_masks, loc_transforms = values
+    return localized_images, localized_masks, loc_transforms
 
 
 if __name__ == '__main__':
