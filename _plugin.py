@@ -213,13 +213,15 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
-        >>> assert ut.hash_data(localized_image) == 'mbwtvdojxaidtmcrqvyamkgpchzupfsh'
+        >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
+        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
         >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
-        >>> result = loc_transform
-        >>> print(result)
-        [[ 0.63338043  0.12626288 -0.11245001]
-         [-0.12531439  0.63420324 -0.00189856]
-         [ 0.          0.          1.        ]]
+        >>> # for above reasons, some voodoo to compare loc_transform
+        >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
+        >>>                                  [-0.12531438,  0.63420326, -0.00189855],
+        >>>                                  [ 0.        ,  0.        ,  1.        ]])
+        >>> assert np.all(np.abs(loc_transform - loc_transform_ubuntu) < 1e-6)
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank import localization, model, theano_funcs
@@ -296,13 +298,15 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
-        >>> assert ut.hash_data(localized_image) == 'mbwtvdojxaidtmcrqvyamkgpchzupfsh'
+        >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
+        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
         >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
-        >>> result = loc_transform
-        >>> print(result)
-        [[ 0.63338043  0.12626288 -0.11245001]
-         [-0.12531439  0.63420324 -0.00189856]
-         [ 0.          0.          1.        ]]
+        >>> # for above reasons, some voodoo to compare loc_transform
+        >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
+        >>>                                  [-0.12531438,  0.63420326, -0.00189855],
+        >>>                                  [ 0.        ,  0.        ,  1.        ]])
+        >>> assert np.all(np.abs(loc_transform - loc_transform_ubuntu) < 1e-6)
     """
 
     height = config['localization_height']
