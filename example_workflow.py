@@ -1,8 +1,8 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curvrank import localization, model, segmentation, theano_funcs
-from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
+from ibeis_curvrank import localization, model, segmentation, theano_funcs  # NOQA
+from ibeis_curvrank.dorsal_utils import dorsal_cost_func, find_dorsal_keypoints
 from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
-from os.path import isfile, join, abspath, split, exists
+from os.path import abspath, exists, isfile, join, split
 import ibeis_curvrank.functional as F
 import numpy as np
 import cv2
@@ -10,16 +10,29 @@ import cv2
 
 PATH = split(abspath(__file__))[0]
 
-
 USE_DEPC = True
+
+DEFAULT_HEIGHT = 256
+DEFAULT_WIDTH  = 256
+
+DEFAULT_CONFIG = {
+    'preprocess_height': DEFAULT_HEIGHT,
+    'preprocess_width': DEFAULT_WIDTH,
+    'localization_model_tag': 'localization',
+    'localization_height'   : DEFAULT_HEIGHT,
+    'localization_width'    : DEFAULT_WIDTH,
+}
 
 
 # images, list of np.ndarray: untouched input images.
 # names, list: names of the individuals in images (one per image).
 # flips, list: boolean indicating whether or not to L/R flip an image.
-def pipeline(images, names, flips):
+def pipeline(images, names, flips, config=None):
     import ibeis
     from ibeis.init import sysres
+
+    if config is None:
+        config = DEFAULT_CONFIG
 
     # General parameters
     height, width = 256, 256
@@ -65,10 +78,6 @@ def pipeline(images, names, flips):
     gid_list = ibs.get_imageset_gids(imageset_rowid)
 
     if USE_DEPC:
-        config = {
-            'preprocess_height': height,
-            'preprocess_width':  width,
-        }
         resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
         resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
         pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=config)
@@ -78,17 +87,15 @@ def pipeline(images, names, flips):
 
     # Localization
     print('Localization')
-    layers = localization.build_model((None, 3, height, width))
-    localization_weightsfile = join(PATH, '..', '_weights', 'weights_localization.pickle')
-    model.load_weights([
-        layers['trans'], layers['loc']],
-        localization_weightsfile
-    )
-    localization_func = theano_funcs.create_localization_infer_func(layers)
-
-    localized_images, localized_masks, loc_transforms =\
-        F.localize(resized_images, resized_masks, height, width,
-                   localization_func)
+    if USE_DEPC:
+        localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img', config=config)
+        localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',  config=config)
+        loc_transforms   = ibs.depc_image.get('localization', gid_list, 'transform', config=config)
+    else:
+        values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
+                                                        model_tag='localization',
+                                                        height=height, width=width)
+        localized_images, localized_masks, loc_transforms = values
 
     # Refinement
     print('Refinement')
