@@ -339,6 +339,68 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         )
 
 
+@register_ibs_method
+def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
+                                     pre_transforms, loc_transforms, scale=4,
+                                     height=256, width=256):
+    r"""
+    Refine localizations for CurvRank
+
+    Args:
+        ibs       (IBEISController): IBEIS controller object
+        gid_list  (list of int): list of image rowids (gids)
+        localized_images  (list of np.ndarray): widthXheightX3 color channels
+        pre_transforms (list of np.ndarray):
+        loc_transforms (list of np.ndarray):
+        scale (int): how many scales to perform the refinement (default to 4).
+        height: height of resized images
+        width: width of resized images
+
+    Returns:
+        refined_localizations
+        refined_masks
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, width=256, height=256)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images,resized_masks, width=256, height=256)
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images,
+        >>>                                               pre_transforms, loc_transforms, scale=4,
+        >>>                                               height=256, width=256)
+        >>> refined_localizations, refined_masks = values
+        >>> ut.embed()
+    """
+
+    import ibeis_curvrank.functional as F
+
+    metadata_list = ibs.get_image_metadata(gid_list)
+    viewpoint_list = [metadata.get('viewpoint', None) for metadata in metadata_list]
+    flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+
+    refined_localizations, refined_masks = [], []
+    zipped = zip(localized_images, flip_list, pre_transforms, loc_transforms)
+    for localized_image, flip, pre_transform, loc_transform in zipped:
+        refined_localization, refined_mask = F.refine_localization(
+            localized_image, flip, pre_transform, loc_transform,
+            scale, height, width
+        )
+        refined_localizations.append(refined_localization)
+        refined_masks.append(refined_mask)
+
+    return refined_localizations, refined_masks
+
+
 if __name__ == '__main__':
     r"""
     CommandLine:
