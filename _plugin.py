@@ -384,10 +384,11 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         >>> refined_localizations, refined_masks = values
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
-        >>> assert ut.hash_data(refined_localization) == 'fwjorhantaihpnlptakncuwrbivsnogr'
-        >>> assert ut.hash_data(refined_mask)         == 'addlxdyjkminxlfsdfqmmuptyprhpyfi'
+        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
+        >>> ut.embed()
+        >>> assert ut.hash_data(refined_localization) in ['fwjorhantaihpnlptakncuwrbivsnogr', 'fzkyfatzmcqwwpynqotemyddqnazssqv']
+        >>> assert ut.hash_data(refined_mask)         == 'hkmcmpbfuvhwdynhcedlxvtemiumhvmx'
     """
-
     import ibeis_curvrank.functional as F
 
     metadata_list = ibs.get_image_metadata(gid_list)
@@ -404,6 +405,16 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         )
         refined_localizations.append(refined_localization)
         refined_masks.append(refined_mask)
+
+    refined_localizations = [
+        np.around(refined_localization_).astype(np.uint8)
+        for refined_localization_ in refined_localizations
+    ]
+
+    refined_masks = [
+        np.around(refined_mask_).astype(np.uint8)
+        for refined_mask_ in refined_masks
+    ]
 
     return refined_localizations, refined_masks
 
