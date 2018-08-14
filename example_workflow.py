@@ -4,8 +4,8 @@ from ibeis_curvrank.dorsal_utils import dorsal_cost_func, find_dorsal_keypoints
 from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 from os.path import abspath, exists, join, split
 import ibeis_curvrank.functional as F
+import utool as ut
 import numpy as np
-import cv2
 
 
 PATH = split(abspath(__file__))[0]
@@ -28,9 +28,11 @@ DEFAULT_CONFIG = {
 # images, list of np.ndarray: untouched input images.
 # names, list: names of the individuals in images (one per image).
 # flips, list: boolean indicating whether or not to L/R flip an image.
-def pipeline(images, names, flips, config=None):
+def pipeline(dataset_imageset_text, config=None):
     import ibeis
     from ibeis.init import sysres
+
+    assert dataset_imageset_text in ['database', 'query']
 
     if config is None:
         config = DEFAULT_CONFIG
@@ -56,27 +58,21 @@ def pipeline(images, names, flips, config=None):
     # Because we don't have a dependency graph to ensure consistency, we need
     # to track failures manually.  When a pipeline stage fails, we set the
     # corresponding entry to False so that it is ignored downstream.
-    success = len(images) * [True]
 
     ############################################################################
 
     dbdir = sysres.ensure_testdb_curvrank()
     ibs = ibeis.opendb(dbdir=dbdir)
 
-    # Preprocessing
-    # print('Preprocessing')
-    # resized_images, resized_masks, pre_transforms = [], [], []
-    # for i, _ in enumerate(images):
-    #     resized_image, resized_mask, pre_transform =\
-    #         F.preprocess_image(images[i], flips[i], height, width)
-
-    #     resized_images.append(resized_image)
-    #     resized_masks.append(resized_mask)
-    #     pre_transforms.append(pre_transform)
-
     print('Preprocessing')
-    imageset_rowid = ibs.get_imageset_imgsetids_from_text('database')
+    imageset_rowid = ibs.get_imageset_imgsetids_from_text(dataset_imageset_text)
     gid_list = ibs.get_imageset_gids(imageset_rowid)
+
+    aids_list = ibs.get_image_aids(gid_list)
+    aid_list = ut.flatten(aids_list)
+    names = ibs.get_annot_names(aid_list)
+
+    success = len(gid_list) * [True]
 
     if USE_DEPC:
         resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
@@ -107,7 +103,6 @@ def pipeline(images, names, flips, config=None):
                                                       loc_transforms, scale=scale)
         refined_localizations, refined_masks = values
 
-    import utool as ut
     ut.embed()
 
     # Segmentation
@@ -124,7 +119,7 @@ def pipeline(images, names, flips, config=None):
     # Keypoints
     print('Keypoints')
     starts, ends = [], []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         start, end = F.find_keypoints(
             find_dorsal_keypoints, segmentations[i], localized_masks[i])
         if start is None or end is None:
@@ -136,7 +131,7 @@ def pipeline(images, names, flips, config=None):
     # Extract Outline
     print('Extract Outline')
     outlines = []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         if success[i]:
             outline = F.extract_outline(
                 refined_localizations[i], refined_masks[i],
@@ -151,7 +146,7 @@ def pipeline(images, names, flips, config=None):
     # Separate Edges
     print('Separate Edges')
     trailing_edges = []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         if success[i]:
             _, trailing_edge = F.separate_edges(
                 separate_leading_trailing_edges, outlines[i])
@@ -164,7 +159,7 @@ def pipeline(images, names, flips, config=None):
     # Compute Curvature
     print('Compute Curvature')
     curvatures = []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         if success[i]:
             curvature = F.compute_curvature(
                 trailing_edges[i], scales, transpose_dims)
@@ -175,7 +170,7 @@ def pipeline(images, names, flips, config=None):
     # Compute Curvature Descriptors
     print('Compute Curvature Descriptors')
     feature_matrices_list = []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         if success[i]:
             feature_matrices = F.compute_curvature_descriptors(
                 curvatures[i], curv_length, scales,
@@ -186,7 +181,7 @@ def pipeline(images, names, flips, config=None):
 
     # Collect the images for which the pipeline was successful.
     valid_fmats, valid_names = [], []
-    for i, _ in enumerate(images):
+    for i, _ in enumerate(gid_list):
         if success[i]:
             valid_fmats.append(feature_matrices_list[i])
             valid_names.append(names[i])
@@ -212,42 +207,8 @@ def pipeline(images, names, flips, config=None):
 def example(output_path=None):
     assert exists(PATH)
 
-    db_dir = join(PATH, '..', '_images', 'db')
-
-    if output_path is None:
-        import utool as ut
-        output_path = abspath(join(PATH, '..', '_output'))
-        ut.ensuredir(output_path)
-        print('Using output_path=%r' % (output_path, ))
-
-    assert exists(db_dir)
-    db_fnames = [
-        '17874.JPG', '17541.JPG',
-        '23496.JPG', '25697.JPG',
-        '26929.JPG', '27516.JPG'
-    ]
-    # CurvRank only handles left-view images.  The pipeline uses this to flip
-    # right-view images.
-    db_sides = ['Right', 'Right', 'Right', 'Left', 'Right', 'Right']
-    qr_dir = join(PATH, '..', '_images', 'qr')
-    assert exists(qr_dir)
-    db_fpaths = [join(db_dir, f) for f in db_fnames]
-    # The names corresponding to the images in the database.
-    db_names = ['F272', 'F272', 'F274', 'F274', 'F276', 'F276']
-
-    # Two images from the same encounter to be used as a query.
-    qr_fnames = ['23441.JPG', '23442.JPG']
-    qr_sides = ['Right', 'Left']
-    qr_fpaths = [join(qr_dir, f) for f in qr_fnames]
-    # The individual is F272, but pretend we don't know it for the example.
-    qr_names = [None, None]
-
     print('Loading database images.')
-    db_images = [cv2.imread(db_fpath) for db_fpath in db_fpaths]
-    db_flips = [True if side == 'Right' else False for side in db_sides]
-
-    # Pass the database images through the pipeline.
-    db_lnbnn_data = pipeline(db_images, db_names, db_flips)
+    db_lnbnn_data = pipeline('database')
 
     # Build LNBNN index parameters.
     for s in db_lnbnn_data:
@@ -259,20 +220,16 @@ def example(output_path=None):
         F.build_lnbnn_index(D, index_fpath)
 
     print('Loading query images for one encounter.')
-    qr_images = [cv2.imread(qr_fpath) for qr_fpath in qr_fpaths]
-    qr_flips = [True if side == 'Right' else False for side in qr_sides]
-
     # Pass the query images through the pipeline.  It's okay not to know the
     # names, but all images must be of the same individual.
-    qr_lnbnn_data = pipeline(qr_images, qr_names, qr_flips)
+    qr_lnbnn_data = pipeline('query')
 
     # The neighbor index used to compute the norm. distance in LNBNN..
     k = 2
     # A name may appear in the database more than once, but we only want to
     # aggregate scores across all appearances of that name.
-    unique_db_names = np.unique(db_names)
-    agg_scores = {name: 0.0 for name in unique_db_names}
     # Run LNBNN identification for each scale independently and aggregate.
+    agg_scores = {}
     for s in qr_lnbnn_data:
         index_fpath = join(output_path, '%.3f.ann' % s)
         # Need the descriptor labels from the database for a query.
@@ -281,7 +238,11 @@ def example(output_path=None):
         D, _ = qr_lnbnn_data[s]
         scores = F.lnbnn_identify(index_fpath, k, D, N)
         for name in scores:
+            if name not in agg_scores:
+                agg_scores[name] = 0.0
             agg_scores[name] += scores[name]
+
+    unique_db_names = sorted(list(agg_scores.keys()))
 
     print('Results.')
     # More negative score => stronger evidence.

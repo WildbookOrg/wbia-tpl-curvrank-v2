@@ -393,6 +393,8 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
     viewpoint_list = [metadata.get('viewpoint', None) for metadata in metadata_list]
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
 
+    ut.embed()
+
     refined_localizations, refined_masks = [], []
     zipped = zip(localized_images, flip_list, pre_transforms, loc_transforms)
     for localized_image, flip, pre_transform, loc_transform in zipped:
