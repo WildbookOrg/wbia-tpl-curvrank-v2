@@ -250,7 +250,6 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         weight_filepath
     )
     localization_func = theano_funcs.create_localization_infer_func(layers)
-
     values = F.localize(resized_images, resized_masks, height, width, localization_func)
     localized_images, localized_masks, loc_transforms = values
 

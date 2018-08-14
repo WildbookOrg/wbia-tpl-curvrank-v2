@@ -10,7 +10,7 @@ import cv2
 
 PATH = split(abspath(__file__))[0]
 
-USE_DEPC = True
+USE_DEPC = False
 
 DEFAULT_HEIGHT = 256
 DEFAULT_WIDTH  = 256
@@ -94,8 +94,7 @@ def pipeline(images, names, flips, config=None):
         loc_transforms   = ibs.depc_image.get('localization', gid_list, 'transform', config=config)
     else:
         values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
-                                                        model_tag='localization',
-                                                        height=height, width=width)
+                                                        model_tag='localization')
         localized_images, localized_masks, loc_transforms = values
 
     # Refinement
