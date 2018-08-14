@@ -130,10 +130,10 @@ def refine_localization(fpath, side, scale, height, width,
                         output_targets):
     tpath = input1_targets[fpath]['transform'].path
     with open(tpath, 'rb') as f:
-        pre_transform = pickle.load(f)
+        pre_transform = pickle.load(f, encoding='latin1')
     lpath = input2_targets[fpath]['transform'].path
     with open(lpath, 'rb') as f:
-        loc_transform = pickle.load(f)
+        loc_transform = pickle.load(f, encoding='latin1')
 
     img_orig = cv2.imread(fpath)
     flip = side.lower() == 'right'
@@ -167,7 +167,7 @@ def find_keypoints(fpath, method,
 
     seg_fpath = input2_targets[fpath]['segmentation-data'].path
     with open(seg_fpath, 'rb') as f:
-        seg = pickle.load(f)
+        seg = pickle.load(f, encoding='latin1')
 
     #start, end = fluke_utils.find_keypoints(rsp)
     start, end = F.find_keypoints(method, seg, msk)
@@ -202,8 +202,8 @@ def extract_outline(fpath, scale, allow_diagonal, cost_func,
     key_fpath = input3_targets[fpath]['keypoints-coords']
     with seg_fpath.open('rb') as f1,\
             key_fpath.open('rb') as f2:
-        segm = pickle.load(f1)
-        (start, end) = pickle.load(f2)
+        segm = pickle.load(f1, encoding='latin1')
+        (start, end) = pickle.load(f2, encoding='latin1')
 
     if start is not None and end is not None:
         outline = F.extract_outline(
@@ -234,7 +234,7 @@ def separate_edges(fpath, method,
 
     rfn = cv2.imread(refinement_target.path)
     with open(outline_coords_target.path, 'rb') as f:
-        outline = pickle.load(f)
+        outline = pickle.load(f, encoding='latin1')
 
     # Two failure cases are possible:
     # (1) No outline exists, so no separation is possible.
@@ -278,7 +278,7 @@ def compute_curvature(fpath, scales, transpose_dims,
                       input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
-        trailing_edge = pickle.load(f)
+        trailing_edge = pickle.load(f, encoding='latin1')
 
     scales = np.array(scales)
     if trailing_edge is not None:
@@ -317,7 +317,7 @@ def compute_gauss_descriptors(fpath, scales,
                               input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
-        trailing_edge = pickle.load(f)
+        trailing_edge = pickle.load(f, encoding='latin1')
 
     descriptors = []
     if trailing_edge is not None:
@@ -478,7 +478,7 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
     qencs = input1_targets[qind].keys()
     for qenc in qencs:
         with input1_targets[qind][qenc].open('rb') as f:
-            result_dict = pickle.load(f)
+            result_dict = pickle.load(f, encoding='latin1')
         result_across_db = np.hstack([result_dict[dind] for dind in dindivs])
         indivs_across_db = np.hstack(
             [np.repeat(dind, len(db_dict[dind])) for dind in dindivs]

@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function
 from ibeis_curvrank import localization, model, segmentation, theano_funcs  # NOQA
 from ibeis_curvrank.dorsal_utils import dorsal_cost_func, find_dorsal_keypoints
 from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
-from os.path import abspath, exists, isfile, join, split
+from os.path import abspath, exists, join, split
 import ibeis_curvrank.functional as F
 import numpy as np
 import cv2
@@ -108,6 +108,9 @@ def pipeline(images, names, flips, config=None):
                                                       loc_transforms, scale=scale)
         refined_localizations, refined_masks = values
 
+    import utool as ut
+    ut.embed()
+
     # Segmentation
     print('Segmentation')
     if USE_DEPC:
@@ -202,6 +205,7 @@ def pipeline(images, names, flips, config=None):
 
         lnbnn_data[s] = (D, N)
         assert D.shape[0] == N.shape[0], 'D.shape[0] != N.shape[0]'
+        assert np.allclose(np.linalg.norm(D, axis=1), np.ones(D.shape[0]))
 
     return lnbnn_data
 
@@ -250,11 +254,10 @@ def example(output_path=None):
     for s in db_lnbnn_data:
         # NOTE: This mem-mapped file must be persistent across queries!
         index_fpath = join(output_path, '%.3f.ann' % s)
-        if not isfile(index_fpath):
-            # Only need the descriptors to build the index.  The labels are
-            # only used at inference time.
-            D, _ = db_lnbnn_data[s]
-            F.build_lnbnn_index(D, index_fpath)
+        # Only need the descriptors to build the index.  The labels are
+        # only used at inference time.
+        D, _ = db_lnbnn_data[s]
+        F.build_lnbnn_index(D, index_fpath)
 
     print('Loading query images for one encounter.')
     qr_images = [cv2.imread(qr_fpath) for qr_fpath in qr_fpaths]

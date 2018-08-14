@@ -1,0 +1,6 @@
+CC=g++
+CFLAGS=-O3 -Wall -shared -fpic
+SOURCES=astar.cpp
+OBJECTS=$(SOURCES:.cpp=.so)
+all:
+	$(CC) $(SOURCES) -o $(OBJECTS) $(CFLAGS)

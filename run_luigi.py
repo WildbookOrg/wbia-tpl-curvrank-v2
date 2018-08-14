@@ -71,7 +71,7 @@ class PrepareData(luigi.Task):
         if not exists(self.output()['csv'].path):
             self.run()
         with self.output()['pkl'].open('rb') as f:
-            return pickle.load(f)
+            return pickle.load(f, encoding='latin1')
 
 
 @inherits(PrepareData)
@@ -943,7 +943,7 @@ class SeparateDatabaseQueries(luigi.Task):
                           total=len(trailing_edge_filepaths), leave=False):
             trailing_edge_target = trailing_edge_dict[fpath]['trailing-coords']
             with open(trailing_edge_target.path, 'rb') as f:
-                trailing_edge = pickle.load(f)
+                trailing_edge = pickle.load(f, encoding='latin1')
             # no trailing edge could be extracted for this image
             if trailing_edge is None:
                 continue
@@ -1204,7 +1204,7 @@ class DescriptorsId(luigi.Task):
         # use the qr_dict to determine which encounters have not been quieried
         for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
             with qr_fpath_dict_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             for qind in qr_fpath_dict:
                 for qenc in qr_fpath_dict[qind]:
@@ -1250,7 +1250,7 @@ class DescriptorsId(luigi.Task):
             if not qr_fpath_dict_target.exists():
                 self.requires()['SeparateDatabaseQueries'].run()
             with qr_fpath_dict_target.open('rb') as f:
-                qr_curv_dict = pickle.load(f)
+                qr_curv_dict = pickle.load(f, encoding='latin1')
             eval_dict = {}
             for qind in qr_curv_dict:
                 if qind not in output:
@@ -1282,9 +1282,9 @@ class DescriptorsId(luigi.Task):
         for run_idx, (db_target, qr_target) in enumerate(
                 zip(db_targets, qr_targets)):
             with db_target.open('rb') as f:
-                db_fpath_dict = pickle.load(f)
+                db_fpath_dict = pickle.load(f, encoding='latin1')
             with qr_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             db_descs_list = [len(db_fpath_dict[ind]) for ind in db_fpath_dict]
             qr_descs_list = []
@@ -1428,7 +1428,7 @@ class TimeWarpingId(luigi.Task):
         # use the qr_dict to determine which encounters have not been queried
         for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
             with qr_fpath_dict_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             for qind in qr_fpath_dict:
                 for qenc in qr_fpath_dict[qind]:
@@ -1460,7 +1460,7 @@ class TimeWarpingId(luigi.Task):
                 self.requires()['SeparateDatabaseQueries'].run()
             # query dict tells us which encounters become result objects
             with qr_fpath_dict_target.open('rb') as f:
-                qr_curv_dict = pickle.load(f)
+                qr_curv_dict = pickle.load(f, encoding='latin1')
             eval_dict = {}
             for qind in qr_curv_dict:
                 if qind not in output:
@@ -1521,9 +1521,9 @@ class TimeWarpingId(luigi.Task):
         for run_idx, (db_target, qr_target) in enumerate(
                 zip(db_targets, qr_targets)):
             with db_target.open('rb') as f:
-                db_fpath_dict = pickle.load(f)
+                db_fpath_dict = pickle.load(f, encoding='latin1')
             with qr_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             db_curv_dict = {}
             num_db_curvs = np.sum(
@@ -1627,7 +1627,7 @@ class HotSpotterId(luigi.Task):
         # use the qr_dict to determine which encounters have not been quieried
         for i, qr_fpath_dict_target in enumerate(qr_fpath_dict_targets):
             with qr_fpath_dict_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             for qind in qr_fpath_dict:
                 for qenc in qr_fpath_dict[qind]:
@@ -1658,7 +1658,7 @@ class HotSpotterId(luigi.Task):
             if not qr_fpath_dict_target.exists():
                 self.requires()['SeparateDatabaseQueries'].run()
             with qr_fpath_dict_target.open('rb') as f:
-                qr_curv_dict = pickle.load(f)
+                qr_curv_dict = pickle.load(f, encoding='latin1')
             eval_dict = {}
             for qind in qr_curv_dict:
                 if qind not in output:
@@ -1688,9 +1688,9 @@ class HotSpotterId(luigi.Task):
                 zip(db_targets, qr_targets)):
             image_list, name_list, db_qr_list = [], [], []
             with db_target.open('rb') as f:
-                db_fpath_dict = pickle.load(f)
+                db_fpath_dict = pickle.load(f, encoding='latin1')
             with qr_target.open('rb') as f:
-                qr_fpath_dict = pickle.load(f)
+                qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             qr_enc_list = []
             for ind in qr_fpath_dict:
@@ -1809,7 +1809,7 @@ class TimeWarpingResults(luigi.Task):
         t_start = time()
         for run_idx in range(self.runs):
             with db_qr_output['database'][run_idx].open('rb') as f:
-                db_dict = pickle.load(f)
+                db_dict = pickle.load(f, encoding='latin1')
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
@@ -1820,7 +1820,7 @@ class TimeWarpingResults(luigi.Task):
                 for qind in tqdm(qind_eval_targets, leave=False):
                     for qenc in qind_eval_targets[qind]:
                         with qind_eval_targets[qind][qenc].open('rb') as f1:
-                            result_dict = pickle.load(f1)
+                            result_dict = pickle.load(f1, encoding='latin1')
                         scores = np.zeros(len(db_indivs), dtype=np.float32)
                         for i, dind in enumerate(db_indivs):
                             result_matrix = result_dict[dind]
@@ -1948,7 +1948,7 @@ class DescriptorsResults(luigi.Task):
         t_start = time()
         for run_idx in range(self.runs):
             with db_qr_output['database'][run_idx].open('rb') as f:
-                db_dict = pickle.load(f)
+                db_dict = pickle.load(f, encoding='latin1')
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
@@ -1959,7 +1959,7 @@ class DescriptorsResults(luigi.Task):
                 for qind in tqdm(qind_eval_targets, leave=False):
                     for qenc in qind_eval_targets[qind]:
                         with qind_eval_targets[qind][qenc].open('rb') as f1:
-                            result_dict = pickle.load(f1)
+                            result_dict = pickle.load(f1, encoding='latin1')
                         scores = np.zeros(len(db_indivs), dtype=np.float32)
                         for i, dind in enumerate(db_indivs):
                             result_matrix = result_dict[dind]
@@ -2084,7 +2084,7 @@ class HotSpotterResults(luigi.Task):
         t_start = time()
         for run_idx in range(self.runs):
             with db_qr_output['database'][run_idx].open('rb') as f:
-                db_dict = pickle.load(f)
+                db_dict = pickle.load(f, encoding='latin1')
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
@@ -2095,7 +2095,7 @@ class HotSpotterResults(luigi.Task):
                 for qind in tqdm(qind_eval_targets, leave=False):
                     for qenc in qind_eval_targets[qind]:
                         with qind_eval_targets[qind][qenc].open('rb') as f1:
-                            result_dict = pickle.load(f1)
+                            result_dict = pickle.load(f1, encoding='latin1')
                         scores = np.zeros(len(db_indivs), dtype=np.float32)
                         for i, dind in enumerate(db_indivs):
                             result_matrix = np.min(result_dict[dind])
@@ -2277,9 +2277,9 @@ class VisualizeMisidentifications(luigi.Task):
         db_qr_targets = self.requires()['SeparateDatabaseQueries'].output()
         block_curv_targets = self.requires()['BlockCurvature'].output()
         with db_qr_targets['database'].open('rb') as f:
-            db_dict = pickle.load(f)
+            db_dict = pickle.load(f, encoding='latin1')
         with db_qr_targets['queries'].open('rb') as f:
-            qr_dict = pickle.load(f)
+            qr_dict = pickle.load(f, encoding='latin1')
 
         evaluation_targets = self.requires()['TimeWarpingId'].output()
         qindivs = evaluation_targets.keys()
