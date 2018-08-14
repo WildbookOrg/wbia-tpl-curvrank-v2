@@ -14,6 +14,7 @@ USE_DEPC = True
 
 DEFAULT_HEIGHT = 256
 DEFAULT_WIDTH  = 256
+DEFAULT_SCALE  = 4
 
 DEFAULT_CONFIG = {
     'preprocess_height': DEFAULT_HEIGHT,
@@ -21,6 +22,7 @@ DEFAULT_CONFIG = {
     'localization_model_tag': 'localization',
     'localization_height'   : DEFAULT_HEIGHT,
     'localization_width'    : DEFAULT_WIDTH,
+    'curvrank_scale' : DEFAULT_SCALE,
 }
 
 
@@ -36,7 +38,7 @@ def pipeline(images, names, flips, config=None):
 
     # General parameters
     height, width = 256, 256
-    scale = 4
+    scale = DEFAULT_SCALE
 
     # A* parameters
     cost_func = dorsal_cost_func
@@ -98,17 +100,31 @@ def pipeline(images, names, flips, config=None):
         localized_images, localized_masks, loc_transforms = values
 
     # Refinement
-    print('Refinement')
-    refined_localizations, refined_masks = [], []
-    for i, _ in enumerate(images):
-        refined_localization, refined_mask = F.refine_localization(
-            localized_images[i], flips[i],
-            pre_transforms[i], loc_transforms[i],
-            scale, height, width
-        )
+    # print('Refinement')
+    # refined_localizations, refined_masks = [], []
+    # for i, _ in enumerate(images):
+    #     refined_localization, refined_mask = F.refine_localization(
+    #         localized_images[i], flips[i],
+    #         pre_transforms[i], loc_transforms[i],
+    #         scale, height, width
+    #     )
 
-        refined_localizations.append(refined_localization)
-        refined_masks.append(refined_mask)
+    #     refined_localizations.append(refined_localization)
+    #     refined_masks.append(refined_mask)
+    # import utool as ut
+    # ut.embed()
+    # Refinement
+    print('Refinement')
+    from _plugin import _convert_np_type
+    if USE_DEPC:
+        refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
+        refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img',    config=config)
+        refined_localizations = _convert_np_type(refined_localizations, np.float32, around=False)
+        refined_masks         = _convert_np_type(refined_masks, np.float32, around=False)
+    else:
+        values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images, pre_transforms,
+                                                      loc_transforms, scale=scale)
+        refined_localizations, refined_masks = values
 
     # Segmentation
     print('Segmentation')
@@ -158,7 +174,7 @@ def pipeline(images, names, flips, config=None):
     for i, _ in enumerate(images):
         if success[i]:
             _, trailing_edge = F.separate_edges(
-                separate_leading_trailing_edges, outline)
+                separate_leading_trailing_edges, outlines[i])
             if trailing_edge is None:
                 success[i] = None
         else:
@@ -182,7 +198,7 @@ def pipeline(images, names, flips, config=None):
     for i, _ in enumerate(images):
         if success[i]:
             feature_matrices = F.compute_curvature_descriptors(
-                curvature, curv_length, scales,
+                curvatures[i], curv_length, scales,
                 num_keypoints, uniform, feat_dim)
         else:
             feature_matrices = None
