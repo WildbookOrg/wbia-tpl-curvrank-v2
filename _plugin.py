@@ -245,12 +245,6 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
                         localization_func)
     localized_images, localized_masks, loc_transforms = values
 
-    # Convert these to uint8 for compatibility with depc
-    localized_masks = [
-        np.around(localized_mask).astype(np.uint8)
-        for localized_mask in localized_masks
-    ]
-
     assert np.all([
         localized_image.shape == resized_image.shape
         for localized_image, resized_image in zip(localized_images, resized_images)
@@ -326,6 +320,8 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
                                                     model_tag=model_tag)
     localized_images, localized_masks, loc_transforms = values
+    # Convert these to uint8 for compatibility with depc
+    localized_masks = _convert_np_type(localized_masks)
 
     # yield each column defined in register_preproc_image
     zipped = zip(localized_images, localized_masks, loc_transforms)
@@ -406,16 +402,6 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         refined_localizations.append(refined_localization)
         refined_masks.append(refined_mask)
 
-    refined_localizations = [
-        np.around(refined_localization_).astype(np.uint8)
-        for refined_localization_ in refined_localizations
-    ]
-
-    refined_masks = [
-        np.around(refined_mask_).astype(np.uint8)
-        for refined_mask_ in refined_masks
-    ]
-
     return refined_localizations, refined_masks
 
 
@@ -438,14 +424,14 @@ class RefinementConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_refinement_depc(depc, preprocess_rowid_list, config=None):
+def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list, preprocess_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement_depc
 
-    Example1:
+    Example:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> import ibeis
@@ -464,20 +450,23 @@ def ibeis_plugin_curvrank_refinement_depc(depc, preprocess_rowid_list, config=No
         >>> refined_image  = refined_images[0]
         >>> refined_mask   = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_image) in ['fwjorhantaihpnlptakncuwrbivsnogr', 'fzkyfatzmcqwwpynqotemyddqnazssqv']
+        >>> assert ut.hash_data(refined_image) in ['rypwxyqahlsushzsajsshlihietoztub', 'fzkyfatzmcqwwpynqotemyddqnazssqv']
         >>> assert ut.hash_data(refined_mask)   == 'hkmcmpbfuvhwdynhcedlxvtemiumhvmx'
     """
 
     ibs = depc.controller
     scale = config['curvrank_scale']
 
-    localized_images = depc.get_native('localization', preprocess_rowid_list, 'localized_img')
-    pre_transforms = depc.get_native('preprocess', preprocess_rowid_list, 'pretransform')
-    loc_transforms = depc.get_native('localization', preprocess_rowid_list, 'transform')
+    localized_images = depc.get_native('localization', localization_rowid_list, 'localized_img')
+    loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
+    pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
     values = ibs.ibeis_plugin_curvrank_refinement(preprocess_rowid_list, localized_images,
                                                   pre_transforms, loc_transforms, scale)
     refined_localizations, refined_masks = values
+    refined_localizations = _convert_np_type(refined_localizations)
+    refined_masks = _convert_np_type(refined_masks)
+
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
         height, width = refined_localization[0].shape[:2]
         yield (
@@ -488,6 +477,17 @@ def ibeis_plugin_curvrank_refinement_depc(depc, preprocess_rowid_list, config=No
             width,
             height
         )
+
+
+def _convert_np_type(image_list, new_np_type=np.uint8, around=True):
+    image_list_ = []
+    for image in image_list:
+        if around:
+            image = np.around(image)
+        image = image.astype(new_np_type)
+        image_list_.append(image)
+
+    return image_list_
 
 
 if __name__ == '__main__':
