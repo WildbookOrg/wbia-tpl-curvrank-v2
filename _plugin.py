@@ -29,24 +29,16 @@ URL_DICT = {
 #     return image_list_
 
 
+def _assert_hashes(data, hash_list, tag='data'):
+    data_hash = ut.hash_data(data)
+    print('ut.hash_data(%s) = %r' % (tag, data_hash, ))
+    assert data_hash in hash_list
+
+
 @register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
     from ibeis_curvrank.example_workflow import example
     example()
-
-
-@register_ibs_method
-def ibeis_plugin_curvrank_aids(ibs, aid_list):
-
-    results_list = []
-
-    return results_list
-
-
-@register_ibs_method
-def ibeis_plugin_curvrank(ibs, image_filepath_list, name_list, flip_list):
-    results_list = []
-    return results_list
 
 
 class PreprocessConfig(dtool.Config):

@@ -17,12 +17,11 @@ DEFAULT_WIDTH  = 256
 DEFAULT_SCALE  = 4
 
 DEFAULT_CONFIG = {
-    'preprocess_height': DEFAULT_HEIGHT,
-    'preprocess_width': DEFAULT_WIDTH,
-    'localization_model_tag': 'localization',
-    'localization_height'   : DEFAULT_HEIGHT,
-    'localization_width'    : DEFAULT_WIDTH,
-    'curvrank_scale' : DEFAULT_SCALE,
+    'preprocess_height'      : DEFAULT_HEIGHT,
+    'preprocess_width'       : DEFAULT_WIDTH,
+    'localization_model_tag' : 'localization',
+    'segmentation_model_tag' : 'segmentation',
+    'curvrank_scale'         : DEFAULT_SCALE,
 }
 
 
@@ -100,20 +99,6 @@ def pipeline(images, names, flips, config=None):
         localized_images, localized_masks, loc_transforms = values
 
     # Refinement
-    # print('Refinement')
-    # refined_localizations, refined_masks = [], []
-    # for i, _ in enumerate(images):
-    #     refined_localization, refined_mask = F.refine_localization(
-    #         localized_images[i], flips[i],
-    #         pre_transforms[i], loc_transforms[i],
-    #         scale, height, width
-    #     )
-
-    #     refined_localizations.append(refined_localization)
-    #     refined_masks.append(refined_mask)
-    # import utool as ut
-    # ut.embed()
-    # Refinement
     print('Refinement')
     if USE_DEPC:
         refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
@@ -125,17 +110,13 @@ def pipeline(images, names, flips, config=None):
 
     # Segmentation
     print('Segmentation')
-    segmentation_layers =\
-        segmentation.build_model_batchnorm_full((None, 3, height, width))
-
-    segmentation_weightsfile = join(PATH, '..', '_weights', 'weights_segmentation.pickle')
-    model.load_weights(segmentation_layers['seg_out'],
-                       segmentation_weightsfile)
-    segmentation_func = theano_funcs.create_segmentation_func(
-        segmentation_layers)
-    segmentations, refined_segmentations = F.segment_contour(
-        refined_localizations, refined_masks, scale, height, width,
-        segmentation_func)
+    if USE_DEPC:
+        segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img',         config=config)
+        refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
+    else:
+        values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks,
+                                                        scale=scale, model_tag='segmentation')
+        segmentations, refined_segmentations = values
 
     # NOTE: Tasks downstream from here may fail!  Need to check status.
     # Keypoints
