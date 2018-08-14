@@ -227,9 +227,7 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> print('ut.hash_data(localized_image) = %r' % (ut.hash_data(localized_image), ))
-        >>> print('ut.hash_data(localized_mask)  = %r' % (ut.hash_data(localized_mask), ))
-        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh']
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
         >>> assert ut.hash_data(localized_mask)  in ['pzzhgfsbhcsayowiwusjjekzlxaxbrpu']
         >>> # for above reasons, some voodoo to compare loc_transform
         >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
@@ -319,9 +317,7 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> print('ut.hash_data(localized_image) = %r' % (ut.hash_data(localized_image), ))
-        >>> print('ut.hash_data(localized_mask)  = %r' % (ut.hash_data(localized_mask), ))
-        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh']
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
         >>> assert ut.hash_data(localized_mask)  in ['pzzhgfsbhcsayowiwusjjekzlxaxbrpu']
         >>> # for above reasons, some voodoo to compare loc_transform
         >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
@@ -397,9 +393,7 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> print('ut.hash_data(refined_localization) = %r' % (ut.hash_data(refined_localization), ))
-        >>> print('ut.hash_data(refined_mask)         = %r' % (ut.hash_data(refined_mask), ))
-        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb']
+        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb', 'fwjorhantaihpnlptakncuwrbivsnogr']
         >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
     """
     import ibeis_curvrank.functional as F
@@ -467,9 +461,7 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list, preproc
         >>> refined_localization  = refined_localizations[0]
         >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> print('ut.hash_data(refined_localization) = %r' % (ut.hash_data(refined_localization), ))
-        >>> print('ut.hash_data(refined_mask)         = %r' % (ut.hash_data(refined_mask), ))
-        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb']
+        >>> assert ut.hash_data(refined_localization) in ['fwjorhantaihpnlptakncuwrbivsnogr', 'hslglhazpolotapwmpjyymjprtidgusb']
         >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
     """
     ibs = depc.controller
@@ -535,10 +527,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
-        >>> print('ut.hash_data(segmentation)         = %r' % (ut.hash_data(segmentation), ))
-        >>> print('ut.hash_data(refined_segmentation) = %r' % (ut.hash_data(refined_segmentation), ))
-        >>> assert ut.hash_data(segmentation)         in ['ciruuvnvemwjfmfoermdvixdenkfiwbl']
-        >>> assert ut.hash_data(refined_segmentation) in ['whbqxdumhmtzvxprfsqkhtdqimzxcdui']
+        >>> assert ut.hash_data(segmentation)         in ['pislgcxekvrzeabsyfbksycesellsldw', 'ciruuvnvemwjfmfoermdvixdenkfiwbl']
+        >>> assert ut.hash_data(refined_segmentation) in ['fropddwbykfltfjdqqsjvqoadmqwxszk', 'whbqxdumhmtzvxprfsqkhtdqimzxcdui']
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank import segmentation, model, theano_funcs
@@ -608,10 +598,8 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
         >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
         >>> segmentation           = segmentations[0]
         >>> refined_segmentation   = refined_segmentations[0]
-        >>> print('ut.hash_data(segmentation)         = %r' % (ut.hash_data(segmentation), ))
-        >>> print('ut.hash_data(refined_segmentation) = %r' % (ut.hash_data(refined_segmentation), ))
-        >>> assert ut.hash_data(segmentation)         in ['ciruuvnvemwjfmfoermdvixdenkfiwbl']
-        >>> assert ut.hash_data(refined_segmentation) in ['whbqxdumhmtzvxprfsqkhtdqimzxcdui']
+        >>> assert ut.hash_data(segmentation)         in ['pislgcxekvrzeabsyfbksycesellsldw', 'ciruuvnvemwjfmfoermdvixdenkfiwbl']
+        >>> assert ut.hash_data(refined_segmentation) in ['fropddwbykfltfjdqqsjvqoadmqwxszk', 'whbqxdumhmtzvxprfsqkhtdqimzxcdui']
     """
     ibs = depc.controller
 
