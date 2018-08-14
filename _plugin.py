@@ -18,6 +18,17 @@ URL_DICT = {
 }
 
 
+# def _convert_np_type(image_list, new_np_type=np.uint8, around=True):
+#     image_list_ = []
+#     for image in image_list:
+#         if around:
+#             image = np.around(image)
+#         image = image.astype(new_np_type)
+#         image_list_.append(image)
+
+#     return image_list_
+
+
 @register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
     from ibeis_curvrank.example_workflow import example
@@ -43,14 +54,14 @@ class PreprocessConfig(dtool.Config):
         return [
             ut.ParamInfo('preprocess_height', 256),
             ut.ParamInfo('preprocess_width', 256),
-            ut.ParamInfo('ext', '.png', hideif='.png'),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_image(
     tablename='preprocess', parents=['images'],
     colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
-    coltypes=[('extern', vt.imread, vt.imwrite), int, int, ('extern', ut.partial(vt.imread, grayscale=True), vt.imwrite), int, int, np.ndarray],
+    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
     configclass=PreprocessConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
@@ -86,8 +97,8 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
-        >>> assert ut.hash_data(resized_mask)  == 'mnhartnytowmmhskblocubqmzhbofynr'
+        >>> assert ut.hash_data(resized_image) in ['ynbsgqgfutslspmatpenvcbtgedsyzoo']
+        >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
         >>> result = pre_transform
         >>> print(result)
         [[ 0.11077456  0.          0.        ]
@@ -147,8 +158,8 @@ def ibeis_plugin_curvrank_preprocessing(ibs, gid_list, height=256, width=256):
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) == 'ynbsgqgfutslspmatpenvcbtgedsyzoo'
-        >>> assert ut.hash_data(resized_mask) == 'mnhartnytowmmhskblocubqmzhbofynr'
+        >>> assert ut.hash_data(resized_image) in ['ynbsgqgfutslspmatpenvcbtgedsyzoo']
+        >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
         >>> result = pre_transform
         >>> print(result)
         [[ 0.11077456  0.          0.        ]
@@ -212,8 +223,8 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
-        >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh']
+        >>> assert ut.hash_data(localized_mask)  in ['pzzhgfsbhcsayowiwusjjekzlxaxbrpu']
         >>> # for above reasons, some voodoo to compare loc_transform
         >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
         >>>                                  [-0.12531438,  0.63420326, -0.00189855],
@@ -235,14 +246,16 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     ])
 
     layers = localization.build_model((None, 3, height, width))
-    model.load_weights([
-        layers['trans'], layers['loc']],
+    model.load_weights(
+        [
+            layers['trans'],
+            layers['loc']
+        ],
         weight_filepath
     )
     localization_func = theano_funcs.create_localization_infer_func(layers)
 
-    values = F.localize(resized_images, resized_masks, height, width,
-                        localization_func)
+    values = F.localize(resized_images, resized_masks, height, width, localization_func)
     localized_images, localized_masks, loc_transforms = values
 
     assert np.all([
@@ -257,14 +270,14 @@ class LocalizationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
             ut.ParamInfo('localization_model_tag', 'localization'),
-            ut.ParamInfo('ext', '.png', hideif='.png'),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_image(
     tablename='localization', parents=['preprocess'],
     colnames=['localized_img', 'localized_width', 'localized_height', 'mask_img', 'mask_width', 'mask_height', 'transform'],
-    coltypes=[('extern', vt.imread, vt.imwrite), int, int, ('extern', ut.partial(vt.imread, grayscale=True), vt.imwrite), int, int, np.ndarray],
+    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
     configclass=LocalizationConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
@@ -300,8 +313,8 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
-        >>> assert ut.hash_data(localized_mask)  == 'jhoiquabhpowhrsjkgpvsymnwbpqnvaw'
+        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh']
+        >>> assert ut.hash_data(localized_mask)  in ['pzzhgfsbhcsayowiwusjjekzlxaxbrpu']
         >>> # for above reasons, some voodoo to compare loc_transform
         >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
         >>>                                  [-0.12531438,  0.63420326, -0.00189855],
@@ -320,8 +333,6 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
                                                     model_tag=model_tag)
     localized_images, localized_masks, loc_transforms = values
-    # Convert these to uint8 for compatibility with depc
-    localized_masks = _convert_np_type(localized_masks)
 
     # yield each column defined in register_preproc_image
     zipped = zip(localized_images, localized_masks, loc_transforms)
@@ -378,11 +389,9 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_localization) in ['rypwxyqahlsushzsajsshlihietoztub', 'fzkyfatzmcqwwpynqotemyddqnazssqv']
-        >>> # OK question: why did my refined localizations change from hashing to fwjorhantaihpnlptakncuwrbivsnogr to rypwxyqahlsushzsajsshlihietoztub? -drew
-        >>> assert ut.hash_data(refined_mask)         == 'hkmcmpbfuvhwdynhcedlxvtemiumhvmx'
+        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb']
+        >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
     """
-
     import ibeis_curvrank.functional as F
 
     metadata_list = ibs.get_image_metadata(gid_list)
@@ -407,14 +416,14 @@ class RefinementConfig(dtool.Config):
     def get_param_info_list(self):
         return [
             ut.ParamInfo('curvrank_scale', 4),
-            ut.ParamInfo('ext', '.png', hideif='.png'),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_image(
     tablename='refinement', parents=['localization', 'preprocess'],
     colnames=['refined_img', 'refined_width', 'refined_height', 'mask_img', 'mask_width', 'mask_height'],
-    coltypes=[('extern', vt.imread, vt.imwrite), int, int, ('extern', ut.partial(vt.imread, grayscale=True), vt.imwrite), int, int],
+    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
     configclass=RefinementConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
@@ -443,15 +452,14 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list, preproc
         >>>     'localization_model_tag': 'localization',
         >>>     'curvrank_scale': 4
         >>> }
-        >>> refined_images = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
-        >>> refined_masks  = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=config)
-        >>> refined_image  = refined_images[0]
-        >>> refined_mask   = refined_masks[0]
+        >>> refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
+        >>> refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=config)
+        >>> refined_localization  = refined_localizations[0]
+        >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_image) in ['rypwxyqahlsushzsajsshlihietoztub', 'fzkyfatzmcqwwpynqotemyddqnazssqv']
-        >>> assert ut.hash_data(refined_mask)   == 'hkmcmpbfuvhwdynhcedlxvtemiumhvmx'
+        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb']
+        >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
     """
-
     ibs = depc.controller
     scale = config['curvrank_scale']
 
@@ -462,18 +470,17 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list, preproc
     values = ibs.ibeis_plugin_curvrank_refinement(preprocess_rowid_list, localized_images,
                                                   pre_transforms, loc_transforms, scale)
     refined_localizations, refined_masks = values
-    refined_localizations = _convert_np_type(refined_localizations)
-    refined_masks = _convert_np_type(refined_masks)
 
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
-        height, width = refined_localization[0].shape[:2]
+        refined_localization_height, refined_localization_width = refined_localization.shape[:2]
+        refined_mask_height, refined_mask_width = refined_mask.shape[:2]
         yield (
             refined_localization,
-            width,
-            height,
+            refined_localization_width,
+            refined_localization_height,
             refined_mask,
-            width,
-            height
+            refined_mask_width,
+            refined_mask_height
         )
 
 
@@ -516,9 +523,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation) == 'pislgcxekvrzeabsyfbksycesellsldw'
-        >>> assert ut.hash_data(refined_segmentation) == 'fropddwbykfltfjdqqsjvqoadmqwxszk'
-        >>> ut.embed()
+        >>> assert ut.hash_data(segmentation) in ['ciruuvnvemwjfmfoermdvixdenkfiwbl']
+        >>> assert ut.hash_data(refined_segmentation) in ['whbqxdumhmtzvxprfsqkhtdqimzxcdui']
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank import segmentation, model, theano_funcs
@@ -532,14 +538,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
     height = height // scale
     width  = width  // scale
 
-    # TODO: do we need to check that all localizations have same height/weight?
-
-    segmentation_layers =\
-        segmentation.build_model_batchnorm_full((None, 3, height, width))
+    segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
 
     # I am not sure these are the correct args to load_weights
-    model.load_weights(segmentation_layers['seg_out'],
-                       weight_filepath)
+    model.load_weights(segmentation_layers['seg_out'], weight_filepath)
     segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
     values = F.segment_contour(refined_localizations, refined_masks, scale,
                                height, width, segmentation_func)
@@ -547,15 +549,80 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
     return segmentations, refined_segmentations
 
 
-def _convert_np_type(image_list, new_np_type=np.uint8, around=True):
-    image_list_ = []
-    for image in image_list:
-        if around:
-            image = np.around(image)
-        image = image.astype(new_np_type)
-        image_list_.append(image)
+class SegmentationConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('segmentation_model_tag', 'segmentation'),
+            ut.ParamInfo('curvrank_scale', 4),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
+        ]
 
-    return image_list_
+
+@register_preproc_image(
+    tablename='segmentation', parents=['refinement'],
+    colnames=['segmentations_img', 'refined_width', 'refined_height', 'refined_segmentations_img', 'refined_segmentations_width', 'refined_segmentations_height'],
+    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
+    configclass=SegmentationConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> config = {
+        >>>     'preprocess_height': 256,
+        >>>     'preprocess_width': 256,
+        >>>     'localization_model_tag': 'localization',
+        >>>     'curvrank_scale': 4
+        >>> }
+        >>> segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img', config=config)
+        >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
+        >>> segmentation           = segmentations[0]
+        >>> refined_segmentation   = refined_segmentations[0]
+        >>> assert ut.hash_data(segmentation) in ['ciruuvnvemwjfmfoermdvixdenkfiwbl']
+        >>> assert ut.hash_data(refined_segmentation) in ['whbqxdumhmtzvxprfsqkhtdqimzxcdui']
+    """
+    ibs = depc.controller
+
+    print(config)
+
+    scale = config['curvrank_scale']
+    model_tag = config['segmentation_model_tag']
+
+    refined_localizations = depc.get_native('refinement', refinement_rowid_list, 'refined_img')
+    refined_masks         = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
+
+    values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks,
+                                                    scale=scale, model_tag=model_tag)
+    segmentations, refined_segmentations = values
+
+    for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
+        segmentation_height, segmentation_width = segmentation.shape[:2]
+        refined_segmentation_height, refined_segmentation_width = refined_segmentation.shape[:2]
+
+        yield (
+            segmentation,
+            segmentation_width,
+            segmentation_height,
+            refined_segmentation,
+            refined_segmentation_width,
+            refined_segmentation_height,
+        )
 
 
 if __name__ == '__main__':

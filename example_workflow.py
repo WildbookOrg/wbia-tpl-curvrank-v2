@@ -115,12 +115,9 @@ def pipeline(images, names, flips, config=None):
     # ut.embed()
     # Refinement
     print('Refinement')
-    from _plugin import _convert_np_type
     if USE_DEPC:
         refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
         refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img',    config=config)
-        refined_localizations = _convert_np_type(refined_localizations, np.float32, around=False)
-        refined_masks         = _convert_np_type(refined_masks, np.float32, around=False)
     else:
         values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images, pre_transforms,
                                                       loc_transforms, scale=scale)
