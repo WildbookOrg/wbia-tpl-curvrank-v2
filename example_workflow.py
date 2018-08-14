@@ -75,6 +75,9 @@ def pipeline(images, names, flips):
         refined_localizations.append(refined_localization)
         refined_masks.append(refined_mask)
 
+    import utool as ut
+    ut.embed()
+
     # Segmentation
     print('Segmentation')
     segmentation_layers =\
@@ -163,7 +166,7 @@ def pipeline(images, names, flips):
     # Aggregate the feature matrices.  Each descriptor is labeled with the
     # name of the individual from which it was taken, or None if unknown.
     lnbnn_data = {}
-    fmats_by_scale = zip(*valid_fmats)
+    fmats_by_scale = list(zip(*valid_fmats))
     for i, s in enumerate(scales):
         N = np.hstack([
             [name] * fmat.shape[0]

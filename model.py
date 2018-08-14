@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import numpy as np
 from lasagne.layers import get_all_params
 from lasagne.layers import count_params
@@ -12,7 +12,7 @@ def save_weights(weights, filename):
 
 def load_weights(layer, filename):
     with open(filename, 'rb') as f:
-        src_params_list = pickle.load(f)
+        src_params_list = pickle.load(f, encoding='latin1')
 
     dst_params_list = get_all_params(layer)
     # assign the parameter values stored on disk to the model
