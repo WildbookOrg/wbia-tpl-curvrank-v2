@@ -10,6 +10,28 @@ register_preproc_image = controller_inject.register_preprocs['image']
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
 
+DEFAULT_WIDTH  = 256
+DEFAULT_HEIGHT = 256
+DEFAULT_SCALE  = 4
+DEFAULT_SCALES = np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32)
+
+
+DEFAULT_TEST_CONFIG = {
+    'curvrank_height'                   : DEFAULT_WIDTH,
+    'curvrank_width'                    : DEFAULT_HEIGHT,
+    'curvrank_scale'                    : DEFAULT_SCALE,
+    'localization_model_tag'            : 'localization',
+    'segmentation_model_tag'            : 'segmentation',
+    'outline_allow_diagonal'            : False,
+    'curvature_scales'                  : DEFAULT_SCALES,
+    'curvatute_transpose_dims'          : False,
+    'curvature_descriptor_curv_length'  : 1024,
+    'curvature_descriptor_num_keypoints': 32,
+    'curvature_descriptor_uniform'      : False,
+    'curvature_descriptor_feat_dim'     : 32,
+}
+
+
 def zip_coords(ys, xs):
     return np.array(list(zip(ys, xs)))
 
@@ -62,13 +84,9 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_width': 256,
-        >>> }
-        >>> resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
-        >>> resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
-        >>> pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=config)
+        >>> resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=DEFAULT_TEST_CONFIG)
+        >>> resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
+        >>> pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=DEFAULT_TEST_CONFIG)
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
@@ -140,14 +158,9 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_width': 256,
-        >>>     'curvrank_height': 256,
-        >>>     'localization_model_tag': 'localization',
-        >>> }
-        >>> localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img',  config=config)
-        >>> localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',     config=config)
-        >>> loc_transforms = ibs.depc_image.get('localization', gid_list, 'transform', config=config)
+        >>> localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img',  config=DEFAULT_TEST_CONFIG)
+        >>> localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
+        >>> loc_transforms = ibs.depc_image.get('localization', gid_list, 'transform', config=DEFAULT_TEST_CONFIG)
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
@@ -228,14 +241,8 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_width':  256,
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_scale': 4,
-        >>>     'localization_model_tag': 'localization',
-        >>> }
-        >>> refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
-        >>> refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=config)
+        >>> refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=DEFAULT_TEST_CONFIG)
+        >>> refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=DEFAULT_TEST_CONFIG)
         >>> refined_localization  = refined_localizations[0]
         >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
@@ -307,14 +314,8 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_width': 256,
-        >>>     'curvrank_scale': 4,
-        >>>     'localization_model_tag': 'localization',
-        >>> }
-        >>> segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img', config=config)
-        >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
+        >>> segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img', config=DEFAULT_TEST_CONFIG)
+        >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=DEFAULT_TEST_CONFIG)
         >>> segmentation           = segmentations[0]
         >>> refined_segmentation   = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['vbmvokttgelinljiiqbmhhxehgcwnjxe', 'wnfimwthormmytbumjnqrhjbsfjccksy']
@@ -380,13 +381,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_width': 256,
-        >>>     'curvrank_scale': 4,
-        >>>     'localization_model_tag': 'localization',
-        >>> }
-        >>> values = ibs.depc_image.get('keypoints', gid_list, None, config=config)
+        >>> values = ibs.depc_image.get('keypoints', gid_list, None, config=DEFAULT_TEST_CONFIG)
         >>> success, start_y, start_x, end_y, end_x = values[0]
         >>> assert success
         >>> assert (start_y, start_x) == (204, 1)
@@ -444,15 +439,8 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_width': 256,
-        >>>     'curvrank_scale': 4,
-        >>>     'localization_model_tag': 'localization',
-        >>>     'outline_allow_diagonal': False
-        >>> }
-        >>> success_list = ibs.depc_image.get('outline', gid_list, 'success', config=config)
-        >>> outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=config)
+        >>> success_list = ibs.depc_image.get('outline', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=DEFAULT_TEST_CONFIG)
         >>> outline = outlines[0]
         >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
         >>> assert success_list == [True]
@@ -510,15 +498,8 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> config = {
-        >>>     'curvrank_height': 256,
-        >>>     'curvrank_width': 256,
-        >>>     'curvrank_scale': 4,
-        >>>     'localization_model_tag': 'localization',
-        >>>     'outline_allow_diagonal': False
-        >>> }
-        >>> success_list = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=config)
-        >>> trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=config)
+        >>> success_list = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=DEFAULT_TEST_CONFIG)
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(trailing_edge) in ['hspynmqvrnhjmowostnissyymllnbiop']
@@ -535,6 +516,142 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
         yield (
             success,
             trailing_edge,
+        )
+
+
+class CurvatuveConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('curvature_scales',        DEFAULT_SCALES),
+            ut.ParamInfo('curvatute_transpose_dims', False),
+        ]
+
+
+@register_preproc_image(
+    tablename='curvature', parents=['trailing_edge'],
+    colnames=['success', 'curvature'],
+    coltypes=[bool, np.ndarray],
+    configclass=CurvatuveConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvatures_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> success_list = ibs.depc_image.get('curvature', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> curvatures = ibs.depc_image.get('curvature', gid_list, 'curvature', config=DEFAULT_TEST_CONFIG)
+        >>> curvature = curvatures[0]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(curvature) in ['prakvzmuaeajjcbxjstkydqtdfqxlmpi']
+    """
+    ibs = depc.controller
+
+    scales         = config['curvature_scales']
+    transpose_dims = config['curvatute_transpose_dims']
+
+    success_list   = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'success')
+    trailing_edges = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'trailing_edge')
+
+    values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges,
+                                                  scales=scales,
+                                                  transpose_dims=transpose_dims)
+    success_list, curvatures = values
+
+    for success, curvature in zip(success_list, curvatures):
+        yield (
+            success,
+            curvature,
+        )
+
+
+class CurvatuveDescriptorConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('curvature_scales',                   DEFAULT_SCALES),
+            ut.ParamInfo('curvature_descriptor_curv_length',   1024),
+            ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
+            ut.ParamInfo('curvature_descriptor_uniform',       False),
+            ut.ParamInfo('curvature_descriptor_feat_dim',      32),
+        ]
+
+
+@register_preproc_image(
+    tablename='curvature_descriptor', parents=['curvature'],
+    colnames=['success', 'descriptor'],
+    coltypes=[bool, ('extern', ut.load_cPkl, ut.save_cPkl)],
+    configclass=CurvatuveDescriptorConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> success_list = ibs.depc_image.get('curvature_descriptor', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> curvature_descriptor_dicts = ibs.depc_image.get('curvature_descriptor', gid_list, 'descriptor', config=DEFAULT_TEST_CONFIG)
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['pqbzoibzzcndfwemlmudneawivzacupf']
+    """
+    ibs = depc.controller
+
+    scales         = config['curvature_scales']
+    curv_length    = config['curvature_descriptor_curv_length']
+    num_keypoints  = config['curvature_descriptor_num_keypoints']
+    uniform        = config['curvature_descriptor_uniform']
+    feat_dim       = config['curvature_descriptor_feat_dim']
+
+    success_list = depc.get_native('curvature', curvature_rowid_list, 'success')
+    curvatures   = depc.get_native('curvature', curvature_rowid_list, 'curvature')
+
+    values = ibs.ibeis_plugin_curvrank_curvature_descriptors(
+        success_list,
+        curvatures,
+        curv_length,
+        scales,
+        num_keypoints,
+        uniform,
+        feat_dim
+    )
+    success_list, curvature_descriptor_dicts = values
+
+    for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
+        yield (
+            success,
+            curvature_descriptor_dict,
         )
 
 

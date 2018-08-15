@@ -1,29 +1,15 @@
 from __future__ import absolute_import, division, print_function
 from ibeis_curvrank import localization, model, segmentation, theano_funcs  # NOQA
-from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 from os.path import abspath, exists, join, split
 import ibeis_curvrank.functional as F
 import utool as ut
 import numpy as np
 
-from _plugin_depc import get_zipped
+from _plugin_depc import get_zipped, DEFAULT_TEST_CONFIG
 
 PATH = split(abspath(__file__))[0]
 
-USE_DEPC = True
-
-DEFAULT_WIDTH  = 256
-DEFAULT_HEIGHT = 256
-DEFAULT_SCALE  = 4
-
-DEFAULT_CONFIG = {
-    'curvrank_width'         : DEFAULT_WIDTH,
-    'curvrank_height'        : DEFAULT_HEIGHT,
-    'curvrank_scale'         : DEFAULT_SCALE,
-    'localization_model_tag' : 'localization',
-    'segmentation_model_tag' : 'segmentation',
-    'outline_allow_diagonal' : False,
-}
+USE_DEPC = False
 
 
 # images, list of np.ndarray: untouched input images.
@@ -36,7 +22,7 @@ def pipeline(dataset_imageset_text, config=None):
     assert dataset_imageset_text in ['database', 'query']
 
     if config is None:
-        config = DEFAULT_CONFIG
+        config = DEFAULT_TEST_CONFIG
 
     # General parameters
     # height, width = 256, 256
@@ -47,14 +33,14 @@ def pipeline(dataset_imageset_text, config=None):
     # allow_diagonal = False
 
     # Curvature parameters
-    transpose_dims = False
+    # transpose_dims = False
     scales = np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32)
 
     # Curvature descriptors parameters
-    curv_length = 1024
-    uniform = False
-    num_keypoints = 32
-    feat_dim = 32
+    # curv_length = 1024
+    # uniform = False
+    # num_keypoints = 32
+    # feat_dim = 32
 
     # Because we don't have a dependency graph to ensure consistency, we need
     # to track failures manually.  When a pipeline stage fails, we set the
@@ -133,45 +119,40 @@ def pipeline(dataset_imageset_text, config=None):
 
     # Separate Edges
     print('Separate Edges')
-    trailing_edges = []
-    for i, _ in enumerate(gid_list):
-        if success[i]:
-            _, trailing_edge = F.separate_edges(
-                separate_leading_trailing_edges, outlines[i])
-            if trailing_edge is None:
-                success[i] = None
-        else:
-            trailing_edge = None
-        trailing_edges.append(trailing_edge)
+    if USE_DEPC:
+        success  = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=config)
+        trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=config)
+    else:
+        success, trailing_edges = ibs.ibeis_plugin_curvrank_trailing_edges(success, outlines)
 
     # Compute Curvature
     print('Compute Curvature')
-    curvatures = []
-    for i, _ in enumerate(gid_list):
-        if success[i]:
-            curvature = F.compute_curvature(
-                trailing_edges[i], scales, transpose_dims)
-        else:
-            curvature = None
-        curvatures.append(curvature)
+    if USE_DEPC:
+        success  = ibs.depc_image.get('curvature', gid_list, 'success', config=config)
+        curvatures = ibs.depc_image.get('curvature', gid_list, 'curvature', config=config)
+    else:
+        success, curvatures = ibs.ibeis_plugin_curvrank_curvatures(success, outlines)
 
     # Compute Curvature Descriptors
     print('Compute Curvature Descriptors')
-    feature_matrices_list = []
-    for i, _ in enumerate(gid_list):
-        if success[i]:
-            feature_matrices = F.compute_curvature_descriptors(
-                curvatures[i], curv_length, scales,
-                num_keypoints, uniform, feat_dim)
-        else:
-            feature_matrices = None
-        feature_matrices_list.append(feature_matrices)
+    if USE_DEPC:
+        success  = ibs.depc_image.get('curvature_descriptor', gid_list, 'success', config=config)
+        curvature_descriptors = ibs.depc_image.get('curvature_descriptor', gid_list, 'descriptor', config=config)
+    else:
+        values = ibs.ibeis_plugin_curvrank_curvature_descriptors(success, curvatures)
+        success, curvature_descriptors = values
+
+    ut.embed()
 
     # Collect the images for which the pipeline was successful.
     valid_fmats, valid_names = [], []
     for i, _ in enumerate(gid_list):
         if success[i]:
-            valid_fmats.append(feature_matrices_list[i])
+            curvature_descriptors_ = [
+                curvature_descriptors[i][scale]
+                for scale in scales
+            ]
+            valid_fmats.append(curvature_descriptors_)
             valid_names.append(names[i])
 
     # Aggregate the feature matrices.  Each descriptor is labeled with the

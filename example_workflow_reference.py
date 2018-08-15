@@ -117,9 +117,6 @@ def pipeline(images, names, flips):
             outline = None
         outlines.append(outline)
 
-    import utool as ut
-    ut.embed()
-
     # Separate Edges
     print('Separate Edges')
     trailing_edges = []
@@ -155,6 +152,9 @@ def pipeline(images, names, flips):
         else:
             feature_matrices = None
         feature_matrices_list.append(feature_matrices)
+
+    import utool as ut
+    ut.embed()
 
     # Collect the images for which the pipeline was successful.
     valid_fmats, valid_names = [], []
