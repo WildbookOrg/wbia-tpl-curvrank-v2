@@ -9,7 +9,7 @@ from _plugin_depc import get_zipped, DEFAULT_TEST_CONFIG
 
 PATH = split(abspath(__file__))[0]
 
-USE_DEPC = False
+USE_DEPC = True
 
 
 # images, list of np.ndarray: untouched input images.
@@ -120,7 +120,7 @@ def pipeline(dataset_imageset_text, config=None):
     # Separate Edges
     print('Separate Edges')
     if USE_DEPC:
-        success  = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=config)
+        success        = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=config)
         trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=config)
     else:
         success, trailing_edges = ibs.ibeis_plugin_curvrank_trailing_edges(success, outlines)
@@ -128,10 +128,10 @@ def pipeline(dataset_imageset_text, config=None):
     # Compute Curvature
     print('Compute Curvature')
     if USE_DEPC:
-        success  = ibs.depc_image.get('curvature', gid_list, 'success', config=config)
+        success    = ibs.depc_image.get('curvature', gid_list, 'success', config=config)
         curvatures = ibs.depc_image.get('curvature', gid_list, 'curvature', config=config)
     else:
-        success, curvatures = ibs.ibeis_plugin_curvrank_curvatures(success, outlines)
+        success, curvatures = ibs.ibeis_plugin_curvrank_curvatures(success, trailing_edges)
 
     # Compute Curvature Descriptors
     print('Compute Curvature Descriptors')
@@ -141,8 +141,6 @@ def pipeline(dataset_imageset_text, config=None):
     else:
         values = ibs.ibeis_plugin_curvrank_curvature_descriptors(success, curvatures)
         success, curvature_descriptors = values
-
-    ut.embed()
 
     # Collect the images for which the pipeline was successful.
     valid_fmats, valid_names = [], []

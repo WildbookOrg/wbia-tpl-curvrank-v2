@@ -153,9 +153,6 @@ def pipeline(images, names, flips):
             feature_matrices = None
         feature_matrices_list.append(feature_matrices)
 
-    import utool as ut
-    ut.embed()
-
     # Collect the images for which the pipeline was successful.
     valid_fmats, valid_names = [], []
     for i, _ in enumerate(images):
@@ -191,7 +188,7 @@ def example():
     # CurvRank only handles left-view images.  The pipeline uses this to flip
     # right-view images.
     db_sides = ['Right', 'Right', 'Right', 'Left', 'Right', 'Right']
-    qr_dir = join('examples', 'qr')
+    qr_dir = join('..', '_images', 'qr')
     db_fpaths = [join(db_dir, f) for f in db_fnames]
     # The names corresponding to the images in the database.
     db_names = ['F272', 'F272', 'F274', 'F274', 'F276', 'F276']

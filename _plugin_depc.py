@@ -593,7 +593,7 @@ class CurvatuveDescriptorConfig(dtool.Config):
 @register_preproc_image(
     tablename='curvature_descriptor', parents=['curvature'],
     colnames=['success', 'descriptor'],
-    coltypes=[bool, ('extern', ut.load_cPkl, ut.save_cPkl)],
+    coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
     configclass=CurvatuveDescriptorConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
