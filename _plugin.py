@@ -195,8 +195,9 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, pre_transforms,
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_localization) in ['idspzbmvqxvgoyyjkuseeztpmjkbisrz']
-        >>> assert ut.hash_data(refined_mask)         in ['luqzalptfdneljbkslrpufypwmajsmdv']
+        >>> ut.embed()
+        >>> assert ut.hash_data(refined_localization) in ['glgopopgyjfuscigvpudxzcjvgvxpoef', 'idspzbmvqxvgoyyjkuseeztpmjkbisrz']
+        >>> assert ut.hash_data(refined_mask)         in ['yozbarldhrafcksnimwxhgsnmfochjnv', 'luqzalptfdneljbkslrpufypwmajsmdv']
     """
     import ibeis_curvrank.functional as F
 
@@ -258,8 +259,9 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation)         in ['wnfimwthormmytbumjnqrhjbsfjccksy']
-        >>> assert ut.hash_data(refined_segmentation) in ['fmmuefyrgmpyaaeakqnbgbafrhwbvohf']
+        >>> ut.embed()
+        >>> assert ut.hash_data(segmentation)         in ['vbmvokttgelinljiiqbmhhxehgcwnjxe', 'wnfimwthormmytbumjnqrhjbsfjccksy']
+        >>> assert ut.hash_data(refined_segmentation) in ['hrcdfxsblmgzkmkrywytxurpkxyeyhyg', 'fmmuefyrgmpyaaeakqnbgbafrhwbvohf']
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank import segmentation, model, theano_funcs
