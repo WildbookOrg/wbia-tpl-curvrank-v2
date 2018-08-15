@@ -25,7 +25,7 @@ def _assert_hashes(data, hash_list, tag='data'):
 
 @register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
-    from ibeis_curvrank.example_workflow import example
+    from ibeis_curvrank.example_workflow_ibeis import example
     example()
 
 
