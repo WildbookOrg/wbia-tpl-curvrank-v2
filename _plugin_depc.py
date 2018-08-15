@@ -10,6 +10,20 @@ register_preproc_image = controller_inject.register_preprocs['image']
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
 
+def zip_coords(ys, xs):
+    return np.array(list(zip(ys, xs)))
+
+
+def get_zipped(depc, tablename, col_ids, y_key, x_key, config=None):
+    if config is None:
+        ys = depc.get_native(tablename, col_ids, y_key)
+        xs = depc.get_native(tablename, col_ids, x_key)
+    else:
+        ys = depc.get(tablename, col_ids, y_key, config=config)
+        xs = depc.get(tablename, col_ids, x_key, config=config)
+    return zip_coords(ys, xs)
+
+
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
@@ -332,6 +346,136 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
             refined_segmentation,
             refined_segmentation_width,
             refined_segmentation_height,
+        )
+
+
+class KeypointsConfig(dtool.Config):
+    def get_param_info_list(self):
+        return []
+
+
+@register_preproc_image(
+    tablename='keypoints', parents=['segmentation', 'localization'],
+    colnames=['success', 'start_y', 'start_x', 'end_y', 'end_x'],
+    coltypes=[bool, int, int, int, int],
+    configclass=KeypointsConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localization_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> config = {
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_width': 256,
+        >>>     'curvrank_scale': 4,
+        >>>     'localization_model_tag': 'localization',
+        >>> }
+        >>> values = ibs.depc_image.get('keypoints', gid_list, None, config=config)
+        >>> success, start_y, start_x, end_y, end_x = values
+        >>> assert success
+        >>> assert (start_y, start_x) == (204, 1)
+        >>> assert (end_y,   end_x)   == (199, 251)
+    """
+    ibs = depc.controller
+
+    segmentations   = depc.get_native('segmentation', segmentation_rowid_list, 'segmentations_img')
+    localized_masks = depc.get_native('localization', localization_rowid_list, 'mask_img')
+
+    values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+    success_list, starts, ends = values
+
+    for success, start, end in zip(success_list, starts, ends):
+        yield (
+            success,
+            start[0],
+            start[1],
+            end[0],
+            end[1]
+        )
+
+
+class OutlineConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('curvrank_scale',  4),
+            ut.ParamInfo('outline_allow_diagonal', False),
+        ]
+
+
+@register_preproc_image(
+    tablename='outline', parents=['segmentation', 'refinement', 'keypoints'],
+    colnames=['success', 'outline'],
+    coltypes=[bool, np.ndarray],
+    configclass=OutlineConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement_rowid_list, keypoints_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> config = {
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_width': 256,
+        >>>     'curvrank_scale': 4,
+        >>>     'localization_model_tag': 'localization',
+        >>>     'outline_allow_diagonal': False
+        >>> }
+        >>> success_list = ibs.depc_image.get('outline', gid_list, 'success', config=config)
+        >>> outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=config)
+        >>> outline = outlines[0]
+        >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
+        >>> assert success_list == [True]
+    """
+    ibs = depc.controller
+
+    success_list = depc.get_native('keypoints', keypoints_rowid_list, 'success')
+    starts = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'start_y', 'start_x')
+    ends   = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'end_y',   'end_x')
+    refined_localizations = depc.get_native('refinement', refinement_rowid_list, 'refined_img')
+    refined_masks         = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
+    refined_segmentations = depc.get_native('segmentation', segmentation_rowid_list, 'refined_segmentations_img')
+
+    args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+    kwargs = {
+        'scale': config['curvrank_scale'],
+        'allow_diagonal': config['outline_allow_diagonal']
+    }
+    success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, **kwargs)
+    for success, outline in zip(success_list, outlines):
+        yield (
+            success,
+            outline
         )
 
 

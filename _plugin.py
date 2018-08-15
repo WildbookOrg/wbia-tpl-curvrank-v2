@@ -23,6 +23,7 @@ def _assert_hashes(data, hash_list, tag='data'):
     assert data_hash in hash_list
 
 
+
 @register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
     from ibeis_curvrank.example_workflow import example
@@ -279,6 +280,129 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
                                height, width, segmentation_func)
     segmentations, refined_segmentations = values
     return segmentations, refined_segmentations
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks):
+    r"""
+    Args:
+        ibs       (IBEISController): IBEIS controller object
+        segmentations: output of ibeis_plugin_curvrank_segmentation
+        refined_masks: output of ibeis_plugin_curvrank_refinement
+
+    Returns:
+        success_list: bool list
+        starts: list of keypoint starts
+        ends: list of keypoint ends
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> success_list, starts, ends = values
+        >>> start = tuple(starts[0])
+        >>> end = tuple(ends[0])
+        >>> assert success_list == [True]
+        >>> assert start == (204, 1)
+        >>> assert end   == (199, 251)
+    """
+    from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints
+    import ibeis_curvrank.functional as F
+    starts, ends, success_list = [], [], []
+
+    for segmentation, localized_mask in zip(segmentations, localized_masks):
+        start, end = F.find_keypoints(
+            find_dorsal_keypoints, segmentation, localized_mask)
+
+        success = start is not None and end is not None
+        success_list.append(success)
+        starts.append(start)
+        ends.append(end)
+    return success_list, starts, ends
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends, 
+                                  refined_localizations, refined_masks, 
+                                  refined_segmentations, scale=4, allow_diagonal=False):
+    r"""
+    Args:
+        ibs       (IBEISController): IBEIS controller object
+        success_list: output of ibeis_plugin_curvrank_keypoints
+        starts: output of ibeis_plugin_curvrank_keypoints
+        ends: output of ibeis_plugin_curvrank_keypoints
+        refined_localizations: output of ibeis_plugin_curvrank_refinement
+        refined_masks: output of ibeis_plugin_curvrank_refinement
+        refined_segmentations: output of ibeis_plugin_curvrank_refinement
+    Returns:
+        outlines
+        success_list
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> success_list, starts, ends = values
+        >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+        >>> outline = outlines[0]
+        >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
+        >>> assert success_list == [True]
+    """
+    import ibeis_curvrank.functional as F
+    from ibeis_curvrank.dorsal_utils import dorsal_cost_func
+
+    outlines = []
+    zipped = zip(success_list, starts, ends, refined_localizations,
+                 refined_masks, refined_segmentations)
+    success_list_ = []
+    for value in zipped:
+        success, start, end, refined_loc, refined_mask, refined_seg = value
+        success_ = success
+        if success:
+            outline = F.extract_outline(
+                refined_loc, refined_mask, refined_seg, scale, start, end,
+                dorsal_cost_func, allow_diagonal)
+            if outline is None:
+                success_ = False
+        else: 
+            outline = None
+        success_list_.append(success_)
+        outlines.append(outline)
+
+    return success_list_, outlines
 
 
 if __name__ == '__main__':
