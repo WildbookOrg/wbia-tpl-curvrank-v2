@@ -99,7 +99,7 @@ def pipeline(dataset_imageset_text, config=None):
         refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
         refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img',    config=config)
     else:
-        values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images, pre_transforms,
+        values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms,
                                                       loc_transforms, scale=scale)
         refined_localizations, refined_masks = values
 
