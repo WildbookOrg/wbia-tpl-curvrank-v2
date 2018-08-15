@@ -1,12 +1,12 @@
 from __future__ import absolute_import, division, print_function
 from ibeis_curvrank import localization, model, segmentation, theano_funcs  # NOQA
-from ibeis_curvrank.dorsal_utils import dorsal_cost_func, find_dorsal_keypoints
 from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 from os.path import abspath, exists, join, split
 import ibeis_curvrank.functional as F
 import utool as ut
 import numpy as np
 
+from _plugin_depc import get_zipped
 
 PATH = split(abspath(__file__))[0]
 
@@ -22,6 +22,7 @@ DEFAULT_CONFIG = {
     'curvrank_scale'         : DEFAULT_SCALE,
     'localization_model_tag' : 'localization',
     'segmentation_model_tag' : 'segmentation',
+    'outline_allow_diagonal' : False,
 }
 
 
@@ -39,11 +40,11 @@ def pipeline(dataset_imageset_text, config=None):
 
     # General parameters
     # height, width = 256, 256
-    scale = DEFAULT_SCALE
+    # scale = DEFAULT_SCALE
 
     # A* parameters
-    cost_func = dorsal_cost_func
-    allow_diagonal = False
+    # cost_func = dorsal_cost_func
+    # allow_diagonal = False
 
     # Curvature parameters
     transpose_dims = False
@@ -113,30 +114,23 @@ def pipeline(dataset_imageset_text, config=None):
     # NOTE: Tasks downstream from here may fail!  Need to check status.
     # Keypoints
     print('Keypoints')
-    starts, ends = [], []
-    for i, _ in enumerate(gid_list):
-        start, end = F.find_keypoints(
-            find_dorsal_keypoints, segmentations[i], localized_masks[i])
-        if start is None or end is None:
-            success[i] = False
-
-        starts.append(start)
-        ends.append(end)
+    if USE_DEPC:
+        success  = ibs.depc_image.get(      'keypoints', gid_list, 'success', config=config)
+        starts = get_zipped(ibs.depc_image, 'keypoints', gid_list, 'start_y', 'start_x', config=config)
+        ends   = get_zipped(ibs.depc_image, 'keypoints', gid_list, 'end_y',   'end_x',   config=config)
+    else:
+        values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        success, starts, ends = values
 
     # Extract Outline
     print('Extract Outline')
-    outlines = []
-    for i, _ in enumerate(gid_list):
-        if success[i]:
-            outline = F.extract_outline(
-                refined_localizations[i], refined_masks[i],
-                refined_segmentations[i], scale,
-                starts[i], ends[i], cost_func, allow_diagonal)
-            if outline is None:
-                success[i] = False
-        else:
-            outline = None
-        outlines.append(outline)
+
+    if USE_DEPC:
+        success  = ibs.depc_image.get('outline', gid_list, 'success', config=config)
+        outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=config)
+    else:
+        args = success, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        success, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
 
     # Separate Edges
     print('Separate Edges')
