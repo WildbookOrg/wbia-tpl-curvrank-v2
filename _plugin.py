@@ -346,15 +346,14 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
-                                     pre_transforms, loc_transforms, scale=4):
+def ibeis_plugin_curvrank_refinement(ibs, gid_list, pre_transforms,
+                                     loc_transforms, scale=4):
     r"""
     Refine localizations for CurvRank
 
     Args:
         ibs       (IBEISController): IBEIS controller object
         gid_list  (list of int): list of image rowids (gids)
-        localized_images  (list of np.ndarray): widthXheightX3 color channels
         pre_transforms (list of np.ndarray):
         loc_transforms (list of np.ndarray):
         scale (int): how many scales to perform the refinement (default to 4).
@@ -378,29 +377,28 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, localized_images,
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images,resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images,
-        >>>                                               pre_transforms, loc_transforms, scale=4)
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms, scale=4)
         >>> refined_localizations, refined_masks = values
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_localization) in ['hslglhazpolotapwmpjyymjprtidgusb', 'fwjorhantaihpnlptakncuwrbivsnogr']
-        >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
+        >>> assert ut.hash_data(refined_localization) in ['rmmctteqgpwrgngxqocdndowxizwcatj']
+        >>> assert ut.hash_data(refined_mask)         in ['rhngiquoidxqxkhmyotkcsfrcqymvtyg']
     """
     import ibeis_curvrank.functional as F
+
+    image_list = ibs.get_images(gid_list)
 
     metadata_list = ibs.get_image_metadata(gid_list)
     viewpoint_list = [metadata.get('viewpoint', None) for metadata in metadata_list]
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
 
-    ut.embed()
-
     refined_localizations, refined_masks = [], []
-    zipped = zip(localized_images, flip_list, pre_transforms, loc_transforms)
-    for localized_image, flip, pre_transform, loc_transform in zipped:
-        height, width = localized_image.shape[:2]
+    zipped = zip(image_list, flip_list, pre_transforms, loc_transforms)
+    for image, flip, pre_transform, loc_transform in zipped:
+        height, width = image.shape[:2]
         refined_localization, refined_mask = F.refine_localization(
-            localized_image, flip, pre_transform, loc_transform,
+            image, flip, pre_transform, loc_transform,
             scale, height, width
         )
         refined_localizations.append(refined_localization)
@@ -454,18 +452,19 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list, preproc
         >>> refined_localization  = refined_localizations[0]
         >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
+        >>> ut.embed()
+        >>> # why are these values different than in above? have we cached bad stuff? I'm guessing yes.
         >>> assert ut.hash_data(refined_localization) in ['fwjorhantaihpnlptakncuwrbivsnogr', 'hslglhazpolotapwmpjyymjprtidgusb']
         >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
     """
     ibs = depc.controller
     scale = config['curvrank_scale']
 
-    localized_images = depc.get_native('localization', localization_rowid_list, 'localized_img')
+    gid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
     loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
     pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
-    values = ibs.ibeis_plugin_curvrank_refinement(preprocess_rowid_list, localized_images,
-                                                  pre_transforms, loc_transforms, scale)
+    values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms, scale)
     refined_localizations, refined_masks = values
 
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
@@ -513,8 +512,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images,resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, localized_images,
-        >>>                                               pre_transforms, loc_transforms, scale=4)
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms, scale=4)
         >>> refined_localizations, refined_masks = values
         >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, scale=4)
         >>> segmentations, refined_segmentations = values
