@@ -124,7 +124,6 @@ def pipeline(dataset_imageset_text, config=None):
 
     # Extract Outline
     print('Extract Outline')
-
     if USE_DEPC:
         success  = ibs.depc_image.get('outline', gid_list, 'success', config=config)
         outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=config)

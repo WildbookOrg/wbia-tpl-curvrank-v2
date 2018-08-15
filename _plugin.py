@@ -23,7 +23,6 @@ def _assert_hashes(data, hash_list, tag='data'):
     assert data_hash in hash_list
 
 
-
 @register_ibs_method
 def ibeis_plugin_curvrank_example(ibs):
     from ibeis_curvrank.example_workflow_ibeis import example
@@ -196,7 +195,6 @@ def ibeis_plugin_curvrank_refinement(ibs, gid_list, pre_transforms,
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> ut.embed()
         >>> assert ut.hash_data(refined_localization) in ['glgopopgyjfuscigvpudxzcjvgvxpoef', 'idspzbmvqxvgoyyjkuseeztpmjkbisrz']
         >>> assert ut.hash_data(refined_mask)         in ['yozbarldhrafcksnimwxhgsnmfochjnv', 'luqzalptfdneljbkslrpufypwmajsmdv']
     """
@@ -260,7 +258,6 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
-        >>> ut.embed()
         >>> assert ut.hash_data(segmentation)         in ['vbmvokttgelinljiiqbmhhxehgcwnjxe', 'wnfimwthormmytbumjnqrhjbsfjccksy']
         >>> assert ut.hash_data(refined_segmentation) in ['hrcdfxsblmgzkmkrywytxurpkxyeyhyg', 'fmmuefyrgmpyaaeakqnbgbafrhwbvohf']
     """
@@ -338,8 +335,8 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends, 
-                                  refined_localizations, refined_masks, 
+def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
+                                  refined_localizations, refined_masks,
                                   refined_segmentations, scale=4, allow_diagonal=False):
     r"""
     Args:
@@ -351,8 +348,8 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         refined_masks: output of ibeis_plugin_curvrank_refinement
         refined_segmentations: output of ibeis_plugin_curvrank_refinement
     Returns:
-        outlines
         success_list
+        outlines
 
     CommandLine:
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline
@@ -378,16 +375,16 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
         >>> outline = outlines[0]
-        >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
         >>> assert success_list == [True]
+        >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
     """
     import ibeis_curvrank.functional as F
     from ibeis_curvrank.dorsal_utils import dorsal_cost_func
 
+    success_list_ = []
     outlines = []
     zipped = zip(success_list, starts, ends, refined_localizations,
                  refined_masks, refined_segmentations)
-    success_list_ = []
     for value in zipped:
         success, start, end, refined_loc, refined_mask, refined_seg = value
         success_ = success
@@ -397,12 +394,74 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
                 dorsal_cost_func, allow_diagonal)
             if outline is None:
                 success_ = False
-        else: 
+        else:
             outline = None
         success_list_.append(success_)
         outlines.append(outline)
 
     return success_list_, outlines
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines):
+    r"""
+    Args:
+        ibs       (IBEISController): IBEIS controller object
+        success_list: output of ibeis_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+
+    Returns:
+        success_list_
+        trailing_edges
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> success_list, starts, ends = values
+        >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines)
+        >>> success_list, trailing_edges = values
+        >>> trailing_edge = trailing_edges[0]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(trailing_edge) in ['hspynmqvrnhjmowostnissyymllnbiop']
+    """
+    import ibeis_curvrank.functional as F
+    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
+
+    success_list_ = []
+    trailing_edges = []
+    for success, outline in zip(success_list, outlines):
+        success_ = success
+        if success:
+            values = F.separate_edges(separate_leading_trailing_edges, outline)
+            _, trailing_edge = values
+
+            if trailing_edge is None:
+                success_ = False
+        else:
+            trailing_edge = None
+        success_list_.append(success_)
+        trailing_edges.append(trailing_edge)
+
+    return success_list_, trailing_edges
 
 
 if __name__ == '__main__':

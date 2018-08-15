@@ -387,7 +387,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
         >>>     'localization_model_tag': 'localization',
         >>> }
         >>> values = ibs.depc_image.get('keypoints', gid_list, None, config=config)
-        >>> success, start_y, start_x, end_y, end_x = values
+        >>> success, start_y, start_x, end_y, end_x = values[0]
         >>> assert success
         >>> assert (start_y, start_x) == (204, 1)
         >>> assert (end_y,   end_x)   == (199, 251)
@@ -476,6 +476,65 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         yield (
             success,
             outline
+        )
+
+
+class TrailingEdgeConfig(dtool.Config):
+    def get_param_info_list(self):
+        return []
+
+
+@register_preproc_image(
+    tablename='trailing_edge', parents=['outline'],
+    colnames=['success', 'trailing_edge'],
+    coltypes=[bool, np.ndarray],
+    configclass=TrailingEdgeConfig,
+    fname='curvrank',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> gid_list = ibs.get_valid_gids()[0:1]
+        >>> config = {
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_width': 256,
+        >>>     'curvrank_scale': 4,
+        >>>     'localization_model_tag': 'localization',
+        >>>     'outline_allow_diagonal': False
+        >>> }
+        >>> success_list = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=config)
+        >>> trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=config)
+        >>> trailing_edge = trailing_edges[0]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(trailing_edge) in ['hspynmqvrnhjmowostnissyymllnbiop']
+    """
+    ibs = depc.controller
+
+    success_list = depc.get_native('outline', outline_rowid_list, 'success')
+    outlines     = depc.get_native('outline', outline_rowid_list, 'outline')
+
+    values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines)
+    success_list, trailing_edges = values
+
+    for success, trailing_edge in zip(success_list, trailing_edges):
+        yield (
+            success,
+            trailing_edge,
         )
 
 

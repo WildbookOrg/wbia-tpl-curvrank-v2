@@ -51,7 +51,7 @@ def pipeline(images, names, flips):
     # Localization
     print('Localization')
     layers = localization.build_model((None, 3, height, width))
-    localization_weightsfile = 'weights_localization.pickle'
+    localization_weightsfile = join('..', '_weights', 'weights_localization.pickle')
     model.load_weights([
         layers['trans'], layers['loc']],
         localization_weightsfile
@@ -75,15 +75,12 @@ def pipeline(images, names, flips):
         refined_localizations.append(refined_localization)
         refined_masks.append(refined_mask)
 
-    import utool as ut
-    ut.embed()
-
     # Segmentation
     print('Segmentation')
     segmentation_layers =\
         segmentation.build_model_batchnorm_full((None, 3, height, width))
 
-    segmentation_weightsfile = 'weights_segmentation.pickle'
+    segmentation_weightsfile = join('..', '_weights', 'weights_segmentation.pickle')
     model.load_weights(segmentation_layers['seg_out'],
                        segmentation_weightsfile)
     segmentation_func = theano_funcs.create_segmentation_func(
@@ -119,6 +116,9 @@ def pipeline(images, names, flips):
         else:
             outline = None
         outlines.append(outline)
+
+    import utool as ut
+    ut.embed()
 
     # Separate Edges
     print('Separate Edges')
@@ -182,7 +182,7 @@ def pipeline(images, names, flips):
 
 
 def example():
-    db_dir = join('examples', 'db')
+    db_dir = join('..', '_images', 'db')
     db_fnames = [
         '17874.JPG', '17541.JPG',
         '23496.JPG', '25697.JPG',
