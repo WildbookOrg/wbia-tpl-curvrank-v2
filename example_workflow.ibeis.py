@@ -10,18 +10,18 @@ import numpy as np
 
 PATH = split(abspath(__file__))[0]
 
-USE_DEPC = False
+USE_DEPC = True
 
-DEFAULT_HEIGHT = 256
 DEFAULT_WIDTH  = 256
+DEFAULT_HEIGHT = 256
 DEFAULT_SCALE  = 4
 
 DEFAULT_CONFIG = {
-    'preprocess_height'      : DEFAULT_HEIGHT,
-    'preprocess_width'       : DEFAULT_WIDTH,
+    'curvrank_width'         : DEFAULT_WIDTH,
+    'curvrank_height'        : DEFAULT_HEIGHT,
+    'curvrank_scale'         : DEFAULT_SCALE,
     'localization_model_tag' : 'localization',
     'segmentation_model_tag' : 'segmentation',
-    'curvrank_scale'         : DEFAULT_SCALE,
 }
 
 
@@ -38,7 +38,7 @@ def pipeline(dataset_imageset_text, config=None):
         config = DEFAULT_CONFIG
 
     # General parameters
-    height, width = 256, 256
+    # height, width = 256, 256
     scale = DEFAULT_SCALE
 
     # A* parameters
@@ -79,7 +79,7 @@ def pipeline(dataset_imageset_text, config=None):
         resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
         pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=config)
     else:
-        values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, height=height, width=width)
+        values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list)
         resized_images, resized_masks, pre_transforms = values
 
     # Localization
@@ -89,8 +89,7 @@ def pipeline(dataset_imageset_text, config=None):
         localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',  config=config)
         loc_transforms   = ibs.depc_image.get('localization', gid_list, 'transform', config=config)
     else:
-        values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
-                                                        model_tag='localization')
+        values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
         localized_images, localized_masks, loc_transforms = values
 
     # Refinement
@@ -99,11 +98,8 @@ def pipeline(dataset_imageset_text, config=None):
         refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
         refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img',    config=config)
     else:
-        values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms,
-                                                      loc_transforms, scale=scale)
+        values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms)
         refined_localizations, refined_masks = values
-
-    ut.embed()
 
     # Segmentation
     print('Segmentation')
@@ -111,8 +107,7 @@ def pipeline(dataset_imageset_text, config=None):
         segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img',         config=config)
         refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
     else:
-        values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks,
-                                                        scale=scale, model_tag='segmentation')
+        values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
         segmentations, refined_segmentations = values
 
     # NOTE: Tasks downstream from here may fail!  Need to check status.
@@ -206,6 +201,12 @@ def pipeline(dataset_imageset_text, config=None):
 
 def example(output_path=None):
     assert exists(PATH)
+
+    if output_path is None:
+        import utool as ut
+        output_path = abspath(join(PATH, '..', '_output'))
+        ut.ensuredir(output_path)
+        print('Using output_path=%r' % (output_path, ))
 
     print('Loading database images.')
     db_lnbnn_data = pipeline('database')

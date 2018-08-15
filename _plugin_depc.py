@@ -13,8 +13,8 @@ register_preproc_annot = controller_inject.register_preprocs['annot']
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('preprocess_height', 256),
-            ut.ParamInfo('preprocess_width', 256),
+            ut.ParamInfo('curvrank_height', 256),
+            ut.ParamInfo('curvrank_width',  256),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -38,19 +38,19 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         config    (PreprocessConfig): config for depcache
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_preprocessing_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_preprocessing_depc
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
         >>> config = {
-        >>>     'preprocess_height': 256,
-        >>>     'preprocess_width': 256,
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_width': 256,
         >>> }
         >>> resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=config)
         >>> resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=config)
@@ -58,8 +58,6 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
-        >>> print('ut.hash_data(resized_image) = %r' % (ut.hash_data(resized_image), ))
-        >>> print('ut.hash_data(resized_mask)  = %r' % (ut.hash_data(resized_mask), ))
         >>> assert ut.hash_data(resized_image) in ['ynbsgqgfutslspmatpenvcbtgedsyzoo']
         >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
         >>> result = pre_transform
@@ -68,11 +66,12 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
          [ 0.          0.11077456 38.        ]
          [ 0.          0.          1.        ]]
     """
-    height = config['preprocess_height']
-    width = config['preprocess_width']
-
     ibs = depc.controller
-    values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, height=height, width=width)
+
+    width  = config['curvrank_width']
+    height = config['curvrank_height']
+
+    values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, width=width, height=height)
     resized_images, resized_masks, pre_transforms = values
 
     zipped = zip(resized_images, resized_masks, pre_transforms)
@@ -94,6 +93,8 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
 class LocalizationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
+            ut.ParamInfo('curvrank_height', 256),
+            ut.ParamInfo('curvrank_width',  256),
             ut.ParamInfo('localization_model_tag', 'localization'),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
@@ -115,20 +116,20 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
     Localize images for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_localization_depc
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
         >>> config = {
-        >>>     'preprocess_height': 256,
-        >>>     'preprocess_width': 256,
-        >>>     'localization_model_tag': 'localization'
+        >>>     'curvrank_width': 256,
+        >>>     'curvrank_height': 256,
+        >>>     'localization_model_tag': 'localization',
         >>> }
         >>> localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img',  config=config)
         >>> localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',     config=config)
@@ -146,16 +147,17 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>>                                  [ 0.        ,  0.        ,  1.        ]])
         >>> assert np.all(np.abs(loc_transform - loc_transform_ubuntu) < 1e-6)
     """
-    model_tag = config['localization_model_tag']
     ibs = depc.controller
-    # fetch resized image
+
+    width     = config['curvrank_width']
+    height    = config['curvrank_height']
+    model_tag = config['localization_model_tag']
+
     resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img')
-    # fetch resized mask
-    resized_masks = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
-    # call function above
-    height, width = resized_images[0].shape[:2]
+    resized_masks  = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
 
     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
+                                                    width=width, height=height,
                                                     model_tag=model_tag)
     localized_images, localized_masks, loc_transforms = values
 
@@ -178,13 +180,15 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
 class RefinementConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_scale', 4),
+            ut.ParamInfo('curvrank_width',  256),
+            ut.ParamInfo('curvrank_height', 256),
+            ut.ParamInfo('curvrank_scale',  4),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_image(
-    tablename='refinement', parents=['images', 'localization', 'preprocess'],
+    tablename='refinement', parents=['localization', 'preprocess'],
     colnames=['refined_img', 'refined_width', 'refined_height', 'mask_img', 'mask_width', 'mask_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
     configclass=RefinementConfig,
@@ -194,44 +198,49 @@ class RefinementConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_refinement_depc(depc, gid_list, localization_rowid_list, preprocess_rowid_list, config=None):
+def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
+                                          preprocess_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_refinement_depc
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
         >>> config = {
-        >>>     'preprocess_height': 256,
-        >>>     'preprocess_width': 256,
+        >>>     'curvrank_width':  256,
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_scale': 4,
         >>>     'localization_model_tag': 'localization',
-        >>>     'curvrank_scale': 4
         >>> }
         >>> refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=config)
         >>> refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=config)
         >>> refined_localization  = refined_localizations[0]
         >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> ut.embed()
         >>> # why are these values different than in above? have we cached bad stuff? I'm guessing yes.
-        >>> assert ut.hash_data(refined_localization) in ['fwjorhantaihpnlptakncuwrbivsnogr', 'hslglhazpolotapwmpjyymjprtidgusb']
-        >>> assert ut.hash_data(refined_mask)         in ['addlxdyjkminxlfsdfqmmuptyprhpyfi']
+        >>> assert ut.hash_data(refined_localization) in ['idspzbmvqxvgoyyjkuseeztpmjkbisrz']
+        >>> assert ut.hash_data(refined_mask)         in ['luqzalptfdneljbkslrpufypwmajsmdv']
     """
     ibs = depc.controller
-    scale = config['curvrank_scale']
 
+    width  = config['curvrank_width']
+    height = config['curvrank_height']
+    scale  = config['curvrank_scale']
+
+    gid_list = depc.get_ancestor_rowids('preprocess',  preprocess_rowid_list)
     loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
     pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
-    values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms, scale)
+    values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms,
+                                                  width=width, height=height, scale=scale)
     refined_localizations, refined_masks = values
 
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
@@ -250,8 +259,10 @@ def ibeis_plugin_curvrank_refinement_depc(depc, gid_list, localization_rowid_lis
 class SegmentationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
+            ut.ParamInfo('curvrank_width',  256),
+            ut.ParamInfo('curvrank_height', 256),
+            ut.ParamInfo('curvrank_scale',  4),
             ut.ParamInfo('segmentation_model_tag', 'segmentation'),
-            ut.ParamInfo('curvrank_scale', 4),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -272,39 +283,42 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
         >>> config = {
-        >>>     'preprocess_height': 256,
-        >>>     'preprocess_width': 256,
+        >>>     'curvrank_height': 256,
+        >>>     'curvrank_width': 256,
+        >>>     'curvrank_scale': 4,
         >>>     'localization_model_tag': 'localization',
-        >>>     'curvrank_scale': 4
         >>> }
         >>> segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img', config=config)
         >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=config)
         >>> segmentation           = segmentations[0]
         >>> refined_segmentation   = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation)         in ['pislgcxekvrzeabsyfbksycesellsldw', 'ciruuvnvemwjfmfoermdvixdenkfiwbl']
-        >>> assert ut.hash_data(refined_segmentation) in ['fropddwbykfltfjdqqsjvqoadmqwxszk', 'whbqxdumhmtzvxprfsqkhtdqimzxcdui']
+        >>> assert ut.hash_data(segmentation)         in ['wnfimwthormmytbumjnqrhjbsfjccksy']
+        >>> assert ut.hash_data(refined_segmentation) in ['fmmuefyrgmpyaaeakqnbgbafrhwbvohf']
     """
     ibs = depc.controller
 
-    scale = config['curvrank_scale']
+    width     = config['curvrank_width']
+    height    = config['curvrank_height']
+    scale     = config['curvrank_scale']
     model_tag = config['segmentation_model_tag']
 
     refined_localizations = depc.get_native('refinement', refinement_rowid_list, 'refined_img')
     refined_masks         = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
 
     values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks,
-                                                    scale=scale, model_tag=model_tag)
+                                                    width=width, height=height, scale=scale,
+                                                    model_tag=model_tag)
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
@@ -324,8 +338,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
 if __name__ == '__main__':
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin
-        python -m ibeis_curvrank._plugin --allexamples
+        python -m ibeis_curvrank._plugin_depc --allexamples
     """
     import multiprocessing
     multiprocessing.freeze_support()  # for win32
