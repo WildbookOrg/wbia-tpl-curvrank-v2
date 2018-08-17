@@ -49,8 +49,8 @@ def get_zipped(depc, tablename, col_ids, y_key, x_key, config=None):
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_height', 256),
-            ut.ParamInfo('curvrank_width',  256),
+            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT),
+            ut.ParamInfo('curvrank_width',  DEFAULT_WIDTH),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -125,8 +125,8 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
 class LocalizationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_height', 256),
-            ut.ParamInfo('curvrank_width',  256),
+            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT),
+            ut.ParamInfo('curvrank_width',  DEFAULT_WIDTH),
             ut.ParamInfo('localization_model_tag', 'localization'),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
@@ -207,9 +207,9 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
 class RefinementConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_width',  256),
-            ut.ParamInfo('curvrank_height', 256),
-            ut.ParamInfo('curvrank_scale',  4),
+            ut.ParamInfo('curvrank_width',  DEFAULT_HEIGHT),
+            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH),
+            ut.ParamInfo('curvrank_scale',  DEFAULT_SCALE),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -280,9 +280,9 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
 class SegmentationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_width',  256),
-            ut.ParamInfo('curvrank_height', 256),
-            ut.ParamInfo('curvrank_scale',  4),
+            ut.ParamInfo('curvrank_width',  DEFAULT_HEIGHT),
+            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH),
+            ut.ParamInfo('curvrank_scale',  DEFAULT_SCALE),
             ut.ParamInfo('segmentation_model_tag', 'segmentation'),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
@@ -408,7 +408,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
 class OutlineConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_scale',  4),
+            ut.ParamInfo('curvrank_scale',  DEFAULT_SCALE),
             ut.ParamInfo('outline_allow_diagonal', False),
         ]
 
