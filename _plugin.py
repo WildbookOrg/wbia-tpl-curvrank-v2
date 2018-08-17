@@ -869,7 +869,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, gid_list=None,
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> lnbnn_dict = ibs.ibeis_plugin_curvrank_pipeline(gid_list=gid_list, use_depc=False)
+        >>> lnbnn_dict, gid_list = ibs.ibeis_plugin_curvrank_pipeline(gid_list=gid_list, use_depc=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
