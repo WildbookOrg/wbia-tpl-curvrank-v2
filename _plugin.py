@@ -31,7 +31,8 @@ def _assert_hashes(data, hash_list, tag='data'):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2, verbose=False):
+def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
+                          verbose=False, use_depc=USE_DEPC):
     r"""
     CurvRank Example
 
@@ -45,7 +46,7 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2, verbose=Fals
     CommandLine:
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank
 
-    Example:
+    Example1:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> import ibeis
@@ -56,12 +57,12 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2, verbose=Fals
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank(db_aid_list, qr_aid_list)
+        >>> score_dict = ibs.ibeis_plugin_curvrank(db_aid_list, qr_aid_list, use_depc=False)
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
         >>> print(result)
-        {1: -31.76203187, 2: -2.93299839, 3: -3.79922857}
+        {1: -31.3653052, 2: -3.09841482, 3: -4.30560276}
     """
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
@@ -69,13 +70,15 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2, verbose=Fals
     if verbose:
         print('Loading database data...')
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, verbose=verbose)
+    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list,
+                                                verbose=verbose, use_depc=use_depc)
     db_lnbnn_data, _ = values
 
     if verbose:
         print('Loading query data...')
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, verbose=verbose)
+    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list,
+                                                verbose=verbose, use_depc=use_depc)
     qr_lnbnn_data, _ = values
 
     if verbose:
@@ -144,18 +147,18 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) in ['ynbsgqgfutslspmatpenvcbtgedsyzoo']
+        >>> assert ut.hash_data(resized_image) in ['inxtvdeyxibloygwuyhxzpnevpkoenec']
         >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
         >>> result = pre_transform
         >>> print(result)
-        [[ 0.11077456  0.          0.        ]
-         [ 0.          0.11077456 38.        ]
+        [[ 0.36571429  0.          0.        ]
+         [ 0.          0.36571429 38.        ]
          [ 0.          0.          1.        ]]
     """
     image_list = ibs.get_annot_chips(aid_list)
@@ -204,7 +207,7 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -214,12 +217,12 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(localized_image) in ['mbwtvdojxaidtmcrqvyamkgpchzupfsh','pbgpmewfannhnrsrfxixdnhwczbkordr']
-        >>> assert ut.hash_data(localized_mask)  in ['pzzhgfsbhcsayowiwusjjekzlxaxbrpu']
+        >>> assert ut.hash_data(localized_image) in ['igxwfzwvpbqpfriihmdsyaoksqbzviey']
+        >>> assert ut.hash_data(localized_mask)  in ['whrbbdtqbmpyjskvvpvblehfiofdgsli']
         >>> # for above reasons, some voodoo to compare loc_transform
-        >>> loc_transform_ubuntu = np.array([[ 0.63338047,  0.12626281, -0.11245003],
-        >>>                                  [-0.12531438,  0.63420326, -0.00189855],
-        >>>                                  [ 0.        ,  0.        ,  1.        ]])
+        >>> loc_transform_ubuntu = np.array([[ 6.42954651e-01,  1.20030158e-01, -1.06427952e-01],
+                                             [-1.19038359e-01,  6.43158788e-01, -1.27811638e-04],
+                                             [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
         >>> assert np.all(np.abs(loc_transform - loc_transform_ubuntu) < 1e-6)
     """
     from ibeis_curvrank import localization, model, theano_funcs
@@ -272,7 +275,7 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -282,10 +285,10 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(refined_localization) in ['glgopopgyjfuscigvpudxzcjvgvxpoef', 'idspzbmvqxvgoyyjkuseeztpmjkbisrz']
-        >>> assert ut.hash_data(refined_mask)         in ['yozbarldhrafcksnimwxhgsnmfochjnv', 'luqzalptfdneljbkslrpufypwmajsmdv']
+        >>> assert ut.hash_data(refined_localization) in ['nxhumkmybgbjdjcffuneozzmptvivvlh']
+        >>> assert ut.hash_data(refined_mask)         in ['bwuzcdgbfyqhzgdthazfgegbzeykvbnt']
     """
-    image_list = ibs.get_images(aid_list)
+    image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
@@ -331,7 +334,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -342,8 +345,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation)         in ['vbmvokttgelinljiiqbmhhxehgcwnjxe', 'wnfimwthormmytbumjnqrhjbsfjccksy']
-        >>> assert ut.hash_data(refined_segmentation) in ['hrcdfxsblmgzkmkrywytxurpkxyeyhyg', 'fmmuefyrgmpyaaeakqnbgbafrhwbvohf']
+        >>> assert ut.hash_data(segmentation)         in ['tcfybjuqszadvmfetzxivcvihfkudvqh']
+        >>> assert ut.hash_data(refined_segmentation) in ['snjswkyqprmhmpefiiiapdsytubfvcwo']
     """
     from ibeis_curvrank import segmentation, model, theano_funcs
 
@@ -385,7 +388,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks, **kwarg
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -399,8 +402,8 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks, **kwarg
         >>> start = tuple(starts[0])
         >>> end = tuple(ends[0])
         >>> assert success_list == [True]
-        >>> assert start == (204, 1)
-        >>> assert end   == (199, 251)
+        >>> assert start == (203, 3)
+        >>> assert end   == (198, 252)
     """
     from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints
 
@@ -449,7 +452,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -464,7 +467,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
         >>> outline = outlines[0]
         >>> assert success_list == [True]
-        >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
+        >>> assert ut.hash_data(outline) in ['lyrkwgzncvjpjvovikkvspdkecardwyz']
     """
     from ibeis_curvrank.dorsal_utils import dorsal_cost_func
 
@@ -512,7 +515,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, **kwargs):
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -529,7 +532,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, **kwargs):
         >>> success_list, trailing_edges = values
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
-        >>> assert ut.hash_data(trailing_edge) in ['hspynmqvrnhjmowostnissyymllnbiop']
+        >>> assert ut.hash_data(trailing_edge) in ['wiabdtkbaqjuvszkyvyjnpomrivyadaa']
     """
     from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 
@@ -576,7 +579,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -595,7 +598,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> success_list, curvatures = values
         >>> curvature = curvatures[0]
         >>> assert success_list == [True]
-        >>> assert ut.hash_data(curvature) in ['prakvzmuaeajjcbxjstkydqtdfqxlmpi']
+        >>> assert ut.hash_data(curvature) in ['yeyykrdbfxqyrbdumvpkvatjoddavdgn']
     """
     success_list_ = []
     curvatures = []
@@ -640,7 +643,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -665,7 +668,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['pqbzoibzzcndfwemlmudneawivzacupf']
+        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
     """
     scale_str_list = [
         '%0.04f' % (scale, )
@@ -725,7 +728,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
@@ -734,7 +737,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['pqbzoibzzcndfwemlmudneawivzacupf']
+        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
     """
     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, **config)
     resized_images, resized_masks, pre_transforms = values
@@ -789,7 +792,7 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> lnbnn_dict = ibs.ibeis_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
@@ -797,7 +800,7 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['watgfrbrzoizabwfqgpaxihrmihijgug']
+        >>> assert ut.hash_data(hash_list) in ['eegzjulonluhvyhnsfckhihpdxtlnxsz']
     """
     lnbnn_dict = {}
     zipped = zip(aid_list, success_list, descriptor_dict_list)
@@ -856,13 +859,13 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['watgfrbrzoizabwfqgpaxihrmihijgug']
+        >>> assert ut.hash_data(hash_list) in ['eegzjulonluhvyhnsfckhihpdxtlnxsz']
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -871,13 +874,13 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> aid_list = ibs.get_image_aids(1)
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['watgfrbrzoizabwfqgpaxihrmihijgug']
+        >>> assert ut.hash_data(hash_list) in ['eegzjulonluhvyhnsfckhihpdxtlnxsz']
     """
     if aid_list is None:
         aid_list = ibs.get_imageset_aids(imageset_rowid)
@@ -887,8 +890,8 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         print('\tCompute Curvature Pipeline')
 
     if use_depc:
-        success_list         = ibs.depc_image.get('curvature_descriptor', aid_list, 'success',    config=config)
-        descriptor_dict_list = ibs.depc_image.get('curvature_descriptor', aid_list, 'descriptor', config=config)
+        success_list         = ibs.depc_annot.get('curvature_descriptor', aid_list, 'success',    config=config)
+        descriptor_dict_list = ibs.depc_annot.get('curvature_descriptor', aid_list, 'descriptor', config=config)
     else:
         values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
         success_list, descriptor_dict_list = values
