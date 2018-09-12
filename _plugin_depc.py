@@ -6,7 +6,7 @@ import vtool as vt
 import dtool
 
 
-register_preproc_image = controller_inject.register_preprocs['image']
+register_preproc_annot = controller_inject.register_preprocs['image']
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
 
@@ -55,7 +55,7 @@ class PreprocessConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='preprocess', parents=['images'],
     colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
@@ -64,13 +64,13 @@ class PreprocessConfig(dtool.Config):
     rm_extern_on_delete=True,
     chunksize=256,
 )
-def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
+def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     r"""
     Pre-process images for CurvRank with Dependency Cache (depc)
 
     Args:
         depc      (Dependency Cache): IBEIS dependency cache object
-        gid_list  (list of int): list of image rowids (gids)
+        aid_list  (list of int): list of image rowids (gids)
         config    (PreprocessConfig): config for depcache
 
     CommandLine:
@@ -83,10 +83,10 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> resized_images = ibs.depc_image.get('preprocess', gid_list, 'resized_img',  config=DEFAULT_TEST_CONFIG)
-        >>> resized_masks  = ibs.depc_image.get('preprocess', gid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
-        >>> pre_transforms = ibs.depc_image.get('preprocess', gid_list, 'pretransform', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> resized_images = ibs.depc_image.get('preprocess', aid_list, 'resized_img',  config=DEFAULT_TEST_CONFIG)
+        >>> resized_masks  = ibs.depc_image.get('preprocess', aid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
+        >>> pre_transforms = ibs.depc_image.get('preprocess', aid_list, 'pretransform', config=DEFAULT_TEST_CONFIG)
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
         >>> pre_transform = pre_transforms[0]
@@ -103,7 +103,7 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, gid_list, config=None):
     width  = config['curvrank_width']
     height = config['curvrank_height']
 
-    values = ibs.ibeis_plugin_curvrank_preprocessing(gid_list, width=width, height=height)
+    values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
     resized_images, resized_masks, pre_transforms = values
 
     zipped = zip(resized_images, resized_masks, pre_transforms)
@@ -132,7 +132,7 @@ class LocalizationConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='localization', parents=['preprocess'],
     colnames=['localized_img', 'localized_width', 'localized_height', 'mask_img', 'mask_width', 'mask_height', 'transform'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
@@ -157,10 +157,10 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> localized_images = ibs.depc_image.get('localization', gid_list, 'localized_img',  config=DEFAULT_TEST_CONFIG)
-        >>> localized_masks  = ibs.depc_image.get('localization', gid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
-        >>> loc_transforms = ibs.depc_image.get('localization', gid_list, 'transform', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> localized_images = ibs.depc_image.get('localization', aid_list, 'localized_img',  config=DEFAULT_TEST_CONFIG)
+        >>> localized_masks  = ibs.depc_image.get('localization', aid_list, 'mask_img',     config=DEFAULT_TEST_CONFIG)
+        >>> loc_transforms = ibs.depc_image.get('localization', aid_list, 'transform', config=DEFAULT_TEST_CONFIG)
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
         >>> loc_transform = loc_transforms[0]
@@ -188,7 +188,7 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
                                                     model_tag=model_tag)
     localized_images, localized_masks, loc_transforms = values
 
-    # yield each column defined in register_preproc_image
+    # yield each column defined in register_preproc_annot
     zipped = zip(localized_images, localized_masks, loc_transforms)
     for localized_image, localized_mask, loc_transform in zipped:
         localized_width, localized_height = vt.get_size(localized_image)
@@ -214,7 +214,7 @@ class RefinementConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='refinement', parents=['localization', 'preprocess'],
     colnames=['refined_img', 'refined_width', 'refined_height', 'mask_img', 'mask_width', 'mask_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
@@ -240,9 +240,9 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> refined_localizations = ibs.depc_image.get('refinement', gid_list, 'refined_img', config=DEFAULT_TEST_CONFIG)
-        >>> refined_masks         = ibs.depc_image.get('refinement', gid_list, 'mask_img', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> refined_localizations = ibs.depc_image.get('refinement', aid_list, 'refined_img', config=DEFAULT_TEST_CONFIG)
+        >>> refined_masks         = ibs.depc_image.get('refinement', aid_list, 'mask_img', config=DEFAULT_TEST_CONFIG)
         >>> refined_localization  = refined_localizations[0]
         >>> refined_mask          = refined_masks[0]
         >>> #TODO verify that mac/ubuntu values are consistent on those OSes
@@ -256,11 +256,11 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
     height = config['curvrank_height']
     scale  = config['curvrank_scale']
 
-    gid_list = depc.get_ancestor_rowids('preprocess',  preprocess_rowid_list)
+    aid_list = depc.get_ancestor_rowids('preprocess',  preprocess_rowid_list)
     loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
     pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
-    values = ibs.ibeis_plugin_curvrank_refinement(gid_list, pre_transforms, loc_transforms,
+    values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms,
                                                   width=width, height=height, scale=scale)
     refined_localizations, refined_masks = values
 
@@ -288,7 +288,7 @@ class SegmentationConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='segmentation', parents=['refinement'],
     colnames=['segmentations_img', 'refined_width', 'refined_height', 'refined_segmentations_img', 'refined_segmentations_width', 'refined_segmentations_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
@@ -313,9 +313,9 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> segmentations          = ibs.depc_image.get('segmentation', gid_list, 'segmentations_img', config=DEFAULT_TEST_CONFIG)
-        >>> refined_segmentations  = ibs.depc_image.get('segmentation', gid_list, 'refined_segmentations_img', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> segmentations          = ibs.depc_image.get('segmentation', aid_list, 'segmentations_img', config=DEFAULT_TEST_CONFIG)
+        >>> refined_segmentations  = ibs.depc_image.get('segmentation', aid_list, 'refined_segmentations_img', config=DEFAULT_TEST_CONFIG)
         >>> segmentation           = segmentations[0]
         >>> refined_segmentation   = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['vbmvokttgelinljiiqbmhhxehgcwnjxe', 'wnfimwthormmytbumjnqrhjbsfjccksy']
@@ -355,7 +355,7 @@ class KeypointsConfig(dtool.Config):
         return []
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='keypoints', parents=['segmentation', 'localization'],
     colnames=['success', 'start_y', 'start_x', 'end_y', 'end_x'],
     coltypes=[bool, int, int, int, int],
@@ -380,8 +380,8 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> values = ibs.depc_image.get('keypoints', gid_list, None, config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> values = ibs.depc_image.get('keypoints', aid_list, None, config=DEFAULT_TEST_CONFIG)
         >>> success, start_y, start_x, end_y, end_x = values[0]
         >>> assert success
         >>> assert (start_y, start_x) == (204, 1)
@@ -413,7 +413,7 @@ class OutlineConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='outline', parents=['segmentation', 'refinement', 'keypoints'],
     colnames=['success', 'outline'],
     coltypes=[bool, np.ndarray],
@@ -438,9 +438,9 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> success_list = ibs.depc_image.get('outline', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
-        >>> outlines = ibs.depc_image.get('outline', gid_list, 'outline', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> success_list = ibs.depc_image.get('outline', aid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> outlines = ibs.depc_image.get('outline', aid_list, 'outline', config=DEFAULT_TEST_CONFIG)
         >>> outline = outlines[0]
         >>> assert ut.hash_data(outline) in ['qiideplhbdrbvnkkihqeibedbphqzmyw']
         >>> assert success_list == [True]
@@ -472,7 +472,7 @@ class TrailingEdgeConfig(dtool.Config):
         return []
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='trailing_edge', parents=['outline'],
     colnames=['success', 'trailing_edge'],
     coltypes=[bool, np.ndarray],
@@ -497,9 +497,9 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> success_list = ibs.depc_image.get('trailing_edge', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
-        >>> trailing_edges = ibs.depc_image.get('trailing_edge', gid_list, 'trailing_edge', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> success_list = ibs.depc_image.get('trailing_edge', aid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> trailing_edges = ibs.depc_image.get('trailing_edge', aid_list, 'trailing_edge', config=DEFAULT_TEST_CONFIG)
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(trailing_edge) in ['hspynmqvrnhjmowostnissyymllnbiop']
@@ -527,7 +527,7 @@ class CurvatuveConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='curvature', parents=['trailing_edge'],
     colnames=['success', 'curvature'],
     coltypes=[bool, np.ndarray],
@@ -552,9 +552,9 @@ def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> success_list = ibs.depc_image.get('curvature', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
-        >>> curvatures = ibs.depc_image.get('curvature', gid_list, 'curvature', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> success_list = ibs.depc_image.get('curvature', aid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> curvatures = ibs.depc_image.get('curvature', aid_list, 'curvature', config=DEFAULT_TEST_CONFIG)
         >>> curvature = curvatures[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(curvature) in ['prakvzmuaeajjcbxjstkydqtdfqxlmpi']
@@ -590,7 +590,7 @@ class CurvatuveDescriptorConfig(dtool.Config):
         ]
 
 
-@register_preproc_image(
+@register_preproc_annot(
     tablename='curvature_descriptor', parents=['curvature'],
     colnames=['success', 'descriptor'],
     coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
@@ -615,9 +615,9 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> gid_list = ibs.get_valid_gids()[0:1]
-        >>> success_list = ibs.depc_image.get('curvature_descriptor', gid_list, 'success', config=DEFAULT_TEST_CONFIG)
-        >>> curvature_descriptor_dicts = ibs.depc_image.get('curvature_descriptor', gid_list, 'descriptor', config=DEFAULT_TEST_CONFIG)
+        >>> aid_list = ibs.get_valid_aids()[0:1]
+        >>> success_list = ibs.depc_image.get('curvature_descriptor', aid_list, 'success', config=DEFAULT_TEST_CONFIG)
+        >>> curvature_descriptor_dicts = ibs.depc_image.get('curvature_descriptor', aid_list, 'descriptor', config=DEFAULT_TEST_CONFIG)
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
         >>> hash_list = [
