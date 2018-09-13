@@ -840,11 +840,11 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         result_list = super(CurvRankRequest, request).execute(*args)
         qaids = kwargs.pop('qaids', None)
         if qaids is not None:
-            results = [
+            result_list = [
                 result for result in result_list
                 if result.qaid in qaids
             ]
-        return results
+        return result_list
 
 
 @register_preproc_annot(
