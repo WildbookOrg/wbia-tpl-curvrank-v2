@@ -4,6 +4,7 @@ import numpy as np
 import utool as ut
 import vtool as vt
 import dtool
+import ibeis
 
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
@@ -34,6 +35,9 @@ DEFAULT_TEST_CONFIG = {
 }
 
 
+ROOT = ibeis.const.ANNOTATION_TABLE
+
+
 def zip_coords(ys, xs):
     return np.array(list(zip(ys, xs)))
 
@@ -49,7 +53,7 @@ def get_zipped(depc, tablename, col_ids, y_key, x_key, config=None):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
+def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     r"""
     CurvRank Example
 
@@ -74,7 +78,7 @@ def ibeis_plugin_curvrank_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank_depc(db_aid_list, qr_aid_list)
+        >>> score_dict = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aid_list)
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -82,7 +86,7 @@ def ibeis_plugin_curvrank_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         {1: -31.3653052, 2: -3.09841482, 3: -4.30560276}
     """
     kwargs['use_depc'] = True
-    return ibs.ibeis_plugin_curvrank(db_aid_list, qr_aid_list, **kwargs)
+    return ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, **kwargs)
 
 
 class PreprocessConfig(dtool.Config):
@@ -95,7 +99,7 @@ class PreprocessConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='preprocess', parents=['annotations'],
+    tablename='preprocess', parents=[ROOT],
     colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
     configclass=PreprocessConfig,
@@ -692,6 +696,184 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
             success,
             curvature_descriptor_dict,
         )
+
+
+def get_match_results(depc, qaid_list, daid_list, score_list, config):
+    """ converts table results into format for ipython notebook """
+    #qaid_list, daid_list = request.get_parent_rowids()
+    #score_list = request.score_list
+    #config = request.config
+
+    unique_qaids, groupxs = ut.group_indices(qaid_list)
+    #grouped_qaids_list = ut.apply_grouping(qaid_list, groupxs)
+    grouped_daids = ut.apply_grouping(daid_list, groupxs)
+    grouped_scores = ut.apply_grouping(score_list, groupxs)
+
+    ibs = depc.controller
+    unique_qnids = ibs.get_annot_nids(unique_qaids)
+
+    # scores
+    _iter = zip(unique_qaids, unique_qnids, grouped_daids, grouped_scores)
+    for qaid, qnid, daids, scores in _iter:
+        dnids = ibs.get_annot_nids(daids)
+
+        # Remove distance to self
+        annot_scores = np.array(scores)
+        daid_list_ = np.array(daids)
+        dnid_list_ = np.array(dnids)
+
+        is_valid = (daid_list_ != qaid)
+        daid_list_ = daid_list_.compress(is_valid)
+        dnid_list_ = dnid_list_.compress(is_valid)
+        annot_scores = annot_scores.compress(is_valid)
+
+        # Hacked in version of creating an annot match object
+        match_result = ibeis.AnnotMatch()
+        match_result.qaid = qaid
+        match_result.qnid = qnid
+        match_result.daid_list = daid_list_
+        match_result.dnid_list = dnid_list_
+        match_result._update_daid_index()
+        match_result._update_unique_nid_index()
+
+        grouped_annot_scores = vt.apply_grouping(annot_scores, match_result.name_groupxs)
+        name_scores = np.array([np.sum(dists) for dists in grouped_annot_scores])
+        match_result.set_cannonical_name_score(annot_scores, name_scores)
+        yield match_result
+
+
+class CurvRankConfig(dtool.Config):  # NOQA
+    """
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --exec-CurvRankConfig --show
+
+    IPython:
+        ut.execute_doctest('CurvRankConfig', module='ibeis_curvrank._plugin_depc')
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> config = CurvRankConfig()
+        >>> result = config.get_cfgstr()
+        >>> print(result)
+        CurvRank(decision=max,weight_import=1,window=10,version=8)_NotchTip(version=4,kp_net=128_decoupled)_CropChip(crop_enabled=True,version=2,ext=.png)_TrailingEdge(n_nb3,ign_nTrue,version=9,te_sTrue,w_tes0.5,te_net=annot_res,te_smavg,tol=None)_BlockCurv(csize_max=8,csize_min=2,csize_step=2,version=2)
+    """
+
+    def get_sub_config_list(self):
+        # Different pipeline components can go here
+        # as well as dependencies that were not
+        # explicitly enumerated in the tree structure
+        return [
+            # I guess different annots might want different configs ...
+            PreprocessConfig,
+            LocalizationConfig,
+            RefinementConfig,
+            SegmentationConfig,
+            KeypointsConfig,
+            OutlineConfig,
+            TrailingEdgeConfig,
+            CurvatuveConfig,
+            CurvatuveDescriptorConfig,
+        ]
+
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo(key, DEFAULT_TEST_CONFIG[key])
+            for key in sorted(DEFAULT_TEST_CONFIG.keys())
+        ]
+
+
+class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
+    _tablename = 'CurvRank'
+    _symmetric = False
+    @ut.accepts_scalar_input
+    def get_fmatch_overlayed_chip(request, aid_list, config=None):
+        """
+        import plottool as pt
+        pt.ensure_pylab_qt4()
+        pt.imshow(overlay_chips[0])
+        """
+        # FIXME: THIS STRUCTURE OF TELLING HOW FEATURE
+        # MATCHES SHOULD BE VISUALIZED IS NOT FINAL.
+        depc = request.depc
+        ut.embed()
+        chips = depc.get('refinement', aid_list, 'refined_img', config=request.config)
+        # outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+        return chips
+
+    # def render_single_result(request, cm, aid, **kwargs):
+    #     # HACK FOR WEB VIEWER
+    #     if kwargs.get('draw_fmatches'):
+    #         chips = request.get_fmatch_overlayed_chip([cm.qaid, aid], request.config)
+    #     else:
+    #         depc = request.depc
+    #         chips = depc.get('localization', [cm.qaid, aid], 'localized_img', config=request.config)
+    #     import vtool as vt
+    #     out_img = vt.stack_image_list(chips)
+    #     return out_img
+
+    def postprocess_execute(request, parent_rowids, result_list):
+        qaid_list, daid_list = list(zip(*parent_rowids))
+        score_list = ut.take_column(result_list, 0)
+        depc = request.depc
+        config = request.config
+        cm_list = list(get_match_results(depc, qaid_list, daid_list,
+                                         score_list, config))
+        return cm_list
+
+
+@register_preproc_annot(
+    tablename='CurvRank', parents=[ROOT, ROOT],
+    colnames=['score'], coltypes=[float],
+    configclass=CurvRankConfig,
+    requestclass=CurvRankRequest,
+    chunksize=2056)
+def ibeis_plugin_curvrank(depc, qaid_list, daid_list, config):
+    r"""
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --exec-ibeis_plugin_curvrank:0 --show
+
+    Example:
+        >>> # DISABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> import itertools as it
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> depc = ibs.depc_annot
+        >>> aid_list = ibs.get_valid_aids()
+        >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
+        >>> qaid_list, daid_list = root_rowids
+        >>> config = CurvRankConfig()
+        >>> # Call function via request
+        >>> request = CurvRankRequest.new(depc, aid_list, aid_list)
+        >>> am_list1 = request.execute()
+        >>> # Call function via depcache
+        >>> prop_list = depc.get('CurvRank', root_rowids)
+        >>> # Call function normally
+        >>> score_list = list(ibeis_plugin_curvrank(depc, qaid_list, daid_list, config))
+        >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
+        >>> assert score_list == prop_list, 'error in cache'
+        >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
+        >>> ut.quit_if_noshow()
+        >>> am = am_list2[0]
+        >>> am.ishow_analysis(request)
+        >>> ut.show_if_requested()
+    """
+    ibs = depc.controller
+
+    print('Executing CurvRank')
+    for qaid, daid in zip(qaid_list, daid_list):
+        score_dict = ibs.ibeis_plugin_curvrank_scores_depc([daid], [qaid],
+                                                           config=config,
+                                                           use_names=False)
+
+        # assert len(score_dict.keys()) == 1
+        # assert daid in score_dict
+        score = score_dict[daid]
+        score *= -1.0
+        yield (score,)
 
 
 if __name__ == '__main__':

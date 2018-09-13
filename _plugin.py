@@ -31,8 +31,8 @@ def _assert_hashes(data, hash_list, tag='data'):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
-                          verbose=False, use_depc=USE_DEPC):
+def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, lnbnn_k=2, config={},
+                                 verbose=False, use_names=True, use_depc=USE_DEPC):
     r"""
     CurvRank Example
 
@@ -44,7 +44,7 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
         score_dict
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -57,7 +57,7 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank(db_aid_list, qr_aid_list, use_depc=False)
+        >>> score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, use_depc=False)
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -70,14 +70,14 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
     if verbose:
         print('Loading database data...')
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list,
+    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
                                                 verbose=verbose, use_depc=use_depc)
     db_lnbnn_data, _ = values
 
     if verbose:
         print('Loading query data...')
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list,
+    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
                                                 verbose=verbose, use_depc=use_depc)
     qr_lnbnn_data, _ = values
 
@@ -112,13 +112,17 @@ def ibeis_plugin_curvrank(ibs, db_aid_list, qr_aid_list, lnbnn_k=2,
         index_filepath = index_filepath_dict[scale]
         db_descriptors, db_aids = db_lnbnn_data[scale]
         qr_descriptors, qr_aids = qr_lnbnn_data[scale]
-        db_nids = ibs.get_annot_nids(db_aids)
 
-        score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_nids)
-        for nid in score_dict_:
-            if nid not in score_dict:
-                score_dict[nid] = 0.0
-            score_dict[nid] += score_dict_[nid]
+        if use_names:
+            db_rowids = ibs.get_annot_nids(db_aids)
+        else:
+            db_rowids = db_aids
+
+        score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids)
+        for rowid in score_dict_:
+            if rowid not in score_dict:
+                score_dict[rowid] = 0.0
+            score_dict[rowid] += score_dict_[rowid]
 
     return score_dict
 
