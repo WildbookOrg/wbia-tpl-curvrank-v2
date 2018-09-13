@@ -786,31 +786,46 @@ class CurvRankConfig(dtool.Config):  # NOQA
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _tablename = 'CurvRank'
     _symmetric = False
-    @ut.accepts_scalar_input
-    def get_fmatch_overlayed_chip(request, aid_list, config=None):
-        """
-        import plottool as pt
-        pt.ensure_pylab_qt4()
-        pt.imshow(overlay_chips[0])
-        """
-        # FIXME: THIS STRUCTURE OF TELLING HOW FEATURE
-        # MATCHES SHOULD BE VISUALIZED IS NOT FINAL.
-        depc = request.depc
-        ut.embed()
-        chips = depc.get('refinement', aid_list, 'refined_img', config=request.config)
-        # outlines = depc.get('outline', aid_list, 'outline', config=request.config)
-        return chips
 
-    # def render_single_result(request, cm, aid, **kwargs):
-    #     # HACK FOR WEB VIEWER
-    #     if kwargs.get('draw_fmatches'):
-    #         chips = request.get_fmatch_overlayed_chip([cm.qaid, aid], request.config)
-    #     else:
-    #         depc = request.depc
-    #         chips = depc.get('localization', [cm.qaid, aid], 'localized_img', config=request.config)
-    #     import vtool as vt
-    #     out_img = vt.stack_image_list(chips)
-    #     return out_img
+    def overlay_outline(request, chip, outline, edge_color=(255, 0, 0)):
+        import cv2
+        scale = request.config.curvrank_scale
+
+        chip_ = np.copy(chip)
+        chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
+        h, w = chip_.shape[:2]
+
+        if outline is not None:
+            for y, x in outline:
+                if x < 0 or w < h or y < 0 or h < y:
+                    continue
+                cv2.circle(chip_, (x, y), 5, edge_color, thickness=-1)
+
+        return chip_
+
+    @ut.accepts_scalar_input
+    def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
+        depc = request.depc
+        chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
+        if overlay:
+            outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+        else:
+            outlines = [None] * len(chips)
+
+        overlay_chips = [
+            request.overlay_outline(chip, outline)
+            for chip, outline in zip(chips, outlines)
+        ]
+        return overlay_chips
+
+    def render_single_result(request, cm, aid, **kwargs):
+        # HACK FOR WEB VIEWER
+        overlay = kwargs.get('draw_fmatches')
+        chips = request.get_fmatch_overlayed_chip([cm.qaid, aid], overlay=overlay,
+                                                  config=request.config)
+        import vtool as vt
+        out_img = vt.stack_image_list(chips)
+        return out_img
 
     def postprocess_execute(request, parent_rowids, result_list):
         qaid_list, daid_list = list(zip(*parent_rowids))
@@ -820,6 +835,16 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         cm_list = list(get_match_results(depc, qaid_list, daid_list,
                                          score_list, config))
         return cm_list
+
+    def execute(request, *args, **kwargs):
+        result_list = super(CurvRankRequest, request).execute(*args)
+        qaids = kwargs.pop('qaids', None)
+        if qaids is not None:
+            results = [
+                result for result in result_list
+                if result.qaid in qaids
+            ]
+        return results
 
 
 @register_preproc_annot(
