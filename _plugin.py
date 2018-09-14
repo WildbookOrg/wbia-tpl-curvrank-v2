@@ -122,8 +122,8 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     Args:
         ibs       (IBEISController): IBEIS controller object
         model_tag  (string): Key to URL_DICT entry for this model
-        resized_images (list of np.ndarray): widthXheightX3 color channels
-        resized_masks (list of np.ndarray): heightXwidth greyscale images
+        resized_images (list of np.ndarray): (height, width, 3) BGR images
+        resized_masks (list of np.ndarray): (height, width) binary masks
 
     Returns:
         localized_images
@@ -222,9 +222,9 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
     Args:
         ibs       (IBEISController): IBEIS controller object
         aid_list  (list of int): list of image rowids (aids)
-        pre_transforms (list of np.ndarray):
-        loc_transforms (list of np.ndarray):
-        scale (int): how many scales to perform the refinement (default to 4).
+        pre_transforms (list of np.ndarray): (3, 3) similarity matrices
+        loc_transforms (list of np.ndarray): (3, 3) affine matrices
+        scale (int): upsampling factor from coarse to fine-grained (default to 4).
 
     Returns:
         refined_localizations
@@ -311,7 +311,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         refined_localizations: output of ibeis_plugin_curvrank_refinement
         refined_masks: output of ibeis_plugin_curvrank_refinement
         model_tag  (string): Key to URL_DICT entry for this model
-        scale (int): how many scales to perform the refinement (default to 4).
+        scale (int): upsampling factor from coarse to fine-grained (default to 4).
 
     Returns:
         segmentations
