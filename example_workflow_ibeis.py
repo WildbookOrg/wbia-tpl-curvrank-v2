@@ -7,9 +7,9 @@ if __name__ == '__main__':
     dbdir = sysres.ensure_testdb_curvrank()
     ibs = ibeis.opendb(dbdir=dbdir)
 
-    db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('database')
+    db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
     db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-    qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('query')
+    qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
     qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
 
     score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list,
