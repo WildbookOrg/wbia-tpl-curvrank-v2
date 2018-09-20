@@ -552,10 +552,10 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
     for success, start, end in zip(success_list, starts, ends):
         yield (
             success,
-            start[0],
-            start[1],
-            end[0],
-            end[1]
+            None if start is None else start[0],
+            None if start is None else start[1],
+            None if end is None else end[0],
+            None if end is None else end[1],
         )
 
 
