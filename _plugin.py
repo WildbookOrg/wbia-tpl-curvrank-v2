@@ -598,6 +598,8 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     for value in zipped:
         success, start, end, refined_loc, refined_mask, refined_seg = value
         success_ = success
+        start = np.array(start, dtype=np.float32)
+        end   = np.array(end,   dtype=np.float32)
         if success:
             outline = F.extract_outline(
                 refined_loc, refined_mask, refined_seg, scale, start, end,

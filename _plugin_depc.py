@@ -1117,18 +1117,22 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     print('Executing CurvRank-Dorsal')
-    for qaid, daid in zip(qaid_list, daid_list):
-        score_dict = ibs.ibeis_plugin_curvrank_scores_depc([daid], [qaid],
-                                                           config=config,
-                                                           use_names=False)
 
-        # assert len(score_dict.keys()) == 1
-        # assert daid in score_dict
-        if daid in score_dict:
-            score = score_dict[daid]
-            score *= -1.0
-        else:
-            score = 0.0
+    qaid_list_ = sorted(list(set(qaid_list)))
+    daid_list_ = sorted(list(set(daid_list)))
+
+    score_dict = {}
+    for qaid in ut.ProgressIter(qaid_list_, lbl='CurvRankDorsal', freq=10):
+        score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
+                                                            config=config,
+                                                            use_names=False)
+        score_dict[qaid] = score_dict_
+
+    for qaid, daid in zip(qaid_list, daid_list):
+        assert qaid in score_dict
+        score = score_dict[qaid].get(daid, float(np.inf))
+        score *= -1.0
+
         yield (score,)
 
 
@@ -1201,15 +1205,22 @@ def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     print('Executing CurvRank-Fluke')
-    for qaid, daid in zip(qaid_list, daid_list):
-        score_dict = ibs.ibeis_plugin_curvrank_scores_depc([daid], [qaid],
-                                                           config=config,
-                                                           use_names=False)
 
-        # assert len(score_dict.keys()) == 1
-        # assert daid in score_dict
-        score = score_dict[daid]
+    qaid_list_ = sorted(list(set(qaid_list)))
+    daid_list_ = sorted(list(set(daid_list)))
+
+    score_dict = {}
+    for qaid in ut.ProgressIter(qaid_list_, lbl='CurvRankFluke', freq=10):
+        score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
+                                                            config=config,
+                                                            use_names=False)
+        score_dict[qaid] = score_dict_
+
+    for qaid, daid in zip(qaid_list, daid_list):
+        assert qaid in score_dict
+        score = score_dict[qaid].get(daid, float(np.inf))
         score *= -1.0
+
         yield (score,)
 
 
