@@ -95,7 +95,7 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
          [ 0.          0.54857143 52.        ]
          [ 0.          0.          1.        ]]
     """
-    ibs._parallel_chips = True
+    # ibs._parallel_chips = True
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
@@ -282,13 +282,13 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> assert ut.hash_data(refined_localization) in ['cwmqsvpabxdaftsnupgerivjufsavfhl']
         >>> assert ut.hash_data(refined_mask)         in ['zwfgmumqblkfzejnseauggiedzpbbjoa']
     """
-    ibs._parallel_chips = True
+    # ibs._parallel_chips = True
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
 
-    OLD = False
+    OLD = True
 
     if OLD:
         refined_localizations, refined_masks = [], []
@@ -1368,9 +1368,12 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
     # Run LNBNN identification for each scale independently and aggregate
     score_dict = {}
     for scale in index_filepath_dict:
-        assert scale in index_filepath_dict
-        assert scale in db_lnbnn_data
-        assert scale in qr_lnbnn_data
+        if scale not in index_filepath_dict:
+            continue
+        if scale not in db_lnbnn_data:
+            continue
+        if scale not in qr_lnbnn_data:
+            continue
 
         index_filepath = index_filepath_dict[scale]
         db_descriptors, db_aids = db_lnbnn_data[scale]

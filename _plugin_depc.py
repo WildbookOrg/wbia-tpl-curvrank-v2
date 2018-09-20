@@ -1124,8 +1124,11 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
 
         # assert len(score_dict.keys()) == 1
         # assert daid in score_dict
-        score = score_dict[daid]
-        score *= -1.0
+        if daid in score_dict:
+            score = score_dict[daid]
+            score *= -1.0
+        else:
+            score = 0.0
         yield (score,)
 
 
