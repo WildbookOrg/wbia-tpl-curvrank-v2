@@ -243,7 +243,7 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> aid_list = ut.flatten(ibs.get_image_aids(range(8))
+        >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -282,49 +282,44 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> assert ut.hash_data(refined_localization) in ['cwmqsvpabxdaftsnupgerivjufsavfhl']
         >>> assert ut.hash_data(refined_mask)         in ['zwfgmumqblkfzejnseauggiedzpbbjoa']
     """
-
-    # ibs._parallel_chips = True
-    # image_list = ibs.get_annot_chips(aid_list)
-
-    # viewpoint_list = ibs.get_annot_viewpoints(aid_list)
-    # flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
-
-    # refined_localizations, refined_masks = [], []
-    # zipped = zip(image_list, flip_list, pre_transforms, loc_transforms)
-    # for image, flip, pre_transform, loc_transform in zipped:
-    #     refined_localization, refined_mask = F.refine_localization(
-    #         image, flip, pre_transform, loc_transform,
-    #         scale, height, width
-    #     )
-    #     refined_localizations.append(refined_localization)
-    #     refined_masks.append(refined_mask)
-
-    # return refined_localizations, refined_masks
-
     ibs._parallel_chips = True
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
 
-    scale_list  = [scale]  * len(aid_list)
-    height_list = [height] * len(aid_list)
-    width_list  = [width]  * len(aid_list)
+    OLD = False
 
-    zipped = zip(image_list, flip_list, pre_transforms, loc_transforms,
-                 scale_list, height_list, width_list)
+    if OLD:
+        refined_localizations, refined_masks = [], []
+        zipped = zip(image_list, flip_list, pre_transforms, loc_transforms)
+        for image, flip, pre_transform, loc_transform in zipped:
+            refined_localization, refined_mask = F.refine_localization(
+                image, flip, pre_transform, loc_transform,
+                scale, height, width
+            )
+            refined_localizations.append(refined_localization)
+            refined_masks.append(refined_mask)
 
-    config_ = {
-        'ordered': True,
-        'chunksize': 32,
-        'force_serial': ibs.force_serial,
-    }
-    generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
+    else:
+        scale_list  = [scale]  * len(aid_list)
+        height_list = [height] * len(aid_list)
+        width_list  = [width]  * len(aid_list)
 
-    refined_localizations, refined_masks = [], []
-    for refined_localization, refined_mask in generator:
-        refined_localizations.append(refined_localization)
-        refined_masks.append(refined_mask)
+        zipped = zip(image_list, flip_list, pre_transforms, loc_transforms,
+                     scale_list, height_list, width_list)
+
+        config_ = {
+            'ordered': True,
+            'chunksize': 32,
+            'force_serial': ibs.force_serial,
+        }
+        generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
+
+        refined_localizations, refined_masks = [], []
+        for refined_localization, refined_mask in generator:
+            refined_localizations.append(refined_localization)
+            refined_masks.append(refined_mask)
 
     return refined_localizations, refined_masks
 
