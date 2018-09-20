@@ -97,7 +97,7 @@ def extract_outline(img, mask, segm, scale,
     points_refn = affine.transform_points(Mscale, points_orig)
 
     # points are ij
-    start_refn, end_refn = np.floor(points_refn[:, ::-1]).astype(np.int32)
+    start_refn, end_refn = np.floor(points_refn.astype(np.float32)[:, ::-1]).astype(np.int32)
     outline = dorsal_utils.extract_outline(
         img, mask, segm, cost_func, start_refn, end_refn, allow_diagonal
     )
