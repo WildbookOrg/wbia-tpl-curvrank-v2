@@ -173,7 +173,7 @@ def separate_leading_trailing_edges(contour):
     maxima_idx, = argrelextrema(norm, np.greater, order=250)
 
     if maxima_idx.shape[0] > 0:
-        keypt = steps // 2 + int(maxima_idx[norm[maxima_idx].argmax()])
+        keypt = steps // 2 + maxima_idx[norm[maxima_idx].argmax()]
     else:
         keypt = None
 
