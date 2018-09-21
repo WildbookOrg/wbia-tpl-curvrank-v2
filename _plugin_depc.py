@@ -994,7 +994,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     ut.ensuredir(cache_path)
 
     qaid_list_ = sorted(list(set(qaid_list)))
-    daid_list_ = sorted(list(set(daid_list)))
+    daid_list_ = sorted(list(set(daid_list) - set(qaid_list)))
 
     score_dict = {}
     for qaid in ut.ProgressIter(qaid_list_, lbl=label, freq=10):
