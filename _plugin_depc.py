@@ -1010,9 +1010,9 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
             score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
                                                                 config=config,
                                                                 use_names=False)
-            ut.save_cPkl(cache_filepath, score_dict_)
+            ut.save_cPkl(cache_filepath, score_dict_, verbose=False)
         else:
-            score_dict_ = ut.load_cPkl(cache_filepath)
+            score_dict_ = ut.load_cPkl(cache_filepath, verbose=False)
 
         score_dict[qaid] = score_dict_
 
