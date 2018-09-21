@@ -1265,7 +1265,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
 @register_ibs_method
 def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
-                                 lnbnn_k=2, verbose=False,
+                                 lnbnn_k=2, verbose=True,
                                  use_names=True, use_depc=USE_DEPC):
     r"""
     CurvRank Example
@@ -1391,6 +1391,9 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
             if rowid not in score_dict:
                 score_dict[rowid] = 0.0
             score_dict[rowid] += score_dict_[rowid]
+
+    if verbose:
+        print('Returning scores...')
 
     return score_dict
 
