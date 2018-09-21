@@ -993,8 +993,6 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
 
     print('Computing %s' % (label, ))
 
-    ut.embed()
-
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
