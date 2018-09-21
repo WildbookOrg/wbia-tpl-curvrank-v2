@@ -990,6 +990,11 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
 
 @register_ibs_method
 def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
+
+    print('Computing %s' % (label, ))
+
+    ut.embed()
+
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
@@ -1116,7 +1121,7 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     configclass=CurvRankDorsalConfig,
     requestclass=CurvRankDorsalRequest,
     fname='curvrank',
-    chunksize=2048)
+    chunksize=None)
 def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
@@ -1189,7 +1194,7 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
     configclass=CurvRankFlukeConfig,
     requestclass=CurvRankFlukeRequest,
     fname='curvrank',
-    chunksize=2048)
+    chunksize=None)
 def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
