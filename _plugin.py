@@ -20,12 +20,12 @@ USE_DEPC = True
 
 URL_DICT = {
     'dorsal': {
-        'localization': 'https://lev.cs.rpi.edu/public/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://lev.cs.rpi.edu/public/models/curvrank.segmentation.dorsal.weights.pkl',
+        'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
+        'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'fluke': {
         'localization': None,
-        'segmentation': 'https://lev.cs.rpi.edu/public/models/curvrank.segmentation.fluke.weights.pkl',
+        'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.fluke.weights.pkl',
     },
 }
 
