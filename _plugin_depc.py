@@ -406,7 +406,7 @@ class SegmentationConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='segmentation', parents=['refinement'],
+    tablename='segmentation', parents=['refinement', 'preprocess', 'localization'],
     colnames=['segmentations_img', 'refined_width', 'refined_height', 'refined_segmentations_img', 'refined_segmentations_width', 'refined_segmentations_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
     configclass=SegmentationConfig,
@@ -416,7 +416,8 @@ class SegmentationConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=None):
+def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preprocess_rowid_list,
+                                            localization_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -424,6 +425,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -454,6 +456,27 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
         >>> refined_segmentation   = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['htbsspdnjfchswtcboifeybpkhmbdmms']
         >>> assert ut.hash_data(refined_segmentation) in ['hqngsbdctbjsruuwjhhbuamcbukbyaea']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>> config['localization_model_tag'] = 'groundtruth'
+        >>> config['segmentation_model_tag'] = 'groundtruth'
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
+        >>>     refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
+        >>>     segmentation           = segmentations[0]
+        >>>     refined_segmentation   = refined_segmentations[0]
+        >>>     assert ut.hash_data(segmentation)         in ['hxqixrcmdqlnobzwzsdfeqqfbuutyzrc']
+        >>>     assert ut.hash_data(refined_segmentation) in ['hfqagabghevscvfmgxkdiwutstmeuteh']
+        >>> finally:
+        >>>     ibs.delete_parts(part_rowid_list)
     """
     ibs = depc.controller
 
@@ -463,12 +486,17 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, config=
     scale      = config['curvrank_scale']
     model_tag  = config['segmentation_model_tag']
 
-    refined_localizations = depc.get_native('refinement', refinement_rowid_list, 'refined_img')
-    refined_masks         = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
+    aid_list     = depc.get_ancestor_rowids('refinement',   refinement_rowid_list)
+    refined_localizations = depc.get_native('refinement',   refinement_rowid_list,    'refined_img')
+    refined_masks         = depc.get_native('refinement',   refinement_rowid_list,    'mask_img')
+    pre_transforms        = depc.get_native('preprocess',   preprocess_rowid_list,    'pretransform')
+    loc_transforms        = depc.get_native('localization', localization_rowid_list,  'transform')
 
-    values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks,
-                                                    width=width, height=height, scale=scale,
-                                                    model_type=model_type, model_tag=model_tag)
+    values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks,
+                                                    pre_transforms, loc_transforms,
+                                                    width=width, height=height,
+                                                    scale=scale, model_type=model_type,
+                                                    model_tag=model_tag)
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):

@@ -2,9 +2,10 @@ from __future__ import absolute_import, division, print_function
 from ibeis.control import controller_inject  # NOQA
 from os.path import abspath, join, exists
 import ibeis_curvrank.functional as F
+from ibeis_curvrank import imutils
 import numpy as np
 import utool as ut
-
+import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
 import ibeis_curvrank._plugin_depc  # NOQA
@@ -28,6 +29,12 @@ URL_DICT = {
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.fluke.weights.pkl',
     },
 }
+
+
+NICE = False
+NICE_RADIUS = 9
+NICE_OPACITY = 0.9
+NICE_SMOOTH = 0.005
 
 
 @register_ibs_method
@@ -188,7 +195,10 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     """
     from ibeis_curvrank import localization, model, theano_funcs
 
-    model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
+    if model_tag == 'groundtruth':
+        model_url = None
+    else:
+        model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
 
     if model_url is None:
         localized_images = resized_images
@@ -325,7 +335,66 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks,
+def ibeis_plugin_curvrank_test_setup_groundtruth(ibs):
+    part_rowid_list = ibs.get_valid_part_rowids()
+    part_type_list = ibs.get_part_types(part_rowid_list)
+    part_contour_list = ibs.get_part_contour(part_rowid_list)
+    flag_list = [part_contour.get('contour', None) is not None for part_contour in part_contour_list]
+
+    print('Found %d / %d contours' % (sum(flag_list), len(flag_list), ))
+
+    part_rowid_list = ut.compress(part_rowid_list, flag_list)
+    part_type_list = ut.compress(part_type_list, flag_list)
+    part_contour_list = ut.compress(part_contour_list, flag_list)
+
+    aid_list = ibs.get_part_aids(part_rowid_list)
+    nid_list = ibs.get_annot_nids(aid_list)
+    species_list = ibs.get_annot_species_texts(aid_list)
+    viewpoint_list = ibs.get_annot_viewpoints(aid_list)
+    flag_list = [species == 'fin_dorsal' for species in species_list]
+
+    part_rowid_list = ut.compress(part_rowid_list, flag_list)
+    part_type_list = ut.compress(part_type_list, flag_list)
+    part_contour_list = ut.compress(part_contour_list, flag_list)
+    aid_list = ut.compress(aid_list, flag_list)
+    nid_list = ut.compress(nid_list, flag_list)
+    species_list = ut.compress(species_list, flag_list)
+    viewpoint_list = ut.compress(viewpoint_list, flag_list)
+
+    gid_list = ibs.get_annot_gids(aid_list)
+    bbox_list = ibs.get_part_bboxes(part_rowid_list)
+    species_list = [
+        '%s+%s' % (species, part_type, )
+        for species, part_type in zip(species_list, part_type_list)
+    ]
+
+    aid_list_ = ibs.add_annots(
+        gid_list,
+        bbox_list=bbox_list,
+        species_list=species_list,
+        viewpoint_list=viewpoint_list,
+        nid_list=nid_list,
+    )
+    ibs.delete_parts(ut.flatten(ibs.get_annot_part_rowids(aid_list_)))
+
+    part_rowid_list_ = ibs.add_parts(
+        aid_list_,
+        bbox_list=bbox_list,
+        type_list=part_type_list
+    )
+    ibs.set_part_contour(part_rowid_list_, part_contour_list)
+
+    all_part_rowid_list_ = ibs.get_annot_part_rowids(aid_list_)
+    print('aid_list_ = %r' % (aid_list_, ))
+    print('part_rowid_list_ = %r' % (part_rowid_list_, ))
+    print('all part_rowid_list_ = %r' % (all_part_rowid_list_, ))
+
+    return aid_list_, part_rowid_list_
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refined_masks,
+                                       pre_transforms, loc_transforms,
                                        width=256, height=256, scale=4, model_type='dorsal',
                                        model_tag='segmentation', **kwargs):
     r"""
@@ -346,6 +415,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:1
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -361,7 +431,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
@@ -388,27 +458,137 @@ def ibeis_plugin_curvrank_segmentation(ibs, refined_localizations, refined_masks
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['htbsspdnjfchswtcboifeybpkhmbdmms']
         >>> assert ut.hash_data(refined_segmentation) in ['hqngsbdctbjsruuwjhhbuamcbukbyaea']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     resized_images, resized_masks, pre_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     localized_images, localized_masks, loc_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     refined_localizations, refined_masks = values
+        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     segmentations, refined_segmentations = values
+        >>>     segmentation = segmentations[0]
+        >>>     refined_segmentation = refined_segmentations[0]
+        >>>     assert ut.hash_data(segmentation)         in ['hxqixrcmdqlnobzwzsdfeqqfbuutyzrc']
+        >>>     assert ut.hash_data(refined_segmentation) in ['hfqagabghevscvfmgxkdiwutstmeuteh']
+        >>> finally:
+        >>>     ibs.delete_parts(part_rowid_list)
     """
     from ibeis_curvrank import segmentation, model, theano_funcs
 
-    model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
-    assert model_url is not None
-    weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+    if model_tag == 'groundtruth':
+        image_list = ibs.get_annot_chips(aid_list)
+        viewpoint_list = ibs.get_annot_viewpoints(aid_list)
+        flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
 
-    segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
+        part_rowids_list = ibs.get_annot_part_rowids(aid_list)
+        part_contours_list = list(map(ibs.get_part_contour, part_rowids_list))
 
-    # I am not sure these are the correct args to load_weights
-    model.load_weights(segmentation_layers['seg_out'], weight_filepath)
-    segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
-    values = F.segment_contour(refined_localizations, refined_masks, scale,
-                               height, width, segmentation_func)
-    segmentations, refined_segmentations = values
+        segmentations = []
+        refined_segmentations = []
+
+        zipped = zip(aid_list, image_list, flip_list, part_rowids_list, part_contours_list, refined_masks, pre_transforms, loc_transforms)
+        for aid, image, flip, part_rowid_list, part_contour_list, refined_mask, pre_transform, loc_transform in zipped:
+            part_rowid = None
+            part_contour = None
+
+            for part_rowid_, part_contour_ in zip(part_rowid_list, part_contour_list):
+                part_contour_ = part_contour_.get('contour', None)
+                if part_contour_ is not None:
+                    message = 'Cannot have more than one ground-truth contour for aid %r' % (aid, )
+                    assert part_rowid is None and part_contour is None, message
+                    part_rowid = part_rowid_
+                    part_contour = part_contour_
+
+            message = 'Cannot have zero ground-truth contour for aid %r' % (aid, )
+            assert part_rowid is not None and part_contour is not None, message
+
+            start = part_contour.get('start', None)
+            end = part_contour.get('end', None)
+            segment = part_contour.get('segment', [])
+            if start is None:
+                start = 0
+            if end is None:
+                end = len(segment)
+            segment = segment[start:end]
+
+            canvas_shape = image.shape[:2]
+            canvas_h, canvas_w = canvas_shape
+            canvas = np.zeros((canvas_h, canvas_w, 1), dtype=np.float64)
+
+            segment_x = np.array(ut.take_column(segment, 'x'))
+            segment_y = np.array(ut.take_column(segment, 'y'))
+            segment_r = np.array(ut.take_column(segment, 'r'))
+
+            if NICE:
+                from scipy import interpolate as itp
+                length = len(segment) * 3
+                mytck, _ = itp.splprep([segment_x, segment_y], s=NICE_SMOOTH)
+                segment_x_, segment_y_ = itp.splev(np.linspace(0, 1, length), mytck)
+
+                segment_x_ = list(map(int, np.around(segment_x_ * canvas_w)))
+                segment_y_ = list(map(int, np.around(segment_y_ * canvas_h)))
+                zipped = list(zip(segment_x_, segment_y_))
+
+                for radius_ in range(NICE_RADIUS, 0, -1):
+                    radius = radius_ - 1
+                    opacity = (1.0 - (radius / NICE_RADIUS)) ** 3.0
+                    opacity *= NICE_OPACITY
+                    color = (opacity, opacity, opacity)
+                    for x, y in zipped:
+                        cv2.circle(canvas, (x, y), radius, color, -1, lineType=cv2.LINE_AA)
+                canvas = cv2.blur(canvas, (5, 5))
+            else:
+                segment_x_ = list(map(int, np.around(segment_x * canvas_w)))
+                segment_y_ = list(map(int, np.around(segment_y * canvas_h)))
+                segment_r_ = list(map(int, np.around(segment_r * canvas_w)))
+                zipped = list(zip(segment_x_, segment_y_, segment_r_))
+
+                color = (1.0, 1.0, 1.0)
+                for x, y, r in zipped:
+                    cv2.circle(canvas, (x, y), r, color, -1, lineType=cv2.LINE_AA)
+
+            refined_segmentation, _ = F.refine_localization(
+                canvas, flip, pre_transform, loc_transform,
+                scale, height, width
+            )
+            refined_segmentation[refined_mask < 255] = 0
+            refined_segmentation[refined_segmentation < 0] = 0
+
+            segmentation_ = imutils.refine_segmentation(refined_segmentation, 1.0 / scale)
+            segmentation_ = segmentation_.reshape((height, width, 1))
+            segmentation_ = segmentation_.astype(np.float64)
+
+            segmentations.append(segmentation_)
+            refined_segmentations.append(refined_segmentation)
+    else:
+        model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
+        assert model_url is not None
+        weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+
+        segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
+
+        # I am not sure these are the correct args to load_weights
+        model.load_weights(segmentation_layers['seg_out'], weight_filepath)
+        segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
+        values = F.segment_contour(refined_localizations, refined_masks, scale,
+                                   height, width, segmentation_func)
+        segmentations, refined_segmentations = values
     return segmentations, refined_segmentations
 
 
@@ -445,7 +625,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
@@ -475,7 +655,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
@@ -545,7 +725,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
@@ -576,7 +756,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
@@ -647,7 +827,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
@@ -680,7 +860,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
@@ -750,7 +930,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
@@ -787,7 +967,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
@@ -854,7 +1034,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
@@ -897,7 +1077,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> localized_images, localized_masks, loc_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
@@ -1027,7 +1207,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, **config)
     refined_localizations, refined_masks = values
 
-    values = ibs.ibeis_plugin_curvrank_segmentation(refined_localizations, refined_masks, **config)
+    values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, **config)
     segmentations, refined_segmentations = values
 
     values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, **config)
