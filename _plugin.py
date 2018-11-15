@@ -31,10 +31,15 @@ URL_DICT = {
 }
 
 
-NICE = False
+NICE = True
 NICE_RADIUS = 9
 NICE_OPACITY = 0.9
-NICE_SMOOTH = 0.005
+
+NOTNICE_RADIUS = 9
+NOTNICE_OPACITY = 0.9
+
+SMOOTH = True
+SMOOTH_MARGIN = 0.005
 
 
 @register_ibs_method
@@ -535,16 +540,21 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
             segment_y = np.array(ut.take_column(segment, 'y'))
             segment_r = np.array(ut.take_column(segment, 'r'))
 
-            if NICE:
+            try:
                 from scipy import interpolate as itp
                 length = len(segment) * 3
-                mytck, _ = itp.splprep([segment_x, segment_y], s=NICE_SMOOTH)
-                segment_x_, segment_y_ = itp.splev(np.linspace(0, 1, length), mytck)
+                mytck, _ = itp.splprep([segment_x, segment_y], s=SMOOTH_MARGIN)
+                values = itp.splev(np.linspace(0, 1, length), mytck)
+                segment_x, segment_y = values
+            except ValueError:
+                pass
 
-                segment_x_ = list(map(int, np.around(segment_x_ * canvas_w)))
-                segment_y_ = list(map(int, np.around(segment_y_ * canvas_h)))
+            segment_x_ = list(map(int, np.around(segment_x * canvas_w)))
+            segment_y_ = list(map(int, np.around(segment_y * canvas_h)))
+            segment_r_ = list(map(int, np.around(segment_r * canvas_w)))
+
+            if NICE:
                 zipped = list(zip(segment_x_, segment_y_))
-
                 for radius_ in range(NICE_RADIUS, 0, -1):
                     radius = radius_ - 1
                     opacity = (1.0 - (radius / NICE_RADIUS)) ** 3.0
@@ -554,13 +564,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
                         cv2.circle(canvas, (x, y), radius, color, -1, lineType=cv2.LINE_AA)
                 canvas = cv2.blur(canvas, (5, 5))
             else:
-                segment_x_ = list(map(int, np.around(segment_x * canvas_w)))
-                segment_y_ = list(map(int, np.around(segment_y * canvas_h)))
-                segment_r_ = list(map(int, np.around(segment_r * canvas_w)))
+                color = (NOTNICE_OPACITY, NOTNICE_OPACITY, NOTNICE_OPACITY)
                 zipped = list(zip(segment_x_, segment_y_, segment_r_))
-
-                color = (1.0, 1.0, 1.0)
                 for x, y, r in zipped:
+                    r = min(r, NOTNICE_RADIUS)
                     cv2.circle(canvas, (x, y), r, color, -1, lineType=cv2.LINE_AA)
 
             refined_segmentation, _ = F.refine_localization(
@@ -610,6 +617,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:1
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -664,6 +672,33 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>> assert success_list == [True]
         >>> assert start == (56, 8)
         >>> assert end   == (59, 358)
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     resized_images, resized_masks, pre_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     localized_images, localized_masks, loc_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     refined_localizations, refined_masks = values
+        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     segmentations, refined_segmentations = values
+        >>>     values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>>     success_list, starts, ends = values
+        >>>     start = tuple(starts[0])
+        >>>     end = tuple(ends[0])
+        >>>     assert success_list == [True]
+        >>>     assert start == (237, 4)
+        >>>     assert end   == (183, 254)
+        >>> finally:
+        >>>     ibs.delete_parts(part_rowid_list)
     """
     if model_type == 'dorsal':
         from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
@@ -673,11 +708,15 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     starts, ends, success_list = [], [], []
 
     for segmentation, localized_mask in zip(segmentations, localized_masks):
-        start, end = F.find_keypoints(
-            find_func,
-            segmentation,
-            localized_mask
-        )
+        try:
+            start, end = F.find_keypoints(
+                find_func,
+                segmentation,
+                localized_mask
+            )
+        except ZeroDivisionError:
+            start = None
+            end = None
 
         success = start is not None and end is not None
 
@@ -710,6 +749,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:1
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -765,6 +805,33 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> outline = outlines[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outline) in ['qqvetxfhhipfuqneuinwrvcztkjlfoak']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     resized_images, resized_masks, pre_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     localized_images, localized_masks, loc_transforms = values
+        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     refined_localizations, refined_masks = values
+        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     segmentations, refined_segmentations = values
+        >>>     values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>>     success_list, starts, ends = values
+        >>>     args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        >>>     success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+        >>>     outline = outlines[0]
+        >>>     assert success_list == [True]
+        >>>     assert ut.hash_data(outline) in ['qgugqryzaiqgtfwbagudsxokobixymqn']
+        >>> finally:
+        >>>     ibs.delete_parts(part_rowid_list)
     """
     if model_type == 'dorsal':
         from ibeis_curvrank.dorsal_utils import dorsal_cost_func as cost_func
