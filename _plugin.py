@@ -857,9 +857,10 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     config_ = {
         'ordered': True,
         'chunksize': CHUNKSIZE,
-        'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'futures_threaded': True,
-        'progkw': {'freq': 8},
+        # 'force_serial': ibs.force_serial or FORCE_SERIAL,
+        # 'futures_threaded': True,
+        'force_serial': True,
+        'progkw': {'freq': 128},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
                              nTasks=len(model_type_list), **config_)
