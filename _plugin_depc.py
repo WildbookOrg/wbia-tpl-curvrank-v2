@@ -1,5 +1,4 @@
 from __future__ import absolute_import, division, print_function
-from os.path import abspath, join, exists
 from ibeis.control import controller_inject  # NOQA
 import numpy as np
 import utool as ut
@@ -50,6 +49,10 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvatute_transpose_dims'           : DEFAULT_TRANSPOSE_DIMS['dorsal'],
     'localization_model_tag'             : 'localization',
     'segmentation_model_tag'             : 'segmentation',
+    'segmentation_gt_radius'             : 25,
+    'segmentation_gt_opacity'            : 0.5,
+    'segmentation_gt_smooth'             : True,
+    'segmentation_gt_smooth_margin'      : 0.001,
     'curvature_descriptor_curv_length'   : 1024,
     'curvature_descriptor_num_keypoints' : 32,
     'curvature_descriptor_uniform'       : False,
@@ -67,6 +70,10 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvatute_transpose_dims'           : DEFAULT_TRANSPOSE_DIMS['fluke'],
     'localization_model_tag'             : 'localization',
     'segmentation_model_tag'             : 'segmentation',
+    'segmentation_gt_radius'             : 25,
+    'segmentation_gt_opacity'            : 0.5,
+    'segmentation_gt_smooth'             : True,
+    'segmentation_gt_smooth_margin'      : 0.001,
     'curvature_descriptor_curv_length'   : 1024,
     'curvature_descriptor_num_keypoints' : 32,
     'curvature_descriptor_uniform'       : False,
@@ -107,7 +114,7 @@ class PreprocessConfig(dtool.Config):
     configclass=PreprocessConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     r"""
@@ -209,7 +216,7 @@ class LocalizationConfig(dtool.Config):
     configclass=LocalizationConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -318,7 +325,7 @@ class RefinementConfig(dtool.Config):
     configclass=RefinementConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -396,12 +403,16 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
 class SegmentationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type',     'dorsal'),
-            ut.ParamInfo('curvrank_width',          DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height',         DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale',          DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('segmentation_model_tag', 'segmentation'),
-            ut.ParamInfo('ext',                     '.npy', hideif='.npy'),
+            ut.ParamInfo('curvrank_model_type',           'dorsal'),
+            ut.ParamInfo('curvrank_width',                DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height',               DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale',                DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('segmentation_model_tag',        'segmentation'),
+            ut.ParamInfo('segmentation_gt_radius',        25),
+            ut.ParamInfo('segmentation_gt_opacity',       0.5),
+            ut.ParamInfo('segmentation_gt_smooth',        True),
+            ut.ParamInfo('segmentation_gt_smooth_margin', 0.001),
+            ut.ParamInfo('ext',                           '.npy', hideif='.npy'),
         ]
 
 
@@ -412,7 +423,7 @@ class SegmentationConfig(dtool.Config):
     configclass=SegmentationConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -456,35 +467,18 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
         >>> refined_segmentation   = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['htbsspdnjfchswtcboifeybpkhmbdmms']
         >>> assert ut.hash_data(refined_segmentation) in ['hqngsbdctbjsruuwjhhbuamcbukbyaea']
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>> config['localization_model_tag'] = 'groundtruth'
-        >>> config['segmentation_model_tag'] = 'groundtruth'
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
-        >>> try:
-        >>>     segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
-        >>>     refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
-        >>>     segmentation           = segmentations[0]
-        >>>     refined_segmentation   = refined_segmentations[0]
-        >>>     assert ut.hash_data(segmentation)         in ['hxqixrcmdqlnobzwzsdfeqqfbuutyzrc']
-        >>>     assert ut.hash_data(refined_segmentation) in ['hfqagabghevscvfmgxkdiwutstmeuteh']
-        >>> finally:
-        >>>     ibs.delete_parts(part_rowid_list)
     """
     ibs = depc.controller
 
-    model_type = config['curvrank_model_type']
-    width      = config['curvrank_width']
-    height     = config['curvrank_height']
-    scale      = config['curvrank_scale']
-    model_tag  = config['segmentation_model_tag']
+    model_type        = config['curvrank_model_type']
+    width             = config['curvrank_width']
+    height            = config['curvrank_height']
+    scale             = config['curvrank_scale']
+    model_tag         = config['segmentation_model_tag']
+    gt_radius         = config['segmentation_gt_radius']
+    gt_opacity        = config['segmentation_gt_opacity']
+    gt_smooth         = config['segmentation_gt_smooth']
+    gt_smooth_margin  = config['segmentation_gt_smooth_margin']
 
     aid_list     = depc.get_ancestor_rowids('refinement',   refinement_rowid_list)
     refined_localizations = depc.get_native('refinement',   refinement_rowid_list,    'refined_img')
@@ -496,7 +490,11 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
                                                     pre_transforms, loc_transforms,
                                                     width=width, height=height,
                                                     scale=scale, model_type=model_type,
-                                                    model_tag=model_tag)
+                                                    model_tag=model_tag,
+                                                    groundtruth_radius=gt_radius,
+                                                    groundtruth_opacity=gt_opacity,
+                                                    groundtruth_smooth=gt_smooth,
+                                                    groundtruth_smooth_margin=gt_smooth_margin)
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
@@ -527,7 +525,7 @@ class KeypointsConfig(dtool.Config):
     configclass=KeypointsConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -604,7 +602,7 @@ class OutlineConfig(dtool.Config):
     configclass=OutlineConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -682,7 +680,7 @@ class TrailingEdgeConfig(dtool.Config):
     configclass=TrailingEdgeConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -756,7 +754,7 @@ class CurvatuveConfig(dtool.Config):
     configclass=CurvatuveConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -835,7 +833,7 @@ class CurvatuveDescriptorConfig(dtool.Config):
     configclass=CurvatuveDescriptorConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=256,
+    chunksize=1024,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -1016,45 +1014,6 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
         yield match_result
 
 
-@register_ibs_method
-def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
-
-    print('Computing %s' % (label, ))
-
-    cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
-    ut.ensuredir(cache_path)
-
-    qaid_list_ = sorted(list(set(qaid_list)))
-    daid_list_ = sorted(list(set(daid_list)))
-
-    score_dict = {}
-    for qaid in ut.ProgressIter(qaid_list_, lbl=label, freq=10):
-        quuid_list = ibs.get_annot_uuids([qaid])
-        duuids_list = ibs.get_annot_uuids(daid_list_)
-        qhash = ut.hash_data(quuid_list)
-        dhash = ut.hash_data(duuids_list)
-
-        cache_filename = 'scores_qaid_%s_daids_%s.pkl' % (qhash, dhash, )
-        cache_filepath = join(cache_path, cache_filename)
-
-        if not exists(cache_filepath):
-            score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
-                                                                config=config,
-                                                                use_names=False)
-            ut.save_cPkl(cache_filepath, score_dict_, verbose=False)
-        else:
-            score_dict_ = ut.load_cPkl(cache_filepath, verbose=False)
-
-        score_dict[qaid] = score_dict_
-
-    for qaid, daid in zip(qaid_list, daid_list):
-        assert qaid in score_dict
-        score = score_dict[qaid].get(daid, float(np.inf))
-        score *= -1.0
-
-        yield (score, )
-
-
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
@@ -1121,7 +1080,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 class CurvRankDorsalConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --exec-CurvRankDorsalConfig
+        python -m ibeis_curvrank._plugin_depc --test-CurvRankDorsalConfig
 
     Example:
         >>> # ENABLE_DOCTEST
@@ -1129,7 +1088,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_model_tag=segmentation)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
@@ -1193,7 +1152,7 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
 class CurvRankFlukeConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --exec-CurvRankFlukeConfig
+        python -m ibeis_curvrank._plugin_depc --test-CurvRankFlukeConfig
 
     Example:
         >>> # ENABLE_DOCTEST
@@ -1201,7 +1160,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_model_tag=segmentation)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
@@ -1224,7 +1183,7 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
 def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --exec-ibeis_plugin_curvrank_fluke --show
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_fluke --show
 
     Example:
         >>> # DISABLE_DOCTEST

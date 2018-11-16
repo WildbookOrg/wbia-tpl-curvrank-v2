@@ -19,6 +19,10 @@ register_api = controller_inject.get_ibeis_flask_api(__name__)
 USE_DEPC = True
 
 
+FORCE_SERIAL = False
+CHUNKSIZE = 32
+
+
 URL_DICT = {
     'dorsal': {
         'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
@@ -29,17 +33,6 @@ URL_DICT = {
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.fluke.weights.pkl',
     },
 }
-
-
-NICE = True
-NICE_RADIUS = 9
-NICE_OPACITY = 0.9
-
-NOTNICE_RADIUS = 9
-NOTNICE_OPACITY = 0.9
-
-SMOOTH = True
-SMOOTH_MARGIN = 0.005
 
 
 @register_ibs_method
@@ -107,17 +100,27 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
          [ 0.          0.54857143 52.        ]
          [ 0.          0.          1.        ]]
     """
-    # ibs._parallel_chips = True
+    ibs._parallel_chips = True
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+    height_list = [height] * len(aid_list)
+    width_list  = [width]  * len(aid_list)
+
+    zipped = zip(image_list, flip_list, height_list, width_list)
+
+    config_ = {
+        'ordered': True,
+        'chunksize': 8,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(F.preprocess_image, zipped,
+                             nTasks=len(aid_list), **config_)
 
     resized_images, resized_masks, pre_transforms = [], [], []
-    for image, flip in zip(image_list, flip_list):
-        vals = F.preprocess_image(image, flip, height, width)
-
-        resized_image, resized_mask, pre_transform = vals
+    for resized_image, resized_mask, pre_transform in generator:
         resized_images.append(resized_image)
         resized_masks.append(resized_mask)
         pre_transforms.append(pre_transform)
@@ -198,8 +201,6 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> assert ut.hash_data(resized_masks)  == ut.hash_data(localized_masks)
         >>> assert np.sum(loc_transform) == 3.0
     """
-    from ibeis_curvrank import localization, model, theano_funcs
-
     if model_tag == 'groundtruth':
         model_url = None
     else:
@@ -210,6 +211,8 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         localized_masks = resized_masks
         loc_transforms = [np.eye(3, dtype=np.float32)] * len(localized_images)
     else:
+        from ibeis_curvrank import localization, model, theano_funcs
+
         weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
 
         # Make sure resized images all have the same shape
@@ -259,6 +262,7 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list *= 20
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
@@ -297,44 +301,30 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> assert ut.hash_data(refined_localization) in ['cwmqsvpabxdaftsnupgerivjufsavfhl']
         >>> assert ut.hash_data(refined_mask)         in ['zwfgmumqblkfzejnseauggiedzpbbjoa']
     """
-    # ibs._parallel_chips = True
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+    scale_list  = [scale]  * len(aid_list)
+    height_list = [height] * len(aid_list)
+    width_list  = [width]  * len(aid_list)
 
-    OLD = True
+    zipped = zip(image_list, flip_list, pre_transforms, loc_transforms,
+                 scale_list, height_list, width_list)
 
-    if OLD:
-        refined_localizations, refined_masks = [], []
-        zipped = zip(image_list, flip_list, pre_transforms, loc_transforms)
-        for image, flip, pre_transform, loc_transform in zipped:
-            refined_localization, refined_mask = F.refine_localization(
-                image, flip, pre_transform, loc_transform,
-                scale, height, width
-            )
-            refined_localizations.append(refined_localization)
-            refined_masks.append(refined_mask)
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'futures_threaded': True,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
 
-    else:
-        scale_list  = [scale]  * len(aid_list)
-        height_list = [height] * len(aid_list)
-        width_list  = [width]  * len(aid_list)
-
-        zipped = zip(image_list, flip_list, pre_transforms, loc_transforms,
-                     scale_list, height_list, width_list)
-
-        config_ = {
-            'ordered': True,
-            'chunksize': 32,
-            'force_serial': ibs.force_serial,
-        }
-        generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
-
-        refined_localizations, refined_masks = [], []
-        for refined_localization, refined_mask in generator:
-            refined_localizations.append(refined_localization)
-            refined_masks.append(refined_mask)
+    refined_localizations, refined_masks = [], []
+    for refined_localization, refined_mask in generator:
+        refined_localizations.append(refined_localization)
+        refined_masks.append(refined_mask)
 
     return refined_localizations, refined_masks
 
@@ -398,10 +388,22 @@ def ibeis_plugin_curvrank_test_setup_groundtruth(ibs):
 
 
 @register_ibs_method
+def ibeis_plugin_curvrank_test_cleanup_groundtruth(ibs, values=None):
+    if values is None:
+        values = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+    aid_list, part_rowid_list = values
+    ibs.delete_parts(part_rowid_list)
+    ibs.delete_annots(aid_list)
+
+
+@register_ibs_method
 def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refined_masks,
                                        pre_transforms, loc_transforms,
                                        width=256, height=256, scale=4, model_type='dorsal',
-                                       model_tag='segmentation', **kwargs):
+                                       model_tag='segmentation',
+                                       groundtruth_radius=25, groundtruth_opacity=0.5,
+                                       groundtruth_smooth=True, groundtruth_smooth_margin=0.001,
+                                       **kwargs):
     r"""
     Localize images for CurvRank
 
@@ -489,13 +491,11 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         >>>     segmentations, refined_segmentations = values
         >>>     segmentation = segmentations[0]
         >>>     refined_segmentation = refined_segmentations[0]
-        >>>     assert ut.hash_data(segmentation)         in ['hxqixrcmdqlnobzwzsdfeqqfbuutyzrc']
-        >>>     assert ut.hash_data(refined_segmentation) in ['hfqagabghevscvfmgxkdiwutstmeuteh']
+        >>>     assert ut.hash_data(segmentation)         in ['owryieckgcmjqptjflybacfcmzgllhiw']
+        >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
         >>> finally:
-        >>>     ibs.delete_parts(part_rowid_list)
+        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
-    from ibeis_curvrank import segmentation, model, theano_funcs
-
     if model_tag == 'groundtruth':
         image_list = ibs.get_annot_chips(aid_list)
         viewpoint_list = ibs.get_annot_viewpoints(aid_list)
@@ -538,37 +538,29 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
             segment_x = np.array(ut.take_column(segment, 'x'))
             segment_y = np.array(ut.take_column(segment, 'y'))
-            segment_r = np.array(ut.take_column(segment, 'r'))
 
-            try:
-                from scipy import interpolate as itp
-                length = len(segment) * 3
-                mytck, _ = itp.splprep([segment_x, segment_y], s=SMOOTH_MARGIN)
-                values = itp.splev(np.linspace(0, 1, length), mytck)
-                segment_x, segment_y = values
-            except ValueError:
-                pass
+            if groundtruth_smooth:
+                try:
+                    from scipy import interpolate as itp
+                    length = len(segment) * 3
+                    mytck, _ = itp.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
+                    values = itp.splev(np.linspace(0, 1, length), mytck)
+                    segment_x, segment_y = values
+                except ValueError:
+                    pass
 
             segment_x_ = list(map(int, np.around(segment_x * canvas_w)))
             segment_y_ = list(map(int, np.around(segment_y * canvas_h)))
-            segment_r_ = list(map(int, np.around(segment_r * canvas_w)))
+            zipped = list(zip(segment_x_, segment_y_))
 
-            if NICE:
-                zipped = list(zip(segment_x_, segment_y_))
-                for radius_ in range(NICE_RADIUS, 0, -1):
-                    radius = radius_ - 1
-                    opacity = (1.0 - (radius / NICE_RADIUS)) ** 3.0
-                    opacity *= NICE_OPACITY
-                    color = (opacity, opacity, opacity)
-                    for x, y in zipped:
-                        cv2.circle(canvas, (x, y), radius, color, -1, lineType=cv2.LINE_AA)
-                canvas = cv2.blur(canvas, (5, 5))
-            else:
-                color = (NOTNICE_OPACITY, NOTNICE_OPACITY, NOTNICE_OPACITY)
-                zipped = list(zip(segment_x_, segment_y_, segment_r_))
-                for x, y, r in zipped:
-                    r = min(r, NOTNICE_RADIUS)
-                    cv2.circle(canvas, (x, y), r, color, -1, lineType=cv2.LINE_AA)
+            for radius_ in range(groundtruth_radius, 0, -1):
+                radius = radius_ - 1
+                opacity = (1.0 - (radius / groundtruth_radius)) ** 3.0
+                opacity *= groundtruth_opacity
+                color = (opacity, opacity, opacity)
+                for x, y in zipped:
+                    cv2.circle(canvas, (x, y), radius, color, -1, lineType=cv2.LINE_AA)
+            canvas = cv2.blur(canvas, (5, 5))
 
             refined_segmentation, _ = F.refine_localization(
                 canvas, flip, pre_transform, loc_transform,
@@ -584,6 +576,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
             segmentations.append(segmentation_)
             refined_segmentations.append(refined_segmentation)
     else:
+        from ibeis_curvrank import segmentation, model, theano_funcs
+
         model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
         assert model_url is not None
         weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
@@ -595,7 +589,9 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
         values = F.segment_contour(refined_localizations, refined_masks, scale,
                                    height, width, segmentation_func)
+
         segmentations, refined_segmentations = values
+
     return segmentations, refined_segmentations
 
 
@@ -695,35 +691,53 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>>     start = tuple(starts[0])
         >>>     end = tuple(ends[0])
         >>>     assert success_list == [True]
-        >>>     assert start == (237, 4)
-        >>>     assert end   == (183, 254)
+        >>>     assert start == (238, 3)
+        >>>     assert end   == (182, 253)
         >>> finally:
-        >>>     ibs.delete_parts(part_rowid_list)
+        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
+    model_type_list = [model_type] * len(segmentations)
+
+    zipped = zip(model_type_list, segmentations, localized_masks)
+
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(ibeis_plugin_curvrank_keypoints_worker, zipped,
+                             nTasks=len(model_type_list), **config_)
+
+    starts, ends, success_list = [], [], []
+    for success, start, end in generator:
+        success_list.append(success)
+        starts.append(start)
+        ends.append(end)
+
+    return success_list, starts, ends
+
+
+def ibeis_plugin_curvrank_keypoints_worker(model_type, segmentation,
+                                           localized_mask):
     if model_type == 'dorsal':
         from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
     else:
         from ibeis_curvrank.dorsal_utils import find_fluke_keypoints as find_func
 
-    starts, ends, success_list = [], [], []
+    try:
+        start, end = F.find_keypoints(
+            find_func,
+            segmentation,
+            localized_mask
+        )
+    except ZeroDivisionError:
+        start = None
+        end = None
 
-    for segmentation, localized_mask in zip(segmentations, localized_masks):
-        try:
-            start, end = F.find_keypoints(
-                find_func,
-                segmentation,
-                localized_mask
-            )
-        except ZeroDivisionError:
-            start = None
-            end = None
+    success = start is not None and end is not None
 
-        success = start is not None and end is not None
-
-        success_list.append(success)
-        starts.append(start)
-        ends.append(end)
-    return success_list, starts, ends
+    return success, start, end
 
 
 @register_ibs_method
@@ -829,37 +843,55 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>>     success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
         >>>     outline = outlines[0]
         >>>     assert success_list == [True]
-        >>>     assert ut.hash_data(outline) in ['qgugqryzaiqgtfwbagudsxokobixymqn']
+        >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
         >>> finally:
-        >>>     ibs.delete_parts(part_rowid_list)
+        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
+    model_type_list = [model_type] * len(success_list)
+    scale_list = [scale] * len(success_list)
+    allow_diagonal_list = [allow_diagonal] * len(success_list)
+
+    zipped = zip(model_type_list, success_list, starts, ends, refined_localizations,
+                 refined_masks, refined_segmentations, scale_list, allow_diagonal_list)
+
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'futures_threaded': True,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
+                             nTasks=len(model_type_list), **config_)
+
+    success_list_, outlines = [], []
+    for success_, outline in generator:
+        success_list_.append(success_)
+        outlines.append(outline)
+
+    return success_list_, outlines
+
+
+def ibeis_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
+                                         refined_mask, refined_seg, scale, allow_diagonal):
     if model_type == 'dorsal':
         from ibeis_curvrank.dorsal_utils import dorsal_cost_func as cost_func
     else:
         from ibeis_curvrank.dorsal_utils import fluke_cost_func as cost_func
 
-    success_list_ = []
-    outlines = []
-    zipped = zip(success_list, starts, ends, refined_localizations,
-                 refined_masks, refined_segmentations)
-    for value in zipped:
-        success, start, end, refined_loc, refined_mask, refined_seg = value
-        success_ = success
-        if success:
-            start = np.array(start, dtype=np.int32)
-            end   = np.array(end,   dtype=np.int32)
-            outline = F.extract_outline(
-                refined_loc, refined_mask, refined_seg, scale, start, end,
-                cost_func, allow_diagonal)
-            if outline is None:
-                success_ = False
-        else:
-            outline = None
+    success_ = success
+    if success:
+        start = np.array(start, dtype=np.int32)
+        end   = np.array(end,   dtype=np.int32)
+        outline = F.extract_outline(
+            refined_loc, refined_mask, refined_seg, scale, start, end,
+            cost_func, allow_diagonal)
+        if outline is None:
+            success_ = False
+    else:
+        outline = None
 
-        success_list_.append(success_)
-        outlines.append(outline)
-
-    return success_list_, outlines
+    return success_, outline
 
 
 @register_ibs_method
@@ -939,22 +971,21 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outlines) == ut.hash_data(trailing_edges)
     """
-    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
-
     if model_type == 'dorsal':
+        zipped = zip(success_list, outlines)
+
+        config_ = {
+            'ordered': True,
+            'chunksize': CHUNKSIZE,
+            'force_serial': ibs.force_serial or FORCE_SERIAL,
+            'progkw': {'freq': 256},
+        }
+        generator = ut.generate2(ibeis_plugin_curvrank_trailing_edges_worker, zipped,
+                                 nTasks=len(success_list), **config_)
+
         success_list_ = []
         trailing_edges = []
-        for success, outline in zip(success_list, outlines):
-            success_ = success
-            if success:
-                values = F.separate_edges(separate_leading_trailing_edges, outline)
-                _, trailing_edge = values
-
-                if trailing_edge is None:
-                    success_ = False
-            else:
-                trailing_edge = None
-
+        for success_, trailing_edge in generator:
             success_list_.append(success_)
             trailing_edges.append(trailing_edge)
     else:
@@ -962,6 +993,22 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         trailing_edges = outlines
 
     return success_list_, trailing_edges
+
+
+def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
+    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
+
+    success_ = success
+    if success:
+        values = F.separate_edges(separate_leading_trailing_edges, outline)
+        _, trailing_edge = values
+
+        if trailing_edge is None:
+            success_ = False
+    else:
+        trailing_edge = None
+
+    return success_, trailing_edge
 
 
 @register_ibs_method
@@ -1049,22 +1096,40 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> assert success_list == [True]
         >>> assert ut.hash_data(curvature) in ['dpbusvatdgcdblmtwvodvlsnjuffdylp']
     """
+    scales_list = [scales] * len(success_list)
+    transpose_dims_list = [transpose_dims] * len(success_list)
+    zipped = zip(success_list, trailing_edges, scales_list, transpose_dims_list)
+
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(ibeis_plugin_curvrank_curvatures_worker, zipped,
+                             nTasks=len(success_list), **config_)
+
     success_list_ = []
     curvatures = []
-    for success, trailing_edge in zip(success_list, trailing_edges):
-        success_ = success
-        if success:
-            curvature = F.compute_curvature(trailing_edge, scales, transpose_dims)
-
-            if curvature is None:
-                success_ = False
-        else:
-            curvature = None
-
+    for success_, curvature in generator:
         success_list_.append(success_)
         curvatures.append(curvature)
 
     return success_list_, curvatures
+
+
+def ibeis_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
+                                            transpose_dims):
+    success_ = success
+    if success:
+        curvature = F.compute_curvature(trailing_edge, scales, transpose_dims)
+
+        if curvature is None:
+            success_ = False
+    else:
+        curvature = None
+
+    return success_, curvature
 
 
 @register_ibs_method
@@ -1165,40 +1230,65 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
     """
-    scale_str_list = [
-        '%0.04f' % (scale, )
-        for scale in scales
-    ]
+    curv_length_list   = [curv_length]   * len(success_list)
+    scales_list        = [scales]        * len(success_list)
+    num_keypoints_list = [num_keypoints] * len(success_list)
+    uniform_list       = [uniform]       * len(success_list)
+    feat_dim_list      = [feat_dim]      * len(success_list)
+
+    zipped = zip(success_list, curvatures, curv_length_list, scales_list, num_keypoints_list,
+                 uniform_list, feat_dim_list)
+
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'progkw': {'freq': 256},
+    }
+    generator = ut.generate2(ibeis_plugin_curvrank_curvature_descriptors_worker, zipped,
+                             nTasks=len(success_list), **config_)
+
     success_list_ = []
     curvature_descriptor_dicts = []
-    for success, curvature in zip(success_list, curvatures):
-        success_ = success
-        if success:
-            curvature_descriptor_list = F.compute_curvature_descriptors(
-                curvature,
-                curv_length,
-                scales,
-                num_keypoints,
-                uniform,
-                feat_dim
-            )
-
-            if curvature_descriptor_list is None:
-                success_ = False
-        else:
-            curvature_descriptor_list = None
-
-        curvature_descriptor_dict = None
-        if curvature_descriptor_list is not None:
-            curvature_descriptor_dict = {
-                scale_str: curvature_descriptor
-                for scale_str, curvature_descriptor in zip(scale_str_list, curvature_descriptor_list)
-            }
-
+    for success_, curvature_descriptor_dict in generator:
         success_list_.append(success_)
         curvature_descriptor_dicts.append(curvature_descriptor_dict)
 
     return success_list_, curvature_descriptor_dicts
+
+
+def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_length,
+                                                       scales, num_keypoints, uniform,
+                                                       feat_dim):
+    scale_str_list = [
+        '%0.04f' % (scale, )
+        for scale in scales
+    ]
+
+    success_ = success
+    if success:
+        curvature_descriptor_list = F.compute_curvature_descriptors(
+            curvature,
+            curv_length,
+            scales,
+            num_keypoints,
+            uniform,
+            feat_dim
+        )
+
+        if curvature_descriptor_list is None:
+            success_ = False
+    else:
+        curvature_descriptor_list = None
+
+    curvature_descriptor_dict = None
+    if curvature_descriptor_list is not None:
+        curvature_descriptor_dict = {
+            scale_str: curvature_descriptor
+            for scale_str, curvature_descriptor in zip(scale_str_list, curvature_descriptor_list)
+        }
+
+    return success_, curvature_descriptor_dict
 
 
 @register_ibs_method
@@ -1217,6 +1307,8 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:1
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:2
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -1257,6 +1349,59 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> }
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
         >>> success_list, curvature_descriptor_dicts = values
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list *= 20
+        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
+        >>> success_list, curvature_descriptor_dicts = values
+        >>> success_list = success_list[:1]
+        >>> curvature_descriptor_dicts = curvature_descriptor_dicts[:1]
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 20
+        >>> model_type = 'fluke'
+        >>> config = {
+        >>>     'model_type'     : model_type,
+        >>>     'width'          : DEFAULT_WIDTH[model_type],
+        >>>     'height'         : DEFAULT_HEIGHT[model_type],
+        >>>     'scale'          : DEFAULT_SCALE[model_type],
+        >>>     'scales'         : DEFAULT_SCALES[model_type],
+        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
+        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
+        >>> }
+        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
+        >>> success_list, curvature_descriptor_dicts = values
+        >>> success_list = success_list[:1]
+        >>> curvature_descriptor_dicts = curvature_descriptor_dicts[:1]
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
         >>> hash_list = [
@@ -1598,7 +1743,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
 
     db_annot_uuid_list = ibs.get_annot_uuids(db_aid_list)
     index_hash = ut.hash_data(db_annot_uuid_list)
-    index_directory = 'index_%s_aids_%d' % (index_hash, len(db_aid_list), )
+    config_hash = ut.hash_data(ut.repr3(config))
+    index_directory = 'index_%s_config_%s_aids_%d' % (index_hash, config_hash, len(db_aid_list), )
     index_path = join(cache_path, index_directory)
     ut.ensuredir(index_path)
 
@@ -1643,6 +1789,46 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
         print('Returning scores...')
 
     return score_dict
+
+
+@register_ibs_method
+def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
+
+    print('Computing %s' % (label, ))
+
+    cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
+    ut.ensuredir(cache_path)
+
+    qaid_list_ = sorted(list(set(qaid_list)))
+    daid_list_ = sorted(list(set(daid_list)))
+
+    score_dict = {}
+    for qaid in ut.ProgressIter(qaid_list_, lbl=label, freq=100):
+        quuid_list = ibs.get_annot_uuids([qaid])
+        duuids_list = ibs.get_annot_uuids(daid_list_)
+        qhash = ut.hash_data(quuid_list)
+        dhash = ut.hash_data(duuids_list)
+        config_hash = ut.hash_data(ut.repr3(config))
+
+        cache_filename = 'scores_config_%s_qaid_%s_daids_%s.pkl' % (config_hash, qhash, dhash, )
+        cache_filepath = join(cache_path, cache_filename)
+
+        if not exists(cache_filepath):
+            score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
+                                                                config=config,
+                                                                use_names=False)
+            ut.save_cPkl(cache_filepath, score_dict_, verbose=False)
+        else:
+            score_dict_ = ut.load_cPkl(cache_filepath, verbose=False)
+
+        score_dict[qaid] = score_dict_
+
+    for qaid, daid in zip(qaid_list, daid_list):
+        assert qaid in score_dict
+        score = score_dict[qaid].get(daid, float(np.inf))
+        score *= -1.0
+
+        yield (score, )
 
 
 if __name__ == '__main__':
