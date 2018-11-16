@@ -114,7 +114,7 @@ class PreprocessConfig(dtool.Config):
     configclass=PreprocessConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     r"""
@@ -216,7 +216,7 @@ class LocalizationConfig(dtool.Config):
     configclass=LocalizationConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=128,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -325,7 +325,7 @@ class RefinementConfig(dtool.Config):
     configclass=RefinementConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -423,7 +423,7 @@ class SegmentationConfig(dtool.Config):
     configclass=SegmentationConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=128,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -525,7 +525,7 @@ class KeypointsConfig(dtool.Config):
     configclass=KeypointsConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -602,7 +602,7 @@ class OutlineConfig(dtool.Config):
     configclass=OutlineConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=128,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -680,7 +680,7 @@ class TrailingEdgeConfig(dtool.Config):
     configclass=TrailingEdgeConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -754,7 +754,7 @@ class CurvatuveConfig(dtool.Config):
     configclass=CurvatuveConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -833,7 +833,7 @@ class CurvatuveDescriptorConfig(dtool.Config):
     configclass=CurvatuveDescriptorConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
@@ -1088,7 +1088,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankDorsal(curvature_descriptor_curv_length=256,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
@@ -1160,7 +1160,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankFluke(curvature_descriptor_curv_length=256,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [

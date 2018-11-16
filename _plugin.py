@@ -20,7 +20,7 @@ USE_DEPC = True
 
 
 FORCE_SERIAL = False
-CHUNKSIZE = 32
+CHUNKSIZE = 16
 
 
 URL_DICT = {
@@ -857,8 +857,9 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     config_ = {
         'ordered': True,
         'chunksize': CHUNKSIZE,
-        'force_serial': True,
-        'progkw': {'freq': 256},
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'futures_threaded': True,
+        'progkw': {'freq': 8},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
                              nTasks=len(model_type_list), **config_)
