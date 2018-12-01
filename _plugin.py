@@ -112,9 +112,9 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
 
     config_ = {
         'ordered': True,
-        'chunksize': 8,
+        'chunksize': CHUNKSIZE,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'progkw': {'freq': 256},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(F.preprocess_image, zipped,
                              nTasks=len(aid_list), **config_)
@@ -317,7 +317,7 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         'chunksize': CHUNKSIZE,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'futures_threaded': True,
-        'progkw': {'freq': 256},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
 
@@ -704,7 +704,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         'ordered': True,
         'chunksize': CHUNKSIZE,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'progkw': {'freq': 256},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_keypoints_worker, zipped,
                              nTasks=len(model_type_list), **config_)
@@ -860,7 +860,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         # 'force_serial': ibs.force_serial or FORCE_SERIAL,
         # 'futures_threaded': True,
         'force_serial': True,
-        'progkw': {'freq': 128},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
                              nTasks=len(model_type_list), **config_)
@@ -979,7 +979,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
             'ordered': True,
             'chunksize': CHUNKSIZE,
             'force_serial': ibs.force_serial or FORCE_SERIAL,
-            'progkw': {'freq': 256},
+            'progkw': {'freq': 10},
         }
         generator = ut.generate2(ibeis_plugin_curvrank_trailing_edges_worker, zipped,
                                  nTasks=len(success_list), **config_)
@@ -1105,7 +1105,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         'ordered': True,
         'chunksize': CHUNKSIZE,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'progkw': {'freq': 256},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_curvatures_worker, zipped,
                              nTasks=len(success_list), **config_)
@@ -1244,7 +1244,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         'ordered': True,
         'chunksize': CHUNKSIZE,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'progkw': {'freq': 256},
+        'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_curvature_descriptors_worker, zipped,
                              nTasks=len(success_list), **config_)

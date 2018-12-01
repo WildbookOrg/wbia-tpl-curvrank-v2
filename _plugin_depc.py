@@ -602,7 +602,7 @@ class OutlineConfig(dtool.Config):
     configclass=OutlineConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
-    chunksize=1024,
+    chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
