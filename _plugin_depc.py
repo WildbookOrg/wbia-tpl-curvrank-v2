@@ -911,6 +911,115 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
         )
 
 
+class CurvatuveDescriptorOptimizedConfig(dtool.Config):
+    def get_param_info_list(self):
+        return [
+            ut.ParamInfo('curvrank_model_type',                'dorsal'),
+            ut.ParamInfo('curvrank_width',                     DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_height',                    DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_scale',                     DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvature_scales',                   DEFAULT_SCALES['dorsal']),
+            ut.ParamInfo('outline_allow_diagonal',             DEFAULT_ALLOW_DIAGONAL['dorsal']),
+            ut.ParamInfo('curvatute_transpose_dims',           DEFAULT_TRANSPOSE_DIMS['dorsal']),
+            ut.ParamInfo('localization_model_tag',             'localization'),
+            ut.ParamInfo('segmentation_model_tag',             'segmentation'),
+            ut.ParamInfo('segmentation_gt_radius',             25),
+            ut.ParamInfo('segmentation_gt_opacity',            0.5),
+            ut.ParamInfo('segmentation_gt_smooth',             True),
+            ut.ParamInfo('segmentation_gt_smooth_margin',      0.001),
+            ut.ParamInfo('curvature_descriptor_curv_length',   1024),
+            ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
+            ut.ParamInfo('curvature_descriptor_uniform',       False),
+            ut.ParamInfo('curvature_descriptor_feat_dim',      32),
+        ]
+
+
+@register_preproc_annot(
+    tablename='curvature_descriptor_optimized', parents=[ROOT],
+    colnames=['success', 'descriptor'],
+    coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
+    configclass=CurvatuveDescriptorOptimizedConfig,
+    fname='curvrank_optimized',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, config=None):
+    r"""
+    Refine localizations for CurvRank with Dependency Cache (depc)
+
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc:0
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc:1
+
+    Example0:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> curvature_descriptor_dicts = ibs.depc_annot.get('curvature_descriptor', aid_list, 'descriptor', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> curvature_descriptor_dicts = ibs.depc_annot.get('curvature_descriptor', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
+    """
+    ibs = depc.controller
+
+    config = {
+        'model_type':                config['curvrank_model_type'],
+        'width':                     config['curvrank_width'],
+        'height':                    config['curvrank_height'],
+        'scale':                     config['curvrank_scale'],
+        'scales':                    config['curvature_scales'],
+        'allow_diagonal':            config['outline_allow_diagonal'],
+        'transpose_dims':            config['curvatute_transpose_dims'],
+        'groundtruth_radius':        config['segmentation_gt_radius'],
+        'groundtruth_opacity':       config['segmentation_gt_opacity'],
+        'groundtruth_smooth':        config['segmentation_gt_smooth'],
+        'groundtruth_smooth_margin': config['segmentation_gt_smooth_margin'],
+        'curv_length':               config['curvature_descriptor_curv_length'],
+        'num_keypoints':             config['curvature_descriptor_num_keypoints'],
+        'uniform':                   config['curvature_descriptor_uniform'],
+        'feat_dim':                  config['curvature_descriptor_feat_dim'],
+    }
+
+    values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config)
+    success_list, curvature_descriptor_dicts = values
+
+    for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
+        yield (
+            success,
+            curvature_descriptor_dict,
+        )
+
+
 @register_ibs_method
 def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     r"""
@@ -1088,7 +1197,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=256,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
@@ -1160,7 +1269,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=256,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
