@@ -962,7 +962,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> success_list = ibs.depc_annot.get('curvature_descriptor', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_optimized', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
         >>> curvature_descriptor_dicts = ibs.depc_annot.get('curvature_descriptor', aid_list, 'descriptor', config=DEFAULT_DORSAL_TEST_CONFIG)
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
@@ -980,7 +980,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('curvature_descriptor', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_optimized', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> curvature_descriptor_dicts = ibs.depc_annot.get('curvature_descriptor', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]

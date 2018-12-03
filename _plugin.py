@@ -20,8 +20,16 @@ USE_DEPC = True
 USE_DEPC_OPTIMIZED = True
 
 
-FORCE_SERIAL = True
+FORCE_SERIAL = False
 CHUNKSIZE = 16
+
+
+RIGHT_FLIP_LIST = [  # CASE IN-SINSITIVE
+    'right',
+    'r',
+    'dorsal fin right',
+    'dorsal_fin_right',
+]
 
 
 URL_DICT = {
@@ -105,7 +113,11 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
-    flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+    viewpoint_list = [
+        None if viewpoint is None else viewpoint.lower()
+        for viewpoint in viewpoint_list
+    ]
+    flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
     height_list = [height] * len(aid_list)
     width_list  = [width]  * len(aid_list)
 
@@ -305,7 +317,11 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
     image_list = ibs.get_annot_chips(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
-    flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+    viewpoint_list = [
+        None if viewpoint is None else viewpoint.lower()
+        for viewpoint in viewpoint_list
+    ]
+    flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
     scale_list  = [scale]  * len(aid_list)
     height_list = [height] * len(aid_list)
     width_list  = [width]  * len(aid_list)
@@ -500,7 +516,11 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     if model_tag == 'groundtruth':
         image_list = ibs.get_annot_chips(aid_list)
         viewpoint_list = ibs.get_annot_viewpoints(aid_list)
-        flip_list = [viewpoint == 'right' for viewpoint in viewpoint_list]
+        viewpoint_list = [
+            None if viewpoint is None else viewpoint.lower()
+            for viewpoint in viewpoint_list
+        ]
+        flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
 
         part_rowids_list = ibs.get_annot_part_rowids(aid_list)
         part_contours_list = list(map(ibs.get_part_contour, part_rowids_list))
