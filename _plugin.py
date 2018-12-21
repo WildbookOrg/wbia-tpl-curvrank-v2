@@ -9,7 +9,7 @@ import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
 import ibeis_curvrank._plugin_depc  # NOQA
-from ibeis_curvrank._plugin_depc import DEFAULT_SCALES
+from ibeis_curvrank._plugin_depc import DEFAULT_SCALES, _convert_kwargs_config_to_depc_config
 
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
@@ -21,6 +21,7 @@ USE_DEPC_OPTIMIZED = True
 
 
 FORCE_SERIAL = False
+FORCE_SERIAL = FORCE_SERIAL or 'macosx' in ut.get_plat_specifier().lower()
 CHUNKSIZE = 16
 
 
@@ -1662,7 +1663,15 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
-        >>> config = DEFAULT_FLUKE_TEST_CONFIG
+        >>> config = {
+        >>>     'model_type'     : model_type,
+        >>>     'width'          : DEFAULT_WIDTH[model_type],
+        >>>     'height'         : DEFAULT_HEIGHT[model_type],
+        >>>     'scale'          : DEFAULT_SCALE[model_type],
+        >>>     'scales'         : DEFAULT_SCALES[model_type],
+        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
+        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
+        >>> }
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
@@ -1680,7 +1689,15 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
-        >>> config = DEFAULT_FLUKE_TEST_CONFIG
+        >>> config = {
+        >>>     'model_type'     : model_type,
+        >>>     'width'          : DEFAULT_WIDTH[model_type],
+        >>>     'height'         : DEFAULT_HEIGHT[model_type],
+        >>>     'scale'          : DEFAULT_SCALE[model_type],
+        >>>     'scales'         : DEFAULT_SCALES[model_type],
+        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
+        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
+        >>> }
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
@@ -1696,9 +1713,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         print('\tCompute Curvature Pipeline')
 
     if use_depc:
+        config_ = _convert_kwargs_config_to_depc_config(config)
         table_name = 'curvature_descriptor_optimized' if use_depc_optimized else 'curvature_descriptor'
-        success_list         = ibs.depc_annot.get(table_name, aid_list, 'success',    config=config)
-        descriptor_dict_list = ibs.depc_annot.get(table_name, aid_list, 'descriptor', config=config)
+        success_list         = ibs.depc_annot.get(table_name, aid_list, 'success',    config=config_)
+        descriptor_dict_list = ibs.depc_annot.get(table_name, aid_list, 'descriptor', config=config_)
     else:
         values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
         success_list, descriptor_dict_list = values
@@ -1716,9 +1734,11 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
+def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                                  lnbnn_k=2, verbose=False,
-                                 use_names=True, use_depc=USE_DEPC,
+                                 use_names=True,
+                                 minimum_score=1e-6,
+                                 use_depc=USE_DEPC,
                                  use_depc_optimized=USE_DEPC_OPTIMIZED):
     r"""
     CurvRank Example
@@ -1736,6 +1756,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:1
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:2
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:3
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:4
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:5
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -1748,7 +1770,9 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, use_depc=False)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -1758,60 +1782,42 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
     Example1:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, config=config, use_depc=False)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
         >>> print(result)
-        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
 
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
         >>> import ibeis
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, config=config, use_depc=True, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
         >>> print(result)
-        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
 
     Example3:
         >>> # ENABLE_DOCTEST
@@ -1835,7 +1841,71 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, config=config, use_depc=True, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+
+    Example4:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> model_type = 'fluke'
+        >>> config = {
+        >>>     'model_type'     : model_type,
+        >>>     'width'          : DEFAULT_WIDTH[model_type],
+        >>>     'height'         : DEFAULT_HEIGHT[model_type],
+        >>>     'scale'          : DEFAULT_SCALE[model_type],
+        >>>     'scales'         : DEFAULT_SCALES[model_type],
+        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
+        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
+        >>> }
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+
+    Example5:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> model_type = 'fluke'
+        >>> config = {
+        >>>     'model_type'     : model_type,
+        >>>     'width'          : DEFAULT_WIDTH[model_type],
+        >>>     'height'         : DEFAULT_HEIGHT[model_type],
+        >>>     'scale'          : DEFAULT_SCALE[model_type],
+        >>>     'scales'         : DEFAULT_SCALES[model_type],
+        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
+        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
+        >>> }
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -1845,110 +1915,139 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aid_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    if verbose:
-        print('Loading database data...')
+    with ut.Timer('Loading database LNBNN descriptors'):
+        values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
+                                                    verbose=verbose, use_depc=use_depc,
+                                                    use_depc_optimized=use_depc_optimized)
+        db_lnbnn_data, _ = values
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
-                                                verbose=verbose, use_depc=use_depc,
-                                                use_depc_optimized=use_depc_optimized)
-    db_lnbnn_data, _ = values
+        if verbose:
+            print('Building or loading cached index for scales...')
 
-    if verbose:
-        print('Loading query data...')
+    with ut.Timer('Caching database indices'):
+        db_annot_uuid_list = ibs.get_annot_uuids(sorted(db_aid_list))
+        index_hash = ut.hash_data(db_annot_uuid_list)
+        config_hash = ut.hash_data(ut.repr3(config))
 
-    values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
-                                                verbose=verbose, use_depc=use_depc,
-                                                use_depc_optimized=use_depc_optimized)
-    qr_lnbnn_data, _ = values
+        # Build (and cache to disk) LNBNN indexes
+        index_filepath_dict = {}
+        for scale in db_lnbnn_data:
+            args = (index_hash, config_hash, scale, )
+            index_filename = 'index_%s_config_%s_scale_%s.ann' % args
+            index_filepath = join(cache_path, index_filename)
+            if not exists(index_filepath):
+                descriptors, aids = db_lnbnn_data[scale]
+                F.build_lnbnn_index(descriptors, index_filepath)
+            index_filepath_dict[scale] = index_filepath
 
-    if verbose:
-        print('Loading index for scales...')
+    with ut.Timer('Loading query LNBNN descriptors'):
+        qr_lnbnn_data_list = []
+        for qr_aid_list in qr_aids_list:
+            values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
+                                                        verbose=verbose, use_depc=use_depc,
+                                                        use_depc_optimized=use_depc_optimized)
+            qr_lnbnn_data, _ = values
+            qr_lnbnn_data_list.append(qr_lnbnn_data)
 
-    db_annot_uuid_list = ibs.get_annot_uuids(db_aid_list)
-    index_hash = ut.hash_data(db_annot_uuid_list)
-    config_hash = ut.hash_data(ut.repr3(config))
-    index_directory = 'index_%s_config_%s_aids_%d' % (index_hash, config_hash, len(db_aid_list), )
-    index_path = join(cache_path, index_directory)
-    ut.ensuredir(index_path)
+    with ut.Timer('Computing scores'):
+        zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
+        for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='scoring', freq=100):
+            # Run LNBNN identification for each scale independently and aggregate
+            score_dict = {}
+            for scale in index_filepath_dict:
+                if scale not in index_filepath_dict:
+                    continue
+                if scale not in db_lnbnn_data:
+                    continue
+                if scale not in qr_lnbnn_data:
+                    continue
 
-    # Build (and cache to disk) LNBNN indexes
-    index_filepath_dict = {}
-    for scale in db_lnbnn_data:
-        index_filepath = join(index_path, '%s.ann' % scale)
-        if not exists(index_filepath):
-            descriptors, aids = db_lnbnn_data[scale]
-            F.build_lnbnn_index(descriptors, index_filepath)
-        index_filepath_dict[scale] = index_filepath
+                index_filepath = index_filepath_dict[scale]
+                db_descriptors, db_aids = db_lnbnn_data[scale]
+                qr_descriptors, qr_aids = qr_lnbnn_data[scale]
 
-    if verbose:
-        print('Aggregating scores...')
+                if use_names:
+                    db_rowids = ibs.get_annot_nids(db_aids)
+                else:
+                    db_rowids = db_aids
 
-    # Run LNBNN identification for each scale independently and aggregate
-    score_dict = {}
-    for scale in index_filepath_dict:
-        if scale not in index_filepath_dict:
-            continue
-        if scale not in db_lnbnn_data:
-            continue
-        if scale not in qr_lnbnn_data:
-            continue
+                score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids)
+                for rowid in score_dict_:
+                    if rowid not in score_dict:
+                        score_dict[rowid] = 0.0
+                    score_dict[rowid] += score_dict_[rowid]
 
-        index_filepath = index_filepath_dict[scale]
-        db_descriptors, db_aids = db_lnbnn_data[scale]
-        qr_descriptors, qr_aids = qr_lnbnn_data[scale]
+            if verbose:
+                print('Returning scores...')
 
-        if use_names:
-            db_rowids = ibs.get_annot_nids(db_aids)
-        else:
-            db_rowids = db_aids
+            # Sparsify
+            for rowid in score_dict:
+                score = score_dict[rowid]
+                # Scores are non-positive floats (unless errored), delete scores that are 0.0 or positive.
+                if score >= -1.0 * minimum_score:
+                    score_dict.pop(rowid)
 
-        score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids)
-        for rowid in score_dict_:
-            if rowid not in score_dict:
-                score_dict[rowid] = 0.0
-            score_dict[rowid] += score_dict_[rowid]
-
-    if verbose:
-        print('Returning scores...')
-
-    return score_dict
+            yield qr_aid_list, score_dict
 
 
 @register_ibs_method
 def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
+    r"""
+    CommandLine:
+        python -m ibeis_curvrank._plugin --exec-ibeis_plugin_curvrank
 
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> import itertools as it
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> depc = ibs.depc_annot
+        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Dorsal Database', 'Dorsal Query'])
+        >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
+        >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
+        >>> qaid_list, daid_list = root_rowids
+        >>> # Call function normally
+        >>> config = CurvRankDorsalConfig()
+        >>> score_list = list(ibs.ibeis_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
+        >>> result = score_list
+        >>> print(result)
+        [(64.60520779166836,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (95.76312898372998,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (79.1514779383433,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (92.64516691851895,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (108.52845083945431,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (99.20977391535416,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (77.92489212821238,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (66.87803533783881,)]
+    """
     print('Computing %s' % (label, ))
 
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    qaid_list_ = sorted(list(set(qaid_list)))
-    daid_list_ = sorted(list(set(daid_list)))
+    assert len(qaid_list) == len(daid_list), 'Lengths of qaid_list %d != daid_list %d' % (len(qaid_list), len(daid_list))
 
-    score_dict = {}
-    for qaid in ut.ProgressIter(qaid_list_, lbl=label, freq=100):
-        quuid_list = ibs.get_annot_uuids([qaid])
-        duuids_list = ibs.get_annot_uuids(daid_list_)
-        qhash = ut.hash_data(quuid_list)
-        dhash = ut.hash_data(duuids_list)
-        config_hash = ut.hash_data(ut.repr3(config))
+    qaid_list_  = sorted(list(set(qaid_list)))
+    daid_list_  = sorted(list(set(qaid_list)))
 
-        cache_filename = 'scores_config_%s_qaid_%s_daids_%s.pkl' % (config_hash, qhash, dhash, )
-        cache_filepath = join(cache_path, cache_filename)
+    qr_aids_list = [
+        [qaid]
+        for qaid in qaid_list_
+    ]
+    db_aid_list = daid_list_
 
-        if not exists(cache_filepath):
-            score_dict_ = ibs.ibeis_plugin_curvrank_scores_depc(daid_list_, [qaid],
-                                                                config=config,
-                                                                use_names=False)
-            ut.save_cPkl(cache_filepath, score_dict_, verbose=False)
-        else:
-            score_dict_ = ut.load_cPkl(cache_filepath, verbose=False)
-
-        score_dict[qaid] = score_dict_
+    args = (label, len(qaid_list), len(qaid_list_), len(daid_list), len(daid_list_))
+    message = 'Computing IBEIS CurvRank (%s) on %d total qaids (%d unique), %d total daids (%d unique)' % args
+    with ut.Timer(message):
+        value_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aids_list,
+                                                           config=config,
+                                                           use_names=False)
+        score_dict = {}
+        for value in value_iter:
+            qr_aid_list, score_dict_ = value
+            assert len(qr_aid_list) == 1
+            qaid = qr_aid_list[0]
+            score_dict[qaid] = score_dict_
 
     for qaid, daid in zip(qaid_list, daid_list):
         assert qaid in score_dict
-        score = score_dict[qaid].get(daid, float(np.inf))
+        score = score_dict[qaid].get(daid, 0.0)
         score *= -1.0
 
         yield (score, )

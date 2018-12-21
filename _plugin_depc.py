@@ -9,7 +9,6 @@ import ibeis
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 
-register_preproc_image = controller_inject.register_preprocs['image']
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
 
@@ -81,6 +80,25 @@ DEFAULT_FLUKE_TEST_CONFIG = {
 }
 
 
+DEFAULT_DEPC_KEY_MAPPING = {
+    'curvrank_model_type'                : 'model_type',
+    'curvrank_width'                     : 'width',
+    'curvrank_height'                    : 'height',
+    'curvrank_scale'                     : 'scale',
+    'curvature_scales'                   : 'scales',
+    'outline_allow_diagonal'             : 'allow_diagonal',
+    'curvatute_transpose_dims'           : 'transpose_dims',
+    'segmentation_gt_radius'             : 'groundtruth_radius',
+    'segmentation_gt_opacity'            : 'groundtruth_opacity',
+    'segmentation_gt_smooth'             : 'groundtruth_smooth',
+    'segmentation_gt_smooth_margin'      : 'groundtruth_smooth_margin',
+    'curvature_descriptor_curv_length'   : 'curv_length',
+    'curvature_descriptor_num_keypoints' : 'num_keypoints',
+    'curvature_descriptor_uniform'       : 'uniform',
+    'curvature_descriptor_feat_dim'      : 'feat_dim',
+}
+
+
 ROOT = ibeis.const.ANNOTATION_TABLE
 
 
@@ -98,6 +116,22 @@ def get_zipped(depc, tablename, col_ids, y_key, x_key, config=None):
     return zip_coords(ys, xs)
 
 
+def _convert_depc_config_to_kwargs_config(config):
+    config_ = {}
+    for key, value in DEFAULT_DEPC_KEY_MAPPING.items():
+        if key in config:
+            config_[value] = config[key]
+    return config_
+
+
+def _convert_kwargs_config_to_depc_config(config):
+    config_ = {}
+    for value, key in DEFAULT_DEPC_KEY_MAPPING.items():
+        if key in config:
+            config_[value] = config[key]
+    return config_
+
+
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
@@ -112,7 +146,7 @@ class PreprocessConfig(dtool.Config):
     colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
     configclass=PreprocessConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -214,7 +248,7 @@ class LocalizationConfig(dtool.Config):
     colnames=['localized_img', 'localized_width', 'localized_height', 'mask_img', 'mask_width', 'mask_height', 'transform'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
     configclass=LocalizationConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -323,7 +357,7 @@ class RefinementConfig(dtool.Config):
     colnames=['refined_img', 'refined_width', 'refined_height', 'mask_img', 'mask_width', 'mask_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
     configclass=RefinementConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -421,7 +455,7 @@ class SegmentationConfig(dtool.Config):
     colnames=['segmentations_img', 'refined_width', 'refined_height', 'refined_segmentations_img', 'refined_segmentations_width', 'refined_segmentations_height'],
     coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
     configclass=SegmentationConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -467,6 +501,27 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
         >>> refined_segmentation   = refined_segmentations[0]
         >>> assert ut.hash_data(segmentation)         in ['htbsspdnjfchswtcboifeybpkhmbdmms']
         >>> assert ut.hash_data(refined_segmentation) in ['hqngsbdctbjsruuwjhhbuamcbukbyaea']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>>     config['localization_model_tag'] = 'groundtruth'
+        >>>     config['segmentation_model_tag'] = 'groundtruth'
+        >>>     segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
+        >>>     refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
+        >>>     segmentation           = segmentations[0]
+        >>>     refined_segmentation   = refined_segmentations[0]
+        >>>     assert ut.hash_data(segmentation)         in ['owryieckgcmjqptjflybacfcmzgllhiw']
+        >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
+        >>> finally:
+        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
     ibs = depc.controller
 
@@ -523,7 +578,7 @@ class KeypointsConfig(dtool.Config):
     colnames=['success', 'start_y', 'start_x', 'end_y', 'end_x'],
     coltypes=[bool, int, int, int, int],
     configclass=KeypointsConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -600,7 +655,7 @@ class OutlineConfig(dtool.Config):
     colnames=['success', 'outline'],
     coltypes=[bool, np.ndarray],
     configclass=OutlineConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -614,6 +669,7 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -642,6 +698,26 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         >>> outline = outlines[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outline) in ['qqvetxfhhipfuqneuinwrvcztkjlfoak']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> try:
+        >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>>     config['localization_model_tag'] = 'groundtruth'
+        >>>     config['segmentation_model_tag'] = 'groundtruth'
+        >>>     success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=config)
+        >>>     outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=config)
+        >>>     outline = outlines[0]
+        >>>     assert success_list == [True]
+        >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
+        >>> finally:
+        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
     ibs = depc.controller
 
@@ -678,7 +754,7 @@ class TrailingEdgeConfig(dtool.Config):
     colnames=['success', 'trailing_edge'],
     coltypes=[bool, np.ndarray],
     configclass=TrailingEdgeConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -752,7 +828,7 @@ class CurvatuveConfig(dtool.Config):
     colnames=['success', 'curvature'],
     coltypes=[bool, np.ndarray],
     configclass=CurvatuveConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -831,7 +907,7 @@ class CurvatuveDescriptorConfig(dtool.Config):
     colnames=['success', 'descriptor'],
     coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
     configclass=CurvatuveDescriptorConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -992,25 +1068,8 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
     """
     ibs = depc.controller
 
-    config = {
-        'model_type':                config['curvrank_model_type'],
-        'width':                     config['curvrank_width'],
-        'height':                    config['curvrank_height'],
-        'scale':                     config['curvrank_scale'],
-        'scales':                    config['curvature_scales'],
-        'allow_diagonal':            config['outline_allow_diagonal'],
-        'transpose_dims':            config['curvatute_transpose_dims'],
-        'groundtruth_radius':        config['segmentation_gt_radius'],
-        'groundtruth_opacity':       config['segmentation_gt_opacity'],
-        'groundtruth_smooth':        config['segmentation_gt_smooth'],
-        'groundtruth_smooth_margin': config['segmentation_gt_smooth_margin'],
-        'curv_length':               config['curvature_descriptor_curv_length'],
-        'num_keypoints':             config['curvature_descriptor_num_keypoints'],
-        'uniform':                   config['curvature_descriptor_uniform'],
-        'feat_dim':                  config['curvature_descriptor_feat_dim'],
-    }
-
-    values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config)
+    config_ = _convert_depc_config_to_kwargs_config(config)
+    values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config_)
     success_list, curvature_descriptor_dicts = values
 
     for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
@@ -1021,7 +1080,8 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
+def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list,
+                                      use_depc_optimized=True, **kwargs):
     r"""
     CurvRank Example
 
@@ -1036,6 +1096,8 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:2
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -1049,7 +1111,9 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aid_list, config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_DORSAL_TEST_CONFIG, use_depc_optimized=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -1064,11 +1128,55 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> from ibeis.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_DORSAL_TEST_CONFIG, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aid_list, config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_FLUKE_TEST_CONFIG, use_depc_optimized=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_FLUKE_TEST_CONFIG, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
@@ -1076,6 +1184,8 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
     """
     kwargs['use_depc'] = True
+    kwargs['use_depc_optimized'] = use_depc_optimized
+    kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
     return ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, **kwargs)
 
 
@@ -1214,7 +1324,7 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     colnames=['score'], coltypes=[float],
     configclass=CurvRankDorsalConfig,
     requestclass=CurvRankDorsalRequest,
-    fname='curvrank',
+    fname='curvrank_scores',
     chunksize=None)
 def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
@@ -1287,7 +1397,7 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
     colnames=['score'], coltypes=[float],
     configclass=CurvRankFlukeConfig,
     requestclass=CurvRankFlukeRequest,
-    fname='curvrank',
+    fname='curvrank_scores',
     chunksize=None)
 def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
