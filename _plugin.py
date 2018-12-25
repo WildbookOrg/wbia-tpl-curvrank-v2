@@ -1946,7 +1946,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     with ut.Timer('Loading query LNBNN descriptors'):
         qr_lnbnn_data_list = []
-        for qr_aid_list in ut.ProgressIter(qr_aids_list, lbl='CurvRank Query LNBNN', freq=100):
+        for qr_aid_list in ut.ProgressIter(qr_aids_list, lbl='CurvRank Query LNBNN', freq=1000):
             values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
                                                         verbose=verbose, use_depc=use_depc,
                                                         use_depc_optimized=use_depc_optimized)
@@ -1955,7 +1955,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     with ut.Timer('Computing scores'):
         zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
-        for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='CurvRank Vectored Scoring', freq=100):
+        for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='CurvRank Vectored Scoring', freq=1000):
             # Run LNBNN identification for each scale independently and aggregate
             score_dict = {}
             for scale in index_filepath_dict:
@@ -2050,7 +2050,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
             score_dict[qaid] = score_dict_
 
     zipped = list(zip(qaid_list, daid_list))
-    for qaid, daid in ut.ProgressIter(zipped, 'CurvRank Pair-wise Final Scores', freq=100):
+    for qaid, daid in ut.ProgressIter(zipped, 'CurvRank Pair-wise Final Scores', freq=1000):
         assert qaid in score_dict
         score = score_dict[qaid].get(daid, 0.0)
         score *= -1.0
