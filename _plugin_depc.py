@@ -39,6 +39,7 @@ DEFAULT_TRANSPOSE_DIMS = {
 
 
 DEFAULT_DORSAL_TEST_CONFIG = {
+    'curvrank_daily_cache'               : True,
     'curvrank_model_type'                : 'dorsal',
     'curvrank_width'                     : DEFAULT_WIDTH['dorsal'],
     'curvrank_height'                    : DEFAULT_HEIGHT['dorsal'],
@@ -60,6 +61,7 @@ DEFAULT_DORSAL_TEST_CONFIG = {
 
 
 DEFAULT_FLUKE_TEST_CONFIG = {
+    'curvrank_daily_cache'               : True,
     'curvrank_model_type'                : 'fluke',
     'curvrank_width'                     : DEFAULT_WIDTH['fluke'],
     'curvrank_height'                    : DEFAULT_HEIGHT['fluke'],
@@ -81,6 +83,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
 
 
 DEFAULT_DEPC_KEY_MAPPING = {
+    'curvrank_daily_cache'               : 'use_daily_cache',
     'curvrank_model_type'                : 'model_type',
     'curvrank_width'                     : 'width',
     'curvrank_height'                    : 'height',
@@ -856,6 +859,7 @@ def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config
         >>> curvature = curvatures[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(curvature) in ['yeyykrdbfxqyrbdumvpkvatjoddavdgn']
+        >>> assert curvature.shape == (918, 4)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -939,6 +943,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
+        >>> assert curvature_descriptor_dict['0.0400'].shape == (496, 32)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -1047,6 +1052,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
+        >>> assert curvature_descriptor_dict['0.0400'].shape == (496, 32)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -1080,8 +1086,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list,
-                                      use_depc_optimized=True, **kwargs):
+def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     r"""
     CurvRank Example
 
@@ -1184,7 +1189,6 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list,
         {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
     """
     kwargs['use_depc'] = True
-    kwargs['use_depc_optimized'] = use_depc_optimized
     kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
     return ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, **kwargs)
 

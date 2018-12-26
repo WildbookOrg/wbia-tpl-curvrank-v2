@@ -6,6 +6,7 @@ import numpy as np
 from itertools import combinations
 from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
+import tqdm
 
 
 def preprocess_image(img, flip, height, width):
@@ -203,7 +204,6 @@ def compute_curvature_descriptors(curv, curv_length, scales,
 
 
 def build_lnbnn_index(data, fpath, num_trees=10):
-    import tqdm
     print('Adding data to index...')
     f = data.shape[1]  # feature dimension
     index = annoy.AnnoyIndex(f, metric='euclidean')
@@ -222,13 +222,15 @@ def build_lnbnn_index(data, fpath, num_trees=10):
 # LNBNN classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
 # Performance is about the same using: https://arxiv.org/abs/1609.06323
 def lnbnn_identify(index_fpath, k, descriptors, names):
+    print('Loading Annoy index...')
     fdim = descriptors.shape[1]
     index = annoy.AnnoyIndex(fdim, metric='euclidean')
     index.load(index_fpath)
 
     # NOTE: Names may contain duplicates.  This works, but is it confusing?
+    print('Performing inference...')
     scores = {name: 0.0 for name in names}
-    for data in descriptors:
+    for data in tqdm.tqdm(list(descriptors)):
         ind, dist = index.get_nns_by_vector(
             data, k + 1, search_k=-1, include_distances=True
         )

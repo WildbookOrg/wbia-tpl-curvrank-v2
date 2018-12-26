@@ -1,10 +1,11 @@
 from __future__ import absolute_import, division, print_function
 from ibeis.control import controller_inject  # NOQA
-from os.path import abspath, join, exists
+from os.path import abspath, join, exists, split
 import ibeis_curvrank.functional as F
 from ibeis_curvrank import imutils
 import numpy as np
 import utool as ut
+import datetime
 import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
@@ -1738,7 +1739,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                                  lnbnn_k=2, verbose=False,
                                  use_names=True,
-                                 minimum_score=1e-6,
+                                 minimum_score=-1e-5,
                                  use_depc=USE_DEPC,
                                  use_depc_optimized=USE_DEPC_OPTIMIZED):
     r"""
@@ -1916,45 +1917,104 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
-
-    with ut.Timer('Loading database LNBNN descriptors'):
-        values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=all_aid_list, config=config,
-                                                    verbose=verbose, use_depc=use_depc,
-                                                    use_depc_optimized=use_depc_optimized)
-        db_lnbnn_data, _ = values
-
-        if verbose:
-            print('Building or loading cached index for scales...')
-
-    with ut.Timer('Caching database indices'):
-        db_annot_uuid_list = ibs.get_annot_uuids(sorted(db_aid_list))
-        index_hash = ut.hash_data(db_annot_uuid_list)
-        config_hash = ut.hash_data(ut.repr3(config))
-
-        # Build (and cache to disk) LNBNN indexes
-        index_filepath_dict = {}
-        for scale in db_lnbnn_data:
-            args = (index_hash, config_hash, scale, ANNOT_INDEX_TREES, )
-            index_filename = 'index_%s_config_%s_scale_%s_trees_%d.ann' % args
-            index_filepath = join(cache_path, index_filename)
-            if not exists(index_filepath):
-                print('Saving computed LNBNN scale=%r descriptors to %r...' % (scale, index_filepath, ))
-                descriptors, aids = db_lnbnn_data[scale]
-                F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
-                print('\t...saved')
+    with ut.Timer('Clearing old caches (TTL = 7 days)'):
+        today = datetime.date.today()
+        week = datetime.timedelta(days=7)
+        past_week = today - week
+        for path in ut.glob(join(cache_path, 'index_*')):
+            directory = split(path)[1]
+            date_str = directory.split('_')[1]
+            date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            print('Checking %r (%r)' % (directory, date, ))
+            if date < past_week:
+                print('\ttoo old (1 week), deleting...' % (path, ))
+                # ut.delete(path)
             else:
-                print('Using cached LNBNN scale=%r descriptors from %r' % (scale, index_filepath, ))
-            index_filepath_dict[scale] = index_filepath
+                delta = date - past_week
+                print('\tkeeping cache for %d more days...' % (delta.days, ))
 
-    with ut.Timer('Loading query LNBNN descriptors'):
+    all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
+    all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
+    index_hash = ut.hash_data(all_annot_uuid_list)
+    config_hash = ut.hash_data(ut.repr3(config))
+    timestamp = ut.timestamp().split('T')[0]
+
+    use_daily_cache = config.pop('use_daily_cache', True)
+    if use_daily_cache:
+        index_hash = None
+
+    args = (timestamp, index_hash, config_hash, )
+    index_directory = 'index_%s_hash_%s_config_%s' % args
+    index_path = join(cache_path, index_directory)
+    ut.ensuredir(index_path)
+
+    with ut.Timer('Loading query'):
+        scale_set = set([])
         qr_lnbnn_data_list = []
         for qr_aid_list in ut.ProgressIter(qr_aids_list, lbl='CurvRank Query LNBNN', freq=1000):
             values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
                                                         verbose=verbose, use_depc=use_depc,
                                                         use_depc_optimized=use_depc_optimized)
             qr_lnbnn_data, _ = values
+            for scale in qr_lnbnn_data:
+                scale_set.add(scale)
             qr_lnbnn_data_list.append(qr_lnbnn_data)
+        scale_list = sorted(list(scale_set))
+
+    with ut.Timer('Loading database'):
+        with ut.Timer('Checking database cache'):
+            compute = False
+
+            index_filepath_dict = {}
+            aids_filepath_dict = {}
+            for scale in scale_list:
+                args = (scale, ANNOT_INDEX_TREES, )
+                base_directory = 'db_index_scale_%s_trees_%d' % args
+                base_path = join(index_path, base_directory)
+                ut.ensuredir(base_path)
+
+                index_filepath = join(base_path, 'index.ann')
+                aids_filepath  = join(base_path, 'aids.pkl')
+
+                index_filepath_dict[scale] = index_filepath
+                aids_filepath_dict[scale]  = aids_filepath
+
+                if not exists(index_filepath):
+                    print('Missing: %r' % (index_filepath, ))
+                    compute = True
+
+                if not exists(aids_filepath):
+                    print('Missing: %r' % (aids_filepath, ))
+                    compute = True
+
+            print('Compute indices = %r' % (compute, ))
+
+        if compute:
+            with ut.Timer('Loading database LNBNN descriptors from depc'):
+                values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=all_aid_list, config=config,
+                                                            verbose=verbose, use_depc=use_depc,
+                                                            use_depc_optimized=use_depc_optimized)
+                db_lnbnn_data, _ = values
+
+            with ut.Timer('Creating Annoy indices'):
+                for scale in scale_list:
+                    assert scale in db_lnbnn_data
+                    index_filepath = index_filepath_dict[scale]
+                    aids_filepath  = aids_filepath_dict[scale]
+
+                    print('Writing computed Annoy scale=%r index to %r...' % (scale, index_filepath, ))
+                    descriptors, aids = db_lnbnn_data[scale]
+                    F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
+                    print('Writing computed AIDs scale=%r to %r...' % (scale, aids_filepath, ))
+                    ut.save_cPkl(aids_filepath, aids)
+                    print('\t...saved')
+
+        with ut.Timer('Loading database AIDs from cache'):
+            aids_dict = {}
+            for scale in scale_list:
+                aids_filepath = aids_filepath_dict[scale]
+                assert exists(aids_filepath)
+                aids_dict[scale] = ut.load_cPkl(aids_filepath)
 
     with ut.Timer('Computing scores'):
         zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
@@ -1964,17 +2024,17 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
             # Run LNBNN identification for each scale independently and aggregate
             score_dict = {}
-            for scale in index_filepath_dict:
-                if scale not in index_filepath_dict:
-                    continue
-                if scale not in db_lnbnn_data:
-                    continue
-                if scale not in qr_lnbnn_data:
-                    continue
+            for scale in ut.ProgressIter(scale_list, lbl='Performing ANN inference', freq=1):
+                assert scale in qr_lnbnn_data
+                assert scale in index_filepath_dict
+                assert scale in aids_dict
 
-                index_filepath = index_filepath_dict[scale]
-                db_descriptors, db_aids = db_lnbnn_data[scale]
-                qr_descriptors, qr_aids = qr_lnbnn_data[scale]
+                qr_descriptors, _ = qr_lnbnn_data[scale]
+                index_filepath    = index_filepath_dict[scale]
+                aids_filepath     = aids_filepath_dict[scale]
+
+                assert exists(index_filepath)
+                db_aids = aids_dict[scale]
 
                 if use_names:
                     db_rowids = ibs.get_annot_nids(db_aids)
@@ -1995,7 +2055,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             for rowid in rowid_list:
                 score = score_dict[rowid]
                 # Scores are non-positive floats (unless errored), delete scores that are 0.0 or positive.
-                if score >= -1.0 * minimum_score or rowid in qr_aid_set:
+                if score >= minimum_score or rowid in qr_aid_set:
                     score_dict.pop(rowid)
 
             yield qr_aid_list, score_dict
@@ -2048,7 +2108,8 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     with ut.Timer(message):
         value_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aids_list,
                                                            config=config,
-                                                           use_names=False)
+                                                           use_names=False,
+                                                           use_depc_optimized=USE_DEPC_OPTIMIZED)
         score_dict = {}
         for value in value_iter:
             qr_aid_list, score_dict_ = value
