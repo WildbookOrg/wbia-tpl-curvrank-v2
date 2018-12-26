@@ -2028,7 +2028,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     assert len(qaid_list) == len(daid_list), 'Lengths of qaid_list %d != daid_list %d' % (len(qaid_list), len(daid_list))
 
     qaid_list_  = sorted(list(set(qaid_list)))
-    daid_list_  = sorted(list(set(qaid_list)))
+    daid_list_  = sorted(list(set(daid_list)))
 
     qr_aids_list = [
         [qaid]
