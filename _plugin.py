@@ -1941,8 +1941,15 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     config_hash = ut.hash_data(ut.repr3(config))
     timestamp = ut.timestamp().split('T')[0]
 
+    force_faily_cache = use_daily_cache in ['force']
+    if force_faily_cache:
+        use_daily_cache = True
+
     if use_daily_cache:
-        index_hash = 'daily'
+        qr_aid_list = ut.flatten(qr_aids_list)
+        qr_species_set = set(ibs.get_annot_species_texts(qr_aid_list))
+        qr_species_str = '-'.join(sorted(qr_species_set))
+        index_hash = 'daily-%s' % (qr_species_str)
 
     args = (timestamp, index_hash, config_hash, )
     index_directory = 'index_%s_hash_%s_config_%s' % args
@@ -2003,12 +2010,19 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     index_filepath = index_filepath_dict[scale]
                     aids_filepath  = aids_filepath_dict[scale]
 
-                    print('Writing computed Annoy scale=%r index to %r...' % (scale, index_filepath, ))
-                    descriptors, aids = db_lnbnn_data[scale]
-                    F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
-                    print('Writing computed AIDs scale=%r to %r...' % (scale, aids_filepath, ))
-                    ut.save_cPkl(aids_filepath, aids)
-                    print('\t...saved')
+                    if not exists(index_filepath) or force_faily_cache:
+                        print('Writing computed Annoy scale=%r index to %r...' % (scale, index_filepath, ))
+                        descriptors, aids = db_lnbnn_data[scale]
+                        F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
+                    else:
+                        print('Using existing Annoy scale=%r index in %r...' % (scale, index_filepath, ))
+
+                    if not exists(aids_filepath) or force_faily_cache:
+                        print('Writing computed AIDs scale=%r to %r...' % (scale, aids_filepath, ))
+                        ut.save_cPkl(aids_filepath, aids)
+                        print('\t...saved')
+                    else:
+                        print('Using existing AIDs scale=%r in %r...' % (scale, aids_filepath, ))
 
         with ut.Timer('Loading database AIDs from cache'):
             aids_dict = {}

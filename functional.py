@@ -7,6 +7,7 @@ from itertools import combinations
 from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
 import tqdm
+import time
 
 
 def preprocess_image(img, flip, height, width):
@@ -211,8 +212,10 @@ def build_lnbnn_index(data, fpath, num_trees=10):
         index.add_item(i, data[i])
     print('...done')
     print('Building indices...')
+    start = time.time()
     index.build(num_trees)
-    print('...done')
+    end = time.time()
+    print('...done (took %r seconds' % (end - start, ))
     print('Saving indices...')
     index.save(fpath)
     print('...done')
