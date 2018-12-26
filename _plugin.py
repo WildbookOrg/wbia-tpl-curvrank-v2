@@ -1915,8 +1915,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
+    all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
+
     with ut.Timer('Loading database LNBNN descriptors'):
-        values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
+        values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=all_aid_list, config=config,
                                                     verbose=verbose, use_depc=use_depc,
                                                     use_depc_optimized=use_depc_optimized)
         db_lnbnn_data, _ = values
@@ -1938,7 +1940,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             if not exists(index_filepath):
                 print('Saving computed LNBNN scale=%r descriptors to %r...' % (scale, index_filepath, ))
                 descriptors, aids = db_lnbnn_data[scale]
-                F.build_lnbnn_index(descriptors, index_filepath)
+                F.build_lnbnn_index(descriptors, index_filepath, num_trees=1)
                 print('\t...saved')
             else:
                 print('Using cached LNBNN scale=%r descriptors from %r' % (scale, index_filepath, ))

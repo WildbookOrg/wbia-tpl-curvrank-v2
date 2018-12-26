@@ -202,13 +202,20 @@ def compute_curvature_descriptors(curv, curv_length, scales,
     return feat_mats
 
 
-def build_lnbnn_index(data, fpath):
+def build_lnbnn_index(data, fpath, num_trees=10):
+    import tqdm
+    print('Adding data to index...')
     f = data.shape[1]  # feature dimension
     index = annoy.AnnoyIndex(f, metric='euclidean')
-    for i, _ in enumerate(data):
+    for i, _ in tqdm.tqdm(list(enumerate(data))):
         index.add_item(i, data[i])
-    index.build(10)
+    print('...done')
+    print('Building indices...')
+    index.build(num_trees)
+    print('...done')
+    print('Saving indices...')
     index.save(fpath)
+    print('...done')
     return index
 
 
