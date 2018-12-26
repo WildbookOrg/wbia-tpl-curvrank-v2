@@ -1738,7 +1738,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 @register_ibs_method
 def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                                  lnbnn_k=2, verbose=False,
-                                 use_names=True,
+                                 use_names=False,
                                  minimum_score=-1e-5,
                                  use_depc=USE_DEPC,
                                  use_depc_optimized=USE_DEPC_OPTIMIZED):
