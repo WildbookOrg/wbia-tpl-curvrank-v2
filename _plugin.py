@@ -18,6 +18,7 @@ register_api = controller_inject.get_ibeis_flask_api(__name__)
 
 USE_DEPC = True
 USE_DEPC_OPTIMIZED = True
+ANNOT_INDEX_TREES = 10
 
 
 FORCE_SERIAL = False
@@ -1934,13 +1935,13 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         # Build (and cache to disk) LNBNN indexes
         index_filepath_dict = {}
         for scale in db_lnbnn_data:
-            args = (index_hash, config_hash, scale, )
-            index_filename = 'index_%s_config_%s_scale_%s.ann' % args
+            args = (index_hash, config_hash, scale, ANNOT_INDEX_TREES, )
+            index_filename = 'index_%s_config_%s_scale_%s_trees_%d.ann' % args
             index_filepath = join(cache_path, index_filename)
             if not exists(index_filepath):
                 print('Saving computed LNBNN scale=%r descriptors to %r...' % (scale, index_filepath, ))
                 descriptors, aids = db_lnbnn_data[scale]
-                F.build_lnbnn_index(descriptors, index_filepath, num_trees=1)
+                F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
                 print('\t...saved')
             else:
                 print('Using cached LNBNN scale=%r descriptors from %r' % (scale, index_filepath, ))
@@ -1958,6 +1959,9 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     with ut.Timer('Computing scores'):
         zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
         for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='CurvRank Vectored Scoring', freq=1000):
+
+            qr_aid_set = set(qr_aid_list)
+
             # Run LNBNN identification for each scale independently and aggregate
             score_dict = {}
             for scale in index_filepath_dict:
@@ -1987,10 +1991,11 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 print('Returning scores...')
 
             # Sparsify
-            for rowid in score_dict:
+            rowid_list = list(score_dict.keys())
+            for rowid in rowid_list:
                 score = score_dict[rowid]
                 # Scores are non-positive floats (unless errored), delete scores that are 0.0 or positive.
-                if score >= -1.0 * minimum_score:
+                if score >= -1.0 * minimum_score or rowid in qr_aid_set:
                     score_dict.pop(rowid)
 
             yield qr_aid_list, score_dict
