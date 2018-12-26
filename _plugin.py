@@ -1933,15 +1933,16 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 delta = date - past_week
                 print('\tkeeping cache for %d more days...' % (delta.days, ))
 
+    use_daily_cache = config.pop('use_daily_cache', True)
+
     all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
     all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
     index_hash = ut.hash_data(all_annot_uuid_list)
     config_hash = ut.hash_data(ut.repr3(config))
     timestamp = ut.timestamp().split('T')[0]
 
-    use_daily_cache = config.pop('use_daily_cache', True)
     if use_daily_cache:
-        index_hash = None
+        index_hash = 'daily'
 
     args = (timestamp, index_hash, config_hash, )
     index_directory = 'index_%s_hash_%s_config_%s' % args
