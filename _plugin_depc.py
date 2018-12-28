@@ -40,6 +40,7 @@ DEFAULT_TRANSPOSE_DIMS = {
 
 DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_daily_cache'               : True,
+    'curvrank_daily_tag'                 : None,
     'curvrank_model_type'                : 'dorsal',
     'curvrank_width'                     : DEFAULT_WIDTH['dorsal'],
     'curvrank_height'                    : DEFAULT_HEIGHT['dorsal'],
@@ -62,6 +63,7 @@ DEFAULT_DORSAL_TEST_CONFIG = {
 
 DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_daily_cache'               : True,
+    'curvrank_daily_tag'                 : None,
     'curvrank_model_type'                : 'fluke',
     'curvrank_width'                     : DEFAULT_WIDTH['fluke'],
     'curvrank_height'                    : DEFAULT_HEIGHT['fluke'],
@@ -84,6 +86,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
 
 DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_daily_cache'               : 'use_daily_cache',
+    'curvrank_daily_tag'                 : 'daily_cache_tag',
     'curvrank_model_type'                : 'model_type',
     'curvrank_width'                     : 'width',
     'curvrank_height'                    : 'height',
@@ -1116,7 +1119,9 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_DORSAL_TEST_CONFIG, use_depc_optimized=False)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1137,7 +1142,9 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_DORSAL_TEST_CONFIG, use_depc_optimized=True)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1158,7 +1165,9 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_FLUKE_TEST_CONFIG, use_depc_optimized=False)
+        >>> config = DEFAULT_FLUKE_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1179,7 +1188,9 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=DEFAULT_FLUKE_TEST_CONFIG, use_depc_optimized=True)
+        >>> config = DEFAULT_FLUKE_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1311,7 +1322,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_daily_cache=True,curvrank_daily_tag=None,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [
@@ -1383,7 +1394,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_daily_cache=True,curvrank_daily_tag=None,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
         return [

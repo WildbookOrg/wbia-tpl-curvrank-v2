@@ -1738,7 +1738,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 @register_ibs_method
 def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                                  lnbnn_k=2, verbose=False,
-                                 use_names=False,
+                                 use_names=True,
                                  minimum_score=-1e-5,
                                  use_depc=USE_DEPC,
                                  use_depc_optimized=USE_DEPC_OPTIMIZED):
@@ -1917,44 +1917,85 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    with ut.Timer('Clearing old caches (TTL = 7 days)'):
-        today = datetime.date.today()
-        week = datetime.timedelta(days=7)
-        past_week = today - week
-        for path in ut.glob(join(cache_path, 'index_*')):
-            directory = split(path)[1]
-            date_str = directory.split('_')[1]
-            date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-            print('Checking %r (%r)' % (directory, date, ))
-            if date < past_week:
-                print('\ttoo old (1 week), deleting...' % (path, ))
-                # ut.delete(path)
-            else:
-                delta = date - past_week
-                print('\tkeeping cache for %d more days...' % (delta.days, ))
+    TTL_DELETE = 7
+    TTL_PREVIOUS = 3
 
-    use_daily_cache = config.pop('use_daily_cache', True)
+    use_daily_cache = config.pop('use_daily_cache', False)
+    daily_cache_tag = config.pop('daily_cache_tag', None)
+
+    args = (use_daily_cache, daily_cache_tag, )
+    print('CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r' % args)
+    print('CurvRank algo  config: %s' % (ut.repr3(config), ))
+
+    force_daily_cache = use_daily_cache in ['force']
+    if force_daily_cache:
+        use_daily_cache = True
 
     all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
     all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
     index_hash = ut.hash_data(all_annot_uuid_list)
     config_hash = ut.hash_data(ut.repr3(config))
-    timestamp = ut.timestamp().split('T')[0]
+    today = datetime.date.today()
+    timestamp = today.isoformat()
 
-    force_faily_cache = use_daily_cache in ['force']
-    if force_faily_cache:
-        use_daily_cache = True
-
-    if use_daily_cache:
+    if daily_cache_tag is None:
         qr_aid_list = ut.flatten(qr_aids_list)
         qr_species_set = set(ibs.get_annot_species_texts(qr_aid_list))
         qr_species_str = '-'.join(sorted(qr_species_set))
-        index_hash = 'daily-%s' % (qr_species_str)
+        daily_index_hash = 'daily-species-%s' % (qr_species_str)
+    else:
+        daily_cache_tag = str(daily_cache_tag)
+        daily_index_hash = 'daily-tag-%s' % (daily_cache_tag)
 
-    args = (timestamp, index_hash, config_hash, )
-    index_directory = 'index_%s_hash_%s_config_%s' % args
+    with ut.Timer('Clearing old caches (TTL = 7 days)'):
+
+        delete = datetime.timedelta(days=TTL_DELETE)
+        past_delete = today - delete
+
+        previous = datetime.timedelta(days=TTL_PREVIOUS)
+        past_previous = today - previous
+
+        available_previous_list = []
+        for path in ut.glob(join(cache_path, 'index_*')):
+            try:
+                directory = split(path)[1]
+                date_str = directory.split('_')[1]
+                date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+                print('Checking %r (%r)' % (directory, date, ))
+                if date < past_delete:
+                    print('\ttoo old (%d days), deleting...' % (TTL_DELETE, path, ))
+                    ut.delete(path)
+                else:
+                    if past_previous <= date:
+                        if daily_index_hash in directory:
+                            available_previous_list.append(directory)
+                    delta = date - past_delete
+                    print('\tkeeping cache for %d more days...' % (delta.days, ))
+            except:
+                pass
+
+        available_previous_list = sorted(available_previous_list)
+        args = (TTL_PREVIOUS, ut.repr3(available_previous_list), )
+        print('\nAvailable previous cached (TTL = %d): %s' % args)
+
+    if use_daily_cache and len(available_previous_list) == 0:
+        force_daily_cache = True
+
+    if use_daily_cache:
+        if force_daily_cache:
+            args = (timestamp, daily_index_hash, config_hash, )
+            index_directory = 'index_%s_hash_%s_config_%s' % args
+            print('Using daily index: %r' % (index_directory, ))
+        else:
+            assert len(available_previous_list) > 0
+            index_directory = available_previous_list[-1]
+            print('Using the most recent available index: %r' % (index_directory, ))
+    else:
+        args = (timestamp, index_hash, config_hash, )
+        index_directory = 'index_%s_hash_%s_config_%s' % args
+        print('Using hashed index: %r' % (index_directory, ))
+
     index_path = join(cache_path, index_directory)
-    ut.ensuredir(index_path)
 
     with ut.Timer('Loading query'):
         scale_set = set([])
@@ -1979,7 +2020,6 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 args = (scale, ANNOT_INDEX_TREES, )
                 base_directory = 'db_index_scale_%s_trees_%d' % args
                 base_path = join(index_path, base_directory)
-                ut.ensuredir(base_path)
 
                 index_filepath = join(base_path, 'index.ann')
                 aids_filepath  = join(base_path, 'aids.pkl')
@@ -1998,8 +2038,13 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             print('Compute indices = %r' % (compute, ))
 
         if compute:
+            # Cache as a future job until it is complete, in case other threads are looking at this cache as well
+            future_index_directory = '__future__%s' % (index_directory, )
+            future_index_path = join(cache_path, future_index_directory)
+            ut.ensuredir(future_index_path)
+
             with ut.Timer('Loading database LNBNN descriptors from depc'):
-                values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=all_aid_list, config=config,
+                values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
                                                             verbose=verbose, use_depc=use_depc,
                                                             use_depc_optimized=use_depc_optimized)
                 db_lnbnn_data, _ = values
@@ -2010,19 +2055,31 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     index_filepath = index_filepath_dict[scale]
                     aids_filepath  = aids_filepath_dict[scale]
 
-                    if not exists(index_filepath) or force_faily_cache:
-                        print('Writing computed Annoy scale=%r index to %r...' % (scale, index_filepath, ))
+                    future_index_filepath = index_filepath.replace(index_path, future_index_path)
+                    future_aids_filepath  = aids_filepath.replace(index_path,  future_index_path)
+
+                    ut.ensuredir(split(future_index_filepath)[0])
+                    ut.ensuredir(split(future_aids_filepath)[0])
+
+                    if not exists(index_filepath):
+                        print('Writing computed Annoy scale=%r index to %r...' % (scale, future_index_filepath, ))
                         descriptors, aids = db_lnbnn_data[scale]
-                        F.build_lnbnn_index(descriptors, index_filepath, num_trees=ANNOT_INDEX_TREES)
+                        F.build_lnbnn_index(descriptors, future_index_filepath, num_trees=ANNOT_INDEX_TREES)
                     else:
+                        ut.copy(index_filepath, future_index_filepath)
                         print('Using existing Annoy scale=%r index in %r...' % (scale, index_filepath, ))
 
-                    if not exists(aids_filepath) or force_faily_cache:
-                        print('Writing computed AIDs scale=%r to %r...' % (scale, aids_filepath, ))
-                        ut.save_cPkl(aids_filepath, aids)
+                    if not exists(aids_filepath):
+                        print('Writing computed AIDs scale=%r to %r...' % (scale, future_aids_filepath, ))
+                        ut.save_cPkl(future_aids_filepath, aids)
                         print('\t...saved')
                     else:
+                        ut.copy(aids_filepath, future_aids_filepath)
                         print('Using existing AIDs scale=%r in %r...' % (scale, aids_filepath, ))
+
+            with ut.Timer('Activating index by setting from future to live'):
+                ut.delete(index_path)
+                ut.move(future_index_path, index_path)
 
         with ut.Timer('Loading database AIDs from cache'):
             aids_dict = {}
@@ -2031,11 +2088,11 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 assert exists(aids_filepath)
                 aids_dict[scale] = ut.load_cPkl(aids_filepath)
 
+    assert exists(index_path)
+
     with ut.Timer('Computing scores'):
         zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
         for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='CurvRank Vectored Scoring', freq=1000):
-
-            qr_aid_set = set(qr_aid_list)
 
             # Run LNBNN identification for each scale independently and aggregate
             score_dict = {}
@@ -2046,7 +2103,6 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
                 qr_descriptors, _ = qr_lnbnn_data[scale]
                 index_filepath    = index_filepath_dict[scale]
-                aids_filepath     = aids_filepath_dict[scale]
 
                 assert exists(index_filepath)
                 db_aids = aids_dict[scale]
@@ -2066,6 +2122,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 print('Returning scores...')
 
             # Sparsify
+            qr_aid_set = set(qr_aid_list)
             rowid_list = list(score_dict.keys())
             for rowid in rowid_list:
                 score = score_dict[rowid]
@@ -2100,7 +2157,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         >>> score_list = list(ibs.ibeis_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
         >>> result = score_list
         >>> print(result)
-        [(64.60520779166836,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (95.76312898372998,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (79.1514779383433,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (92.64516691851895,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (108.52845083945431,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (99.20977391535416,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (77.92489212821238,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (66.87803533783881,)]
+        [(-0.0,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (-0.0,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (-0.0,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (-0.0,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (-0.0,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (-0.0,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (-0.0,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (-0.0,)]
     """
     print('Computing %s' % (label, ))
 
