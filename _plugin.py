@@ -1917,80 +1917,77 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    TTL_DELETE = 7
-    TTL_PREVIOUS = 3
+    TTL_HOUR_DELETE = 7 * 24
+    TTL_HOUR_PREVIOUS = 3 * 24
 
     use_daily_cache = config.pop('use_daily_cache', False)
-    daily_cache_tag = config.pop('daily_cache_tag', None)
+    daily_cache_tag = config.pop('daily_cache_tag', 'global')
+    force_cache_recompute = config.pop('force_cache_recompute', False)
 
-    args = (use_daily_cache, daily_cache_tag, )
-    print('CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r' % args)
+    args = (use_daily_cache, daily_cache_tag, force_cache_recompute, )
+    print('CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r\n\tforce_cache_recompute = %r\n\t' % args)
     print('CurvRank algo  config: %s' % (ut.repr3(config), ))
 
-    force_daily_cache = use_daily_cache in ['force']
-    if force_daily_cache:
-        use_daily_cache = True
-
-    all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
-    all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
-    index_hash = ut.hash_data(all_annot_uuid_list)
     config_hash = ut.hash_data(ut.repr3(config))
-    today = datetime.date.today()
-    timestamp = today.isoformat()
+    now = datetime.datetime.now()
+    timestamp_fmtstr = '%Y-%m-%d-%H-%M-%S'
+    timestamp = now.strftime(timestamp_fmtstr)
 
-    if daily_cache_tag is None:
+    daily_cache_tag = str(daily_cache_tag)
+    if daily_cache_tag in ['global']:
         qr_aid_list = ut.flatten(qr_aids_list)
         qr_species_set = set(ibs.get_annot_species_texts(qr_aid_list))
         qr_species_str = '-'.join(sorted(qr_species_set))
-        daily_index_hash = 'daily-species-%s' % (qr_species_str)
+        daily_index_hash = 'daily-global-%s' % (qr_species_str)
     else:
-        daily_cache_tag = str(daily_cache_tag)
         daily_index_hash = 'daily-tag-%s' % (daily_cache_tag)
 
-    with ut.Timer('Clearing old caches (TTL = 7 days)'):
+    with ut.Timer('Clearing old caches (TTL = %d hours)' % (TTL_HOUR_DELETE, )):
 
-        delete = datetime.timedelta(days=TTL_DELETE)
-        past_delete = today - delete
+        delete = datetime.timedelta(hours=TTL_HOUR_DELETE)
+        past_delete = now - delete
 
-        previous = datetime.timedelta(days=TTL_PREVIOUS)
-        past_previous = today - previous
+        previous = datetime.timedelta(hours=TTL_HOUR_PREVIOUS)
+        past_previous = now - previous
 
         available_previous_list = []
         for path in ut.glob(join(cache_path, 'index_*')):
             try:
                 directory = split(path)[1]
                 date_str = directory.split('_')[1]
-                date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-                print('Checking %r (%r)' % (directory, date, ))
-                if date < past_delete:
-                    print('\ttoo old (%d days), deleting...' % (TTL_DELETE, path, ))
+                then = datetime.datetime.strptime(date_str, timestamp_fmtstr)
+                print('Checking %r (%r)' % (directory, then, ))
+
+                if then < past_delete:
+                    print('\ttoo old, deleting %r...' % (path, ))
                     ut.delete(path)
                 else:
-                    if past_previous <= date:
+                    if past_previous <= then:
                         if daily_index_hash in directory:
                             available_previous_list.append(directory)
-                    delta = date - past_delete
-                    print('\tkeeping cache for %d more days...' % (delta.days, ))
+                    delta = then - past_delete
+                    print('\tkeeping cache for ~%d more hours...' % (delta.hours, ))
             except:
-                pass
+                print('\tinvalid (parse error), deleting %r...' % (path, ))
+                ut.delete(path)
 
         available_previous_list = sorted(available_previous_list)
-        args = (TTL_PREVIOUS, ut.repr3(available_previous_list), )
-        print('\nAvailable previous cached (TTL = %d): %s' % args)
-
-    if use_daily_cache and len(available_previous_list) == 0:
-        force_daily_cache = True
+        args = (ut.repr3(available_previous_list), )
+        print('\nAvailable previous cached: %s' % args)
 
     if use_daily_cache:
-        if force_daily_cache:
+        if force_cache_recompute or len(available_previous_list) == 0:
             args = (timestamp, daily_index_hash, config_hash, )
             index_directory = 'index_%s_hash_%s_config_%s' % args
-            print('Using daily index: %r' % (index_directory, ))
+            print('Using daily index (recompute = %r): %r' % (force_cache_recompute, index_directory, ))
         else:
-            assert len(available_previous_list) > 0
             index_directory = available_previous_list[-1]
             print('Using the most recent available index: %r' % (index_directory, ))
     else:
+        all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
+        all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
+        index_hash = ut.hash_data(all_annot_uuid_list)
+
         args = (timestamp, index_hash, config_hash, )
         index_directory = 'index_%s_hash_%s_config_%s' % args
         print('Using hashed index: %r' % (index_directory, ))
@@ -2012,7 +2009,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     with ut.Timer('Loading database'):
         with ut.Timer('Checking database cache'):
-            compute = False
+            compute = force_cache_recompute
 
             index_filepath_dict = {}
             aids_filepath_dict = {}
@@ -2079,7 +2076,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
             with ut.Timer('Activating index by setting from future to live'):
                 ut.delete(index_path)
-                ut.move(future_index_path, index_path)
+                ut.move(future_index_path, index_path, verbose=True)
 
         with ut.Timer('Loading database AIDs from cache'):
             aids_dict = {}
