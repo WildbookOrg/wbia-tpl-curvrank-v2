@@ -1960,16 +1960,17 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
                 if then < past_delete:
                     print('\ttoo old, deleting %r...' % (path, ))
-                    ut.delete(path)
+                    # ut.delete(path)
                 else:
                     if past_previous <= then:
                         if daily_index_hash in directory:
                             available_previous_list.append(directory)
                     delta = then - past_delete
-                    print('\tkeeping cache for ~%d more hours...' % (delta.hours, ))
+                    hours = delta.total_seconds() / 60 / 60
+                    print('\tkeeping cache for %0.2f more hours...' % (hours, ))
             except:
                 print('\tinvalid (parse error), deleting %r...' % (path, ))
-                ut.delete(path)
+                # ut.delete(path)
 
         available_previous_list = sorted(available_previous_list)
         args = (ut.repr3(available_previous_list), )
