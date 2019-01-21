@@ -2196,6 +2196,58 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         yield (score, )
 
 
+@register_ibs_method
+def ibeis_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
+    import networkx as nx
+
+    assert tablename in ['CurvRankDorsal', 'CurvRankFluke']
+
+    tablename_list = [
+        'curvature_descriptor_optimized',
+        tablename,
+    ]
+
+    graph = ibs.depc_annot.make_graph(implicit=True)
+    root = ibs.depc_annot.root
+    params_iter = list(zip(aid_list))
+
+    for target_tablename in tablename_list:
+        print(target_tablename)
+
+        path = nx.shortest_path(graph, root, target_tablename)
+        for parent, child in ut.itertwo(path):
+            child_table = ibs.depc_annot[child]
+
+            relevant_col_attrs = []
+            for attrs in child_table.parent_col_attrs:
+                if attrs['parent_table'] == parent:
+                    relevant_col_attrs.append(attrs)
+
+            parent_colnames = []
+            for attrs in relevant_col_attrs:
+                parent_colnames.append(attrs['intern_colname'])
+
+            child_rowids = []
+            for colname in parent_colnames:
+                indexname = '%s_index' % (colname, )
+                command = '''CREATE INDEX IF NOT EXISTS {indexname} ON {tablename} ({colname}, {rowid_colname});'''.format(
+                    indexname=indexname,
+                    tablename=child,
+                    colname=colname,
+                    rowid_colname=child_table.rowid_colname,
+                )
+                child_table.db.connection.execute(command).fetchall()
+
+                child_rowids_ = child_table.db.get_where_eq(
+                    child_table.tablename, (child_table.rowid_colname,),
+                    params_iter, unpack_scalars=False,
+                    where_colnames=[colname],
+                    showprog=True)
+                child_rowids_ = ut.flatten(child_rowids_)
+                child_rowids += child_rowids_
+
+            child_table.delete_rows(child_rowids, delete_extern=True)
+
 if __name__ == '__main__':
     r"""
     CommandLine:
