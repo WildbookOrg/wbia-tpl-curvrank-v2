@@ -1917,6 +1917,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
+    FUTURE_PREFIX = '__future__'
     TTL_HOUR_DELETE = 3 * 24
     TTL_HOUR_PREVIOUS = 1 * 24
 
@@ -1968,6 +1969,22 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     delta = then - past_delete
                     hours = delta.total_seconds() / 60 / 60
                     print('\tkeeping cache for %0.2f more hours...' % (hours, ))
+            except:
+                print('\tinvalid (parse error), deleting %r...' % (path, ))
+                ut.delete(path)
+
+        # Check for any FUTURE_PREFIX folders that are too old (due to an error) and need to be deleted
+        for path in ut.glob(join(cache_path, '%sindex_*' % (FUTURE_PREFIX, ))):
+            try:
+                directory = split(path)[1]
+                directory = directory.replace(FUTURE_PREFIX, '')
+                date_str = directory.split('_')[1]
+                then = datetime.datetime.strptime(date_str, timestamp_fmtstr)
+                print('Checking %r (%r)' % (directory, then, ))
+
+                if then < past_delete:
+                    print('\ttoo old, deleting %r...' % (path, ))
+                    ut.delete(path)
             except:
                 print('\tinvalid (parse error), deleting %r...' % (path, ))
                 ut.delete(path)
@@ -2037,7 +2054,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
         if compute:
             # Cache as a future job until it is complete, in case other threads are looking at this cache as well
-            future_index_directory = '__future__%s' % (index_directory, )
+            future_index_directory = '%s%s' % (FUTURE_PREFIX, index_directory, )
             future_index_path = join(cache_path, future_index_directory)
             ut.ensuredir(future_index_path)
 
