@@ -3,6 +3,7 @@ from ibeis.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
 import ibeis_curvrank.functional as F
 from ibeis_curvrank import imutils
+import ibeis.constants as const
 import numpy as np
 import utool as ut
 import datetime
@@ -24,6 +25,7 @@ ANNOT_INDEX_TREES = 10
 
 FORCE_SERIAL = False
 FORCE_SERIAL = FORCE_SERIAL or 'macosx' in ut.get_plat_specifier().lower()
+FORCE_SERIAL = FORCE_SERIAL or const.CONTAINERIZED
 CHUNKSIZE = 16
 
 
