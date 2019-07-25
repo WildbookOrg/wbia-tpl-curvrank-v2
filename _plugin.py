@@ -2257,12 +2257,11 @@ def ibeis_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
                 )
                 child_table.db.connection.execute(command).fetchall()
 
-                child_rowids_ = child_table.db.get_where_eq(
+                child_rowids_ = child_table.db.get_where_eq_set(
                     child_table.tablename, (child_table.rowid_colname,),
                     params_iter, unpack_scalars=False,
-                    where_colnames=[colname],
-                    showprog=True)
-                child_rowids_ = ut.flatten(child_rowids_)
+                    where_colnames=[colname])
+                # child_rowids_ = ut.flatten(child_rowids_)
                 child_rowids += child_rowids_
 
             child_table.delete_rows(child_rowids, delete_extern=True)

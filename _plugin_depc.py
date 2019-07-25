@@ -1344,6 +1344,7 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     configclass=CurvRankDorsalConfig,
     requestclass=CurvRankDorsalRequest,
     fname='curvrank_scores_dorsal',
+    rm_extern_on_delete=True,
     chunksize=None)
 def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
@@ -1417,6 +1418,7 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
     configclass=CurvRankFlukeConfig,
     requestclass=CurvRankFlukeRequest,
     fname='curvrank_scores_fluke',
+    rm_extern_on_delete=True,
     chunksize=None)
 def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
