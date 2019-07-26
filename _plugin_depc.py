@@ -45,6 +45,7 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_model_type'                : 'dorsal',
     'curvrank_width'                     : DEFAULT_WIDTH['dorsal'],
     'curvrank_height'                    : DEFAULT_HEIGHT['dorsal'],
+    'curvrank_greyscale'                 : False,
     'curvrank_scale'                     : DEFAULT_SCALE['dorsal'],
     'curvature_scales'                   : DEFAULT_SCALES['dorsal'],
     'outline_allow_diagonal'             : DEFAULT_ALLOW_DIAGONAL['dorsal'],
@@ -69,6 +70,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_model_type'                : 'fluke',
     'curvrank_width'                     : DEFAULT_WIDTH['fluke'],
     'curvrank_height'                    : DEFAULT_HEIGHT['fluke'],
+    'curvrank_greyscale'                 : True,
     'curvrank_scale'                     : DEFAULT_SCALE['fluke'],
     'curvature_scales'                   : DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal'             : DEFAULT_ALLOW_DIAGONAL['fluke'],
@@ -93,6 +95,7 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_model_type'                : 'model_type',
     'curvrank_width'                     : 'width',
     'curvrank_height'                    : 'height',
+    'curvrank_greyscale'                 : 'greyscale',
     'curvrank_scale'                     : 'scale',
     'curvature_scales'                   : 'scales',
     'outline_allow_diagonal'             : 'allow_diagonal',
@@ -146,6 +149,7 @@ class PreprocessConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_height',     DEFAULT_HEIGHT['dorsal']),
             ut.ParamInfo('curvrank_width',      DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_greyscale',  False, hideif=False),
             ut.ParamInfo('ext',                 '.npy', hideif='.npy'),
         ]
 
@@ -219,10 +223,12 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     """
     ibs = depc.controller
 
-    width  = config['curvrank_width']
-    height = config['curvrank_height']
+    width     = config['curvrank_width']
+    height    = config['curvrank_height']
+    greyscale = config['curvrank_greyscale']
 
-    values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+    values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height,
+                                                     greyscale=greyscale)
     resized_images, resized_masks, pre_transforms = values
 
     zipped = zip(resized_images, resized_masks, pre_transforms)
@@ -357,6 +363,7 @@ class RefinementConfig(dtool.Config):
             ut.ParamInfo('curvrank_width',      DEFAULT_HEIGHT['dorsal']),
             ut.ParamInfo('curvrank_height',     DEFAULT_WIDTH['dorsal']),
             ut.ParamInfo('curvrank_scale',      DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvrank_greyscale',  False, hideif=False),
             ut.ParamInfo('ext',                 '.npy', hideif='.npy'),
         ]
 
@@ -418,16 +425,18 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
     """
     ibs = depc.controller
 
-    width  = config['curvrank_width']
-    height = config['curvrank_height']
-    scale  = config['curvrank_scale']
+    width     = config['curvrank_width']
+    height    = config['curvrank_height']
+    scale     = config['curvrank_scale']
+    greyscale = config['curvrank_greyscale']
 
     aid_list = depc.get_ancestor_rowids('preprocess',  preprocess_rowid_list)
     loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
     pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms,
-                                                  width=width, height=height, scale=scale)
+                                                  width=width, height=height, scale=scale,
+                                                  greyscale=greyscale)
     refined_localizations, refined_masks = values
 
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
@@ -455,6 +464,7 @@ class SegmentationConfig(dtool.Config):
             ut.ParamInfo('segmentation_gt_opacity',       0.5),
             ut.ParamInfo('segmentation_gt_smooth',        True),
             ut.ParamInfo('segmentation_gt_smooth_margin', 0.001),
+            ut.ParamInfo('curvrank_greyscale',            False, hideif=False),
             ut.ParamInfo('ext',                           '.npy', hideif='.npy'),
         ]
 
@@ -543,6 +553,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
     gt_opacity        = config['segmentation_gt_opacity']
     gt_smooth         = config['segmentation_gt_smooth']
     gt_smooth_margin  = config['segmentation_gt_smooth_margin']
+    greyscale         = config['curvrank_greyscale']
 
     aid_list     = depc.get_ancestor_rowids('refinement',   refinement_rowid_list)
     refined_localizations = depc.get_native('refinement',   refinement_rowid_list,    'refined_img')
@@ -558,7 +569,8 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
                                                     groundtruth_radius=gt_radius,
                                                     groundtruth_opacity=gt_opacity,
                                                     groundtruth_smooth=gt_smooth,
-                                                    groundtruth_smooth_margin=gt_smooth_margin)
+                                                    groundtruth_smooth_margin=gt_smooth_margin,
+                                                    greyscale=greyscale)
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):

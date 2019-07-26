@@ -3,7 +3,7 @@ from ibeis.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
 import ibeis_curvrank.functional as F
 from ibeis_curvrank import imutils
-import ibeis.constants as const
+# import ibeis.constants as const
 import numpy as np
 import utool as ut
 import datetime
@@ -50,7 +50,7 @@ URL_DICT = {
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **kwargs):
+def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, greyscale=False, **kwargs):
     r"""
     Pre-process images for CurvRank
 
@@ -115,7 +115,10 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, **
          [ 0.          0.          1.        ]]
     """
     ibs._parallel_chips = not FORCE_SERIAL
-    image_list = ibs.get_annot_chips(aid_list)
+    config = {
+        'greyscale': greyscale,
+    }
+    image_list = ibs.get_annot_chips(aid_list, config)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
@@ -252,7 +255,7 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
 @register_ibs_method
 def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
                                      loc_transforms, width=256, height=256,
-                                     scale=4, **kwargs):
+                                     scale=4, greyscale=False, **kwargs):
     r"""
     Refine localizations for CurvRank
 
@@ -319,7 +322,10 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> assert ut.hash_data(refined_localization) in ['cwmqsvpabxdaftsnupgerivjufsavfhl']
         >>> assert ut.hash_data(refined_mask)         in ['zwfgmumqblkfzejnseauggiedzpbbjoa']
     """
-    image_list = ibs.get_annot_chips(aid_list)
+    config = {
+        'greyscale': greyscale,
+    }
+    image_list = ibs.get_annot_chips(aid_list, config)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
@@ -425,6 +431,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
                                        model_tag='segmentation',
                                        groundtruth_radius=25, groundtruth_opacity=0.5,
                                        groundtruth_smooth=True, groundtruth_smooth_margin=0.001,
+                                       greyscale=False,
                                        **kwargs):
     r"""
     Localize images for CurvRank
@@ -519,7 +526,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
     """
     if model_tag == 'groundtruth':
-        image_list = ibs.get_annot_chips(aid_list)
+        config = {
+            'greyscale': greyscale,
+        }
+        image_list = ibs.get_annot_chips(aid_list, config)
         viewpoint_list = ibs.get_annot_viewpoints(aid_list)
         viewpoint_list = [
             None if viewpoint is None else viewpoint.lower()
