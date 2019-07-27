@@ -1016,7 +1016,7 @@ class CurvatuveDescriptorOptimizedConfig(dtool.Config):
             ut.ParamInfo('curvrank_model_type',                'dorsal'),
             ut.ParamInfo('curvrank_width',                     DEFAULT_WIDTH['dorsal']),
             ut.ParamInfo('curvrank_height',                    DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_greyscale',                 False),
+            ut.ParamInfo('curvrank_greyscale',                 False, hideif=False),
             ut.ParamInfo('curvrank_scale',                     DEFAULT_SCALE['dorsal']),
             ut.ParamInfo('curvature_scales',                   DEFAULT_SCALES['dorsal']),
             ut.ParamInfo('outline_allow_diagonal',             DEFAULT_ALLOW_DIAGONAL['dorsal']),
