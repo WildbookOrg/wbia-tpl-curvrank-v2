@@ -1356,7 +1356,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         model_type = request.config.curvrank_model_type
 
         if model_type in ['dorsalfinfindrhybrid']:
-            edge_color = (0, 255, 0)
+            outline = None
 
         chip_ = np.copy(chip)
         chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
