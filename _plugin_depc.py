@@ -490,6 +490,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:1
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:2
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -541,6 +542,22 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
         >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
         >>> finally:
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
+        >>> segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
+        >>> refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
+        >>> segmentation           = segmentations[0].tolist()
+        >>> refined_segmentation   = refined_segmentations[0].tolist()
+        >>> assert segmentation is None
+        >>> assert refined_segmentation is None
     """
     ibs = depc.controller
 
@@ -574,8 +591,14 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
-        segmentation_height, segmentation_width = segmentation.shape[:2]
-        refined_segmentation_height, refined_segmentation_width = refined_segmentation.shape[:2]
+        if segmentation is None:
+            segmentation_height, segmentation_width = 0, 0
+        else:
+            segmentation_height, segmentation_width = segmentation.shape[:2]
+        if refined_segmentation is None:
+            refined_segmentation_height, refined_segmentation_width = 0, 0
+        else:
+            refined_segmentation_height, refined_segmentation_width = refined_segmentation.shape[:2]
 
         yield (
             segmentation,
@@ -610,9 +633,10 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:0
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -641,6 +665,22 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
         >>> assert success
         >>> assert (start_y, start_x) == (56, 8)
         >>> assert (end_y,   end_x)   == (59, 358)
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
+        >>> values = ibs.depc_annot.get('keypoints', aid_list, None, config=config)
+        >>> success, start_y, start_x, end_y, end_x = values[0]
+        >>> assert success
+        >>> assert (start_y, start_x) == (None, None)
+        >>> assert (end_y,   end_x)   == (None, None)
     """
     ibs = depc.controller
 
@@ -691,6 +731,7 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:1
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:2
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -739,6 +780,21 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
         >>> finally:
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
+        >>> success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=config)
+        >>> outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=config)
+        >>> outline = outlines[0]
+        >>> assert success_list == [True]
+        >>> assert outline is None
     """
     ibs = depc.controller
 
@@ -767,6 +823,9 @@ class TrailingEdgeConfig(dtool.Config):
     def get_param_info_list(self):
         return [
             ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_width',      DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height',     DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale',      DEFAULT_SCALE['dorsal']),
         ]
 
 
@@ -789,6 +848,7 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:0
         python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:1
+        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:2 --finfindr
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -818,15 +878,38 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outlines) == ut.hash_data(trailing_edges)
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
+        >>> outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=config)
+        >>> success_list = ibs.depc_annot.get('trailing_edge', aid_list, 'success', config=config)
+        >>> trailing_edges = ibs.depc_annot.get('trailing_edge', aid_list, 'trailing_edge', config=config)
+        >>> trailing_edge = trailing_edges[0]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(trailing_edge) in ['arkytzqvzttuthiaxbdvjuuxkuimetod']
     """
     ibs = depc.controller
 
     model_type = config['curvrank_model_type']
+    width      = config['curvrank_width']
+    height     = config['curvrank_height']
+    scale      = config['curvrank_scale']
 
-    success_list = depc.get_native('outline', outline_rowid_list, 'success')
-    outlines     = depc.get_native('outline', outline_rowid_list, 'outline')
+    aid_list = depc.get_ancestor_rowids('outline', outline_rowid_list)
+    success_list      = depc.get_native('outline', outline_rowid_list, 'success')
+    outlines          = depc.get_native('outline', outline_rowid_list, 'outline')
 
-    values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines, model_type=model_type)
+    values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines,
+                                                      model_type=model_type, width=width,
+                                                      height=height, scale=scale)
     success_list, trailing_edges = values
 
     for success, trailing_edge in zip(success_list, trailing_edges):
@@ -1267,9 +1350,13 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
-    def overlay_outline(request, chip, outline, edge_color=(255, 0, 0)):
+    def overlay_trailing_edge(request, chip, outline, trailing_edge, edge_color=(0, 255, 255)):
         import cv2
         scale = request.config.curvrank_scale
+        model_type = request.config.curvrank_model_type
+
+        if model_type in ['dorsalfinfindrhybrid']:
+            edge_color = (0, 255, 0)
 
         chip_ = np.copy(chip)
         chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
@@ -1277,9 +1364,15 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 
         if outline is not None:
             for y, x in outline:
-                if x < 0 or w < h or y < 0 or h < y:
+                if x < 0 or w < x or y < 0 or h < y:
                     continue
-                cv2.circle(chip_, (x, y), 5, edge_color, thickness=-1)
+                cv2.circle(chip_, (x, y), 5, (255, 0, 0), thickness=-1)
+
+        if trailing_edge is not None:
+            for y, x in trailing_edge:
+                if x < 0 or w < x or y < 0 or h < y:
+                    continue
+                cv2.circle(chip_, (x, y), 2, edge_color, thickness=-1)
 
         return chip_
 
@@ -1289,12 +1382,14 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
         if overlay:
             outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+            trailing_edges = depc.get('trailing_edge', aid_list, 'trailing_edge', config=request.config)
         else:
             outlines = [None] * len(chips)
+            trailing_edges = [None] * len(chips)
 
         overlay_chips = [
-            request.overlay_outline(chip, outline)
-            for chip, outline in zip(chips, outlines)
+            request.overlay_trailing_edge(chip, outline, trailing_edge)
+            for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
         ]
         return overlay_chips
 
@@ -1471,6 +1566,82 @@ def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     label = 'CurvRankFluke'
+    value_iter = ibs.ibeis_plugin_curvrank(label, qaid_list, daid_list, config)
+    for value in value_iter:
+        yield value
+
+
+class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
+    """
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --test-CurvRankFinfindrHybridDorsalConfig
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> config = CurvRankFinfindrHybridDorsalConfig()
+        >>> result = config.get_cfgstr()
+        >>> print(result)
+        CurvRankFinfindrHybridDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_greyscale=False,curvrank_height=256,curvrank_model_type=dorsalfinfindrhybrid,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
+    """
+    def get_param_info_list(self):
+        DEFAULT_DORSAL_TEST_CONFIG_ = DEFAULT_DORSAL_TEST_CONFIG.copy()
+        DEFAULT_DORSAL_TEST_CONFIG_['curvrank_model_type'] = 'dorsalfinfindrhybrid'
+        param_list = [
+            ut.ParamInfo(key, DEFAULT_DORSAL_TEST_CONFIG_[key])
+            for key in sorted(DEFAULT_DORSAL_TEST_CONFIG_.keys())
+        ]
+        return param_list
+
+class CurvRankFinfindrHybridDorsalRequest(CurvRankRequest):  # NOQA
+    _tablename = 'CurvRankFinfindrHybridDorsal'
+
+
+@register_preproc_annot(
+    tablename='CurvRankFinfindrHybridDorsal', parents=[ROOT, ROOT],
+    colnames=['score'], coltypes=[float],
+    configclass=CurvRankFinfindrHybridDorsalConfig,
+    requestclass=CurvRankFinfindrHybridDorsalRequest,
+    fname='curvrank_scores_dorsal',
+    rm_extern_on_delete=True,
+    chunksize=None)
+def ibeis_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, config):
+    r"""
+    CommandLine:
+        python -m ibeis_curvrank._plugin_depc --exec-ibeis_plugin_curvrank_dorsal --show
+
+    Example:
+        >>> # DISABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> import ibeis
+        >>> import itertools as it
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> depc = ibs.depc_annot
+        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Dorsal Database', 'Dorsal Query'])
+        >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
+        >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
+        >>> qaid_list, daid_list = root_rowids
+        >>> config = CurvRankFinfindrHybridDorsalConfig()
+        >>> # Call function via request
+        >>> request = CurvRankFinfindrHybridDorsalRequest.new(depc, aid_list, aid_list)
+        >>> am_list1 = request.execute()
+        >>> # Call function via depcache
+        >>> prop_list = depc.get('CurvRankFinfindrHybridDorsal', root_rowids)
+        >>> # Call function normally
+        >>> score_list = list(ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config))
+        >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
+        >>> assert score_list == prop_list, 'error in cache'
+        >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
+        >>> ut.quit_if_noshow()
+        >>> am = am_list2[0]
+        >>> am.ishow_analysis(request)
+        >>> ut.show_if_requested()
+    """
+    ibs = depc.controller
+
+    label = 'CurvRankFinfindrHybridDorsal'
     value_iter = ibs.ibeis_plugin_curvrank(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value

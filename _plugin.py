@@ -4,8 +4,10 @@ from os.path import abspath, join, exists, split
 import ibeis_curvrank.functional as F
 from ibeis_curvrank import imutils
 # import ibeis.constants as const
+from scipy import interpolate
 import numpy as np
 import utool as ut
+import vtool as vt
 import datetime
 import cv2
 
@@ -39,6 +41,12 @@ RIGHT_FLIP_LIST = [  # CASE IN-SINSITIVE
 
 URL_DICT = {
     'dorsal': {
+        'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
+        'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
+    },
+    'dorsalfinfindrhybrid': {
+        # 'localization': None,
+        # 'segmentation': None,
         'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
@@ -222,7 +230,7 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> assert ut.hash_data(resized_masks)  == ut.hash_data(localized_masks)
         >>> assert np.sum(loc_transform) == 3.0
     """
-    if model_tag == 'groundtruth':
+    if model_tag in ['groundtruth']:
         model_url = None
     else:
         model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
@@ -452,6 +460,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:1
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:2
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -524,8 +533,29 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
         >>> finally:
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> segmentations, refined_segmentations = values
+        >>> segmentation = segmentations[0]
+        >>> refined_segmentation = refined_segmentations[0]
+        >>> assert segmentation is None
+        >>> assert refined_segmentation is None
     """
-    if model_tag == 'groundtruth':
+    if model_tag in ['groundtruth']:
         config = {
             'greyscale': greyscale,
         }
@@ -577,10 +607,9 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
             if groundtruth_smooth:
                 try:
-                    from scipy import interpolate as itp
                     length = len(segment) * 3
-                    mytck, _ = itp.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
-                    values = itp.splev(np.linspace(0, 1, length), mytck)
+                    mytck, _ = interpolate.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
+                    values = interpolate.splev(np.linspace(0, 1, length), mytck)
                     segment_x, segment_y = values
                 except ValueError:
                     pass
@@ -612,23 +641,47 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
             segmentations.append(segmentation_)
             refined_segmentations.append(refined_segmentation)
     else:
-        from ibeis_curvrank import segmentation, model, theano_funcs
-
         model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
-        assert model_url is not None
-        weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+        if model_url is None:
+            segmentations = [None] * len(aid_list)
+            refined_segmentations = [None] * len(aid_list)
+        else:
+            from ibeis_curvrank import segmentation, model, theano_funcs
+            weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
 
-        segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
+            segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
 
-        # I am not sure these are the correct args to load_weights
-        model.load_weights(segmentation_layers['seg_out'], weight_filepath)
-        segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
-        values = F.segment_contour(refined_localizations, refined_masks, scale,
-                                   height, width, segmentation_func)
+            # I am not sure these are the correct args to load_weights
+            model.load_weights(segmentation_layers['seg_out'], weight_filepath)
+            segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
+            values = F.segment_contour(refined_localizations, refined_masks, scale,
+                                       height, width, segmentation_func)
 
-        segmentations, refined_segmentations = values
+            segmentations, refined_segmentations = values
 
     return segmentations, refined_segmentations
+
+
+def ibeis_plugin_curvrank_keypoints_worker(model_type, segmentation,
+                                           localized_mask):
+    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
+        from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
+    else:
+        from ibeis_curvrank.dorsal_utils import find_fluke_keypoints as find_func
+
+    try:
+        start, end = F.find_keypoints(
+            find_func,
+            segmentation,
+            localized_mask
+        )
+    except ZeroDivisionError:
+        start = None
+        end = None
+
+    success = start is not None and end is not None
+
+    return success, start, end
 
 
 @register_ibs_method
@@ -650,6 +703,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:1
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:2
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -731,49 +785,79 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>>     assert end   == (182, 253)
         >>> finally:
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> success_list, starts, ends = values
+        >>> start = tuple(starts[0])
+        >>> end = tuple(ends[0])
+        >>> assert success_list == [True]
+        >>> assert start == (None, None)
+        >>> assert end   == (None, None)
     """
-    model_type_list = [model_type] * len(segmentations)
+    num_total = len(segmentations)
 
-    zipped = zip(model_type_list, segmentations, localized_masks)
+    if False:  # model_type in ['dorsalfinfindrhybrid']:
+        success_list = [True] * num_total
+        starts       = [(None, None)] * num_total
+        ends         = [(None, None)] * num_total
+    else:
+        model_type_list = [model_type] * num_total
 
-    config_ = {
-        'ordered': True,
-        'chunksize': CHUNKSIZE,
-        'force_serial': ibs.force_serial or FORCE_SERIAL,
-        'progkw': {'freq': 10},
-    }
-    generator = ut.generate2(ibeis_plugin_curvrank_keypoints_worker, zipped,
-                             nTasks=len(model_type_list), **config_)
+        zipped = zip(model_type_list, segmentations, localized_masks)
 
-    starts, ends, success_list = [], [], []
-    for success, start, end in generator:
-        success_list.append(success)
-        starts.append(start)
-        ends.append(end)
+        config_ = {
+            'ordered': True,
+            'chunksize': CHUNKSIZE,
+            'force_serial': ibs.force_serial or FORCE_SERIAL,
+            'progkw': {'freq': 10},
+        }
+        generator = ut.generate2(ibeis_plugin_curvrank_keypoints_worker, zipped,
+                                 nTasks=num_total, **config_)
+
+        starts, ends, success_list = [], [], []
+        for success, start, end in generator:
+            success_list.append(success)
+            starts.append(start)
+            ends.append(end)
 
     return success_list, starts, ends
 
 
-def ibeis_plugin_curvrank_keypoints_worker(model_type, segmentation,
-                                           localized_mask):
-    if model_type == 'dorsal':
-        from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
+def ibeis_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
+                                         refined_mask, refined_seg, scale, allow_diagonal):
+    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
+        from ibeis_curvrank.dorsal_utils import dorsal_cost_func as cost_func
     else:
-        from ibeis_curvrank.dorsal_utils import find_fluke_keypoints as find_func
+        from ibeis_curvrank.dorsal_utils import fluke_cost_func as cost_func
 
-    try:
-        start, end = F.find_keypoints(
-            find_func,
-            segmentation,
-            localized_mask
-        )
-    except ZeroDivisionError:
-        start = None
-        end = None
+    success_ = success
+    if success:
+        start = np.array(start, dtype=np.int32)
+        end   = np.array(end,   dtype=np.int32)
+        outline = F.extract_outline(
+            refined_loc, refined_mask, refined_seg, scale, start, end,
+            cost_func, allow_diagonal)
+        if outline is None:
+            success_ = False
+    else:
+        outline = None
 
-    success = start is not None and end is not None
-
-    return success, start, end
+    return success_, outline
 
 
 @register_ibs_method
@@ -800,6 +884,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:1
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:2
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -882,58 +967,82 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
         >>> finally:
         >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+
+    Example3:
+        >>> # ENABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> success_list, starts, ends = values
+        >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
+        >>> outline = outlines[0]
+        >>> assert success_list == [True]
+        >>> assert outline is None
     """
-    model_type_list = [model_type] * len(success_list)
-    scale_list = [scale] * len(success_list)
-    allow_diagonal_list = [allow_diagonal] * len(success_list)
+    num_total = len(success_list)
 
-    zipped = zip(model_type_list, success_list, starts, ends, refined_localizations,
-                 refined_masks, refined_segmentations, scale_list, allow_diagonal_list)
+    if False:  # model_type in ['dorsalfinfindrhybrid']:
+        success_list_ = [True] * num_total
+        outlines      = [None] * num_total
+    else:
+        model_type_list     = [model_type]     * num_total
+        scale_list          = [scale]          * num_total
+        allow_diagonal_list = [allow_diagonal] * num_total
 
-    config_ = {
-        'ordered': True,
-        'chunksize': CHUNKSIZE,
-        # 'force_serial': ibs.force_serial or FORCE_SERIAL,
-        # 'futures_threaded': True,
-        'force_serial': True,
-        'progkw': {'freq': 10},
-    }
-    generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
-                             nTasks=len(model_type_list), **config_)
+        zipped = zip(model_type_list, success_list, starts, ends, refined_localizations,
+                     refined_masks, refined_segmentations, scale_list, allow_diagonal_list)
 
-    success_list_, outlines = [], []
-    for success_, outline in generator:
-        success_list_.append(success_)
-        outlines.append(outline)
+        config_ = {
+            'ordered': True,
+            'chunksize': CHUNKSIZE,
+            # 'force_serial': ibs.force_serial or FORCE_SERIAL,
+            # 'futures_threaded': True,
+            'force_serial': True,
+            'progkw': {'freq': 10},
+        }
+        generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
+                                 nTasks=num_total, **config_)
+
+        success_list_, outlines = [], []
+        for success_, outline in generator:
+            success_list_.append(success_)
+            outlines.append(outline)
 
     return success_list_, outlines
 
 
-def ibeis_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
-                                         refined_mask, refined_seg, scale, allow_diagonal):
-    if model_type == 'dorsal':
-        from ibeis_curvrank.dorsal_utils import dorsal_cost_func as cost_func
-    else:
-        from ibeis_curvrank.dorsal_utils import fluke_cost_func as cost_func
+def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
+    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
 
     success_ = success
     if success:
-        start = np.array(start, dtype=np.int32)
-        end   = np.array(end,   dtype=np.int32)
-        outline = F.extract_outline(
-            refined_loc, refined_mask, refined_seg, scale, start, end,
-            cost_func, allow_diagonal)
-        if outline is None:
+        values = F.separate_edges(separate_leading_trailing_edges, outline)
+        _, trailing_edge = values
+
+        if trailing_edge is None:
             success_ = False
     else:
-        outline = None
+        trailing_edge = None
 
-    return success_, outline
+    return success_, trailing_edge
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type='dorsal',
-                                         **kwargs):
+def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
+                                         model_type='dorsal', width=256, height=256,
+                                         scale=4, **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -948,6 +1057,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:0
         python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:1
+        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -969,7 +1079,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
@@ -1003,12 +1113,38 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outlines) == ut.hash_data(trailing_edges)
+
+    Example2:
+        >>> # DISABLE_DOCTEST
+        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> import ibeis
+        >>> from ibeis.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(1)
+        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> resized_images, resized_masks, pre_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> localized_images, localized_masks, loc_transforms = values
+        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> refined_localizations, refined_masks = values
+        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> segmentations, refined_segmentations = values
+        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> success_list, starts, ends = values
+        >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type='dorsalfinfindrhybrid')
+        >>> success_list, trailing_edges = values
+        >>> trailing_edge = trailing_edges[0]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(trailing_edge[0]) in ['fczhuzbqtxjhctkymrlugyyypgrcegfy']
     """
-    if model_type == 'dorsal':
+    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
         zipped = zip(success_list, outlines)
 
         config_ = {
@@ -1025,27 +1161,122 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, success_list, outlines, model_type
         for success_, trailing_edge in generator:
             success_list_.append(success_)
             trailing_edges.append(trailing_edge)
-    else:
+
+    if model_type in ['dorsalfinfindrhybrid']:
+        from numpy.linalg import inv
+        from ibeis_curvrank import affine
+
+        backup_success_list_ = success_list_[:]
+        backup_trailing_edges = trailing_edges[:]
+
+        # Get original chips and viewpoints
+        chip_list = ibs.get_annot_chips(aid_list)
+        shape_list = [chip.shape[:2] for chip in chip_list]
+        viewpoint_list = ibs.get_annot_viewpoints(aid_list)
+        viewpoint_list = [
+            None if viewpoint is None else viewpoint.lower()
+            for viewpoint in viewpoint_list
+        ]
+        flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
+
+        # Get CurvRank primitives
+        values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        resized_images, resized_masks, pre_transforms = values
+        values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        localized_images, localized_masks, loc_transforms = values
+
+        # Get FinfindR primitives
+        annot_hash_data_list = ibs.depc_annot.get('FinfindrFeature', aid_list, 'response')
+        finfindr_chip_path_list = ibs.finfindr_annot_chip_fpath_from_aid(aid_list)
+        finfindr_chips = [
+            cv2.imread(finfindr_chip_path)
+            for finfindr_chip_path in finfindr_chip_path_list
+        ]
+        finfindr_shape_list = [finfindr_chip.shape[:2] for finfindr_chip in finfindr_chips]
+
+        success_list_ = []
+        trailing_edges = []
+        zipped = zip(
+            annot_hash_data_list,
+            shape_list,
+            finfindr_shape_list,
+            flip_list,
+            pre_transforms,
+            loc_transforms,
+            backup_success_list_,
+            backup_trailing_edges,
+        )
+        for values in zipped:
+            annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success_, backup_trailing_edge  = values
+
+            if annot_hash_data is None:
+                annot_hash_data = {}
+
+            coordinates = annot_hash_data.get('coordinates', None)
+
+            if coordinates is None:
+                print('[Hybrid] Using CurvRank trailing edge as a backup because FinfindR failed to extract')
+                success = backup_success_
+                trailing_edge = backup_trailing_edge
+            else:
+                success = True
+
+                T10 = affine.build_downsample_matrix(height, width)
+                T21 = loc_transform
+                T32 = affine.build_upsample_matrix(height, width)
+                T43 = cv2.invertAffineTransform(pre_transform[:2])
+                T70 = affine.build_scale_matrix(scale)
+
+                T70i = cv2.invertAffineTransform(T70[:2])
+                A = affine.multiply_matrices([T43, T32, T21, T10, T70i])
+                A_ = inv(A)
+
+                h, w = shape
+                finfindr_h, finfindr_w = finfindr_shape
+
+                trailing_edge = []
+                last_point = None
+                for x, y in coordinates:
+                    if flip:
+                        x = finfindr_w - x
+                    x = (x / finfindr_w) * w
+                    y = (y / finfindr_h) * h
+                    point = np.array([[x, y]])
+                    point = vt.transform_points_with_homography(A_, point.T).T
+                    x, y = point[0]
+                    x = int(np.around(x))
+                    y = int(np.around(y))
+                    point = [y, x]
+                    if point != last_point:
+                        trailing_edge.append(point)
+                    last_point = point
+                trailing_edge = np.array(trailing_edge)
+
+                x = trailing_edge[:, 0]
+                y = trailing_edge[:, 1]
+                mytck, _ = interpolate.splprep([x, y], s=0)
+                x_, y_ = interpolate.splev(np.linspace(0, 1, 10000), mytck)
+
+                trailing_edge_ = np.array(list(zip(x_, y_)))
+                trailing_edge_ = np.around(trailing_edge_).astype(trailing_edge.dtype)
+
+                trailing_edge = []
+                last_point = None
+                for point in trailing_edge_:
+                    point = list(point)
+                    if point != last_point:
+                        trailing_edge.append(point)
+                    last_point = point
+                trailing_edge = np.array(trailing_edge)
+
+            success_list_.append(success)
+            trailing_edges.append(trailing_edge)
+
+    if model_type in ['fluke']:
         success_list_ = success_list
         trailing_edges = outlines
 
     return success_list_, trailing_edges
-
-
-def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
-    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
-
-    success_ = success
-    if success:
-        values = F.separate_edges(separate_leading_trailing_edges, outline)
-        _, trailing_edge = values
-
-        if trailing_edge is None:
-            success_ = False
-    else:
-        trailing_edge = None
-
-    return success_, trailing_edge
 
 
 @register_ibs_method
@@ -1087,7 +1318,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
         >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges)
         >>> success_list, curvatures = values
@@ -1125,7 +1356,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
         >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
         >>> success_list, curvatures = values
@@ -1209,7 +1440,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
         >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges)
         >>> success_list, curvatures = values
@@ -1253,7 +1484,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
         >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(success_list, outlines, model_type=model_type)
+        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
         >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
         >>> success_list, curvatures = values
@@ -1465,7 +1696,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     args = success, starts, ends, refined_localizations, refined_masks, refined_segmentations
     success, outlines = ibs.ibeis_plugin_curvrank_outline(*args, **config)
 
-    values = ibs.ibeis_plugin_curvrank_trailing_edges(success, outlines, **config)
+    values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success, outlines, **config)
     success, trailing_edges = values
 
     values = ibs.ibeis_plugin_curvrank_curvatures(success, trailing_edges, **config)
@@ -2229,7 +2460,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
 def ibeis_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
     import networkx as nx
 
-    assert tablename in ['CurvRankDorsal', 'CurvRankFluke']
+    assert tablename in ['CurvRankDorsal', 'CurvRankFluke', 'CurvRankFinfindrHybridDorsal']
 
     tablename_list = [
         'curvature_descriptor_optimized',
