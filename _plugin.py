@@ -45,10 +45,10 @@ URL_DICT = {
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'dorsalfinfindrhybrid': {
-        # 'localization': None,
-        # 'segmentation': None,
-        'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
+        'localization': None,
+        'segmentation': None,
+        # 'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
+        # 'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'fluke': {
         'localization': None,
@@ -811,8 +811,8 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     """
     num_total = len(segmentations)
 
-    if False:  # model_type in ['dorsalfinfindrhybrid']:
-        success_list = [True] * num_total
+    if model_type in ['dorsalfinfindrhybrid']:
+        success_list = [False] * num_total
         starts       = [(None, None)] * num_total
         ends         = [(None, None)] * num_total
     else:
@@ -993,8 +993,8 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     """
     num_total = len(success_list)
 
-    if False:  # model_type in ['dorsalfinfindrhybrid']:
-        success_list_ = [True] * num_total
+    if model_type in ['dorsalfinfindrhybrid']:
+        success_list_ = [False] * num_total
         outlines      = [None] * num_total
     else:
         model_type_list     = [model_type]     * num_total
@@ -1144,7 +1144,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         >>> assert success_list == [True]
         >>> assert ut.hash_data(trailing_edge[0]) in ['fczhuzbqtxjhctkymrlugyyypgrcegfy']
     """
-    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
+    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:  # ['dorsal', 'dorsalfinfindrhybrid']:
         zipped = zip(success_list, outlines)
 
         config_ = {
@@ -1166,8 +1166,10 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         from numpy.linalg import inv
         from ibeis_curvrank import affine
 
-        backup_success_list_ = success_list_[:]
-        backup_trailing_edges = trailing_edges[:]
+        # backup_success_list_ = success_list_[:]
+        # backup_trailing_edges = trailing_edges[:]
+        backup_success_list = [False] * len(aid_list)
+        backup_trailing_edges = [None] * len(aid_list)
 
         # Get original chips and viewpoints
         chip_list = ibs.get_annot_chips(aid_list)
@@ -1203,11 +1205,11 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             flip_list,
             pre_transforms,
             loc_transforms,
-            backup_success_list_,
+            backup_success_list,
             backup_trailing_edges,
         )
         for values in zipped:
-            annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success_, backup_trailing_edge  = values
+            annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success, backup_trailing_edge  = values
 
             if annot_hash_data is None:
                 annot_hash_data = {}
@@ -1216,7 +1218,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
             if coordinates is None:
                 print('[Hybrid] Using CurvRank trailing edge as a backup because FinfindR failed to extract')
-                success = backup_success_
+                success = backup_success
                 trailing_edge = backup_trailing_edge
             else:
                 success = True
