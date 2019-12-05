@@ -1212,6 +1212,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         success_list_ = []
         trailing_edges = []
         zipped = zip(
+            aid_list,
             annot_hash_data_list,
             shape_list,
             finfindr_shape_list,
@@ -1222,7 +1223,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             backup_trailing_edges,
         )
         for values in zipped:
-            annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success, backup_trailing_edge  = values
+            aid, annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success, backup_trailing_edge  = values
 
             if annot_hash_data is None:
                 annot_hash_data = {}
@@ -1230,9 +1231,26 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             coordinates = annot_hash_data.get('coordinates', None)
 
             if coordinates is None:
-                print('[Hybrid] Using CurvRank trailing edge as a backup because FinfindR failed to extract')
-                success = backup_success
-                trailing_edge = backup_trailing_edge
+                print('[Hybrid] Using CurvRank trailing edge as a backup for AID %r because FinfindR failed to extract' % (aid, ))
+
+                aid_list_ = [aid]
+                values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list_)
+                resized_images, resized_masks, pre_transforms = values
+                values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+                localized_images, localized_masks, loc_transforms = values
+                values = ibs.ibeis_plugin_curvrank_refinement(aid_list_, pre_transforms, loc_transforms)
+                refined_localizations, refined_masks = values
+                values = ibs.ibeis_plugin_curvrank_segmentation(aid_list_, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+                segmentations, refined_segmentations = values
+                values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+                success_list, starts, ends = values
+                args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+                success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+                values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list_, success_list, outlines)
+                success_list, trailing_edges = values
+
+                success = success_list[0]
+                trailing_edge = trailing_edges[0]
             else:
                 success = True
 
