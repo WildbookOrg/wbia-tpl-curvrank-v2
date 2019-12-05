@@ -1536,7 +1536,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
     config_ = {
         'ordered': True,
         'chunksize': CHUNKSIZE,
-        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'force_serial': ibs.force_serial or True,
         'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_curvature_descriptors_worker, zipped,
