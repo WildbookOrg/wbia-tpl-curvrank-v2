@@ -1238,7 +1238,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                 backup_resized_images_, backup_resized_masks, backup_pre_transforms = values
                 values = ibs.ibeis_plugin_curvrank_localization(backup_resized_images_, backup_resized_masks)
                 backup_localized_images, backup_localized_masks, backup_loc_transforms = values
-                values = ibs.ibeis_plugin_curvrank_refinement(backup_aid_list, backup_pre_transforms, backup_localized_images)
+                values = ibs.ibeis_plugin_curvrank_refinement(backup_aid_list, backup_pre_transforms, backup_loc_transforms)
                 backup_refined_localizations, backup_refined_masks = values
                 values = ibs.ibeis_plugin_curvrank_segmentation(backup_aid_list, backup_refined_localizations, backup_refined_masks, backup_pre_transforms, backup_loc_transforms)
                 backup_segmentations, backup_refined_segmentations = values
