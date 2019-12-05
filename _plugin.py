@@ -1247,9 +1247,9 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                 args = backup_success_list, backup_starts, backup_ends, backup_refined_localizations, backup_refined_masks, backup_refined_segmentations
                 backup_success_list, backup_outlines = ibs.ibeis_plugin_curvrank_outline(*args)
                 values = ibs.ibeis_plugin_curvrank_trailing_edges(backup_aid_list, backup_success_list, backup_outlines)
-                backup_success_list, backup_trailing_edges = values
-                success = backup_success_list[0]
-                trailing_edge = backup_trailing_edges[0]
+                backup_success_list_, backup_trailing_edges_ = values
+                success = backup_success_list_[0]
+                trailing_edge = backup_trailing_edges_[0]
             else:
                 success = True
 
