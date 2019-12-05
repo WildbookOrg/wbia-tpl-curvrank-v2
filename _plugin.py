@@ -612,8 +612,7 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
             if groundtruth_smooth:
                 try:
-                    # length = len(segment) * 3
-                    length = 10000
+                    length = len(segment) * 3
                     mytck, _ = interpolate.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
                     values = interpolate.splev(np.linspace(0, 1, length), mytck)
                     segment_x, segment_y = values
@@ -1270,10 +1269,12 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
                 if finfindr_smooth:
                     try:
+                        length = len(trailing_edge) * 3
+                        # length = 10000
                         x = trailing_edge[:, 0]
                         y = trailing_edge[:, 1]
                         mytck, _ = interpolate.splprep([x, y], s=finfindr_smooth_margin)
-                        x_, y_ = interpolate.splev(np.linspace(0, 1, 10000), mytck)
+                        x_, y_ = interpolate.splev(np.linspace(0, 1, length), mytck)
 
                         trailing_edge_ = np.array(list(zip(x_, y_)))
                         trailing_edge_ = np.around(trailing_edge_).astype(trailing_edge.dtype)
@@ -1536,7 +1537,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
     config_ = {
         'ordered': True,
         'chunksize': CHUNKSIZE,
-        'force_serial': ibs.force_serial or True,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
     generator = ut.generate2(ibeis_plugin_curvrank_curvature_descriptors_worker, zipped,
@@ -1571,7 +1572,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_
                 feat_dim
             )
         except:
-            ut.embed()
+            curvature_descriptor_list = None
 
         if curvature_descriptor_list is None:
             success_ = False
