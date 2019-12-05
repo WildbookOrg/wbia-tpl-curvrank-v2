@@ -39,75 +39,81 @@ DEFAULT_TRANSPOSE_DIMS = {
 
 
 DEFAULT_DORSAL_TEST_CONFIG = {
-    'curvrank_daily_cache'               : True,
-    'curvrank_daily_tag'                 : 'global',
-    'curvrank_cache_recompute'           : False,
-    'curvrank_model_type'                : 'dorsal',
-    'curvrank_width'                     : DEFAULT_WIDTH['dorsal'],
-    'curvrank_height'                    : DEFAULT_HEIGHT['dorsal'],
-    'curvrank_greyscale'                 : False,
-    'curvrank_scale'                     : DEFAULT_SCALE['dorsal'],
-    'curvature_scales'                   : DEFAULT_SCALES['dorsal'],
-    'outline_allow_diagonal'             : DEFAULT_ALLOW_DIAGONAL['dorsal'],
-    'curvatute_transpose_dims'           : DEFAULT_TRANSPOSE_DIMS['dorsal'],
-    'localization_model_tag'             : 'localization',
-    'segmentation_model_tag'             : 'segmentation',
-    'segmentation_gt_radius'             : 25,
-    'segmentation_gt_opacity'            : 0.5,
-    'segmentation_gt_smooth'             : True,
-    'segmentation_gt_smooth_margin'      : 0.001,
-    'curvature_descriptor_curv_length'   : 1024,
-    'curvature_descriptor_num_keypoints' : 32,
-    'curvature_descriptor_uniform'       : False,
-    'curvature_descriptor_feat_dim'      : 32,
+    'curvrank_daily_cache'                 : True,
+    'curvrank_daily_tag'                   : 'global',
+    'curvrank_cache_recompute'             : False,
+    'curvrank_model_type'                  : 'dorsal',
+    'curvrank_width'                       : DEFAULT_WIDTH['dorsal'],
+    'curvrank_height'                      : DEFAULT_HEIGHT['dorsal'],
+    'curvrank_greyscale'                   : False,
+    'curvrank_scale'                       : DEFAULT_SCALE['dorsal'],
+    'curvature_scales'                     : DEFAULT_SCALES['dorsal'],
+    'outline_allow_diagonal'               : DEFAULT_ALLOW_DIAGONAL['dorsal'],
+    'curvatute_transpose_dims'             : DEFAULT_TRANSPOSE_DIMS['dorsal'],
+    'localization_model_tag'               : 'localization',
+    'segmentation_model_tag'               : 'segmentation',
+    'segmentation_gt_radius'               : 25,
+    'segmentation_gt_opacity'              : 0.5,
+    'segmentation_gt_smooth'               : True,
+    'segmentation_gt_smooth_margin'        : 0.001,
+    'trailing_edge_finfindr_smooth'        : True,
+    'trailing_edge_finfindr_smooth_margin' : 0.0,
+    'curvature_descriptor_curv_length'     : 1024,
+    'curvature_descriptor_num_keypoints'   : 32,
+    'curvature_descriptor_uniform'         : False,
+    'curvature_descriptor_feat_dim'        : 32,
 }
 
 
 DEFAULT_FLUKE_TEST_CONFIG = {
-    'curvrank_daily_cache'               : True,
-    'curvrank_daily_tag'                 : 'global',
-    'curvrank_cache_recompute'           : False,
-    'curvrank_model_type'                : 'fluke',
-    'curvrank_width'                     : DEFAULT_WIDTH['fluke'],
-    'curvrank_height'                    : DEFAULT_HEIGHT['fluke'],
-    'curvrank_greyscale'                 : True,
-    'curvrank_scale'                     : DEFAULT_SCALE['fluke'],
-    'curvature_scales'                   : DEFAULT_SCALES['fluke'],
-    'outline_allow_diagonal'             : DEFAULT_ALLOW_DIAGONAL['fluke'],
-    'curvatute_transpose_dims'           : DEFAULT_TRANSPOSE_DIMS['fluke'],
-    'localization_model_tag'             : 'localization',
-    'segmentation_model_tag'             : 'segmentation',
-    'segmentation_gt_radius'             : 25,
-    'segmentation_gt_opacity'            : 0.5,
-    'segmentation_gt_smooth'             : True,
-    'segmentation_gt_smooth_margin'      : 0.001,
-    'curvature_descriptor_curv_length'   : 1024,
-    'curvature_descriptor_num_keypoints' : 32,
-    'curvature_descriptor_uniform'       : False,
-    'curvature_descriptor_feat_dim'      : 32,
+    'curvrank_daily_cache'                 : True,
+    'curvrank_daily_tag'                   : 'global',
+    'curvrank_cache_recompute'             : False,
+    'curvrank_model_type'                  : 'fluke',
+    'curvrank_width'                       : DEFAULT_WIDTH['fluke'],
+    'curvrank_height'                      : DEFAULT_HEIGHT['fluke'],
+    'curvrank_greyscale'                   : True,
+    'curvrank_scale'                       : DEFAULT_SCALE['fluke'],
+    'curvature_scales'                     : DEFAULT_SCALES['fluke'],
+    'outline_allow_diagonal'               : DEFAULT_ALLOW_DIAGONAL['fluke'],
+    'curvatute_transpose_dims'             : DEFAULT_TRANSPOSE_DIMS['fluke'],
+    'localization_model_tag'               : 'localization',
+    'segmentation_model_tag'               : 'segmentation',
+    'segmentation_gt_radius'               : 25,
+    'segmentation_gt_opacity'              : 0.5,
+    'segmentation_gt_smooth'               : True,
+    'segmentation_gt_smooth_margin'        : 0.001,
+    'trailing_edge_finfindr_smooth'        : True,
+    'trailing_edge_finfindr_smooth_margin' : 0.0,
+    'curvature_descriptor_curv_length'     : 1024,
+    'curvature_descriptor_num_keypoints'   : 32,
+    'curvature_descriptor_uniform'         : False,
+    'curvature_descriptor_feat_dim'        : 32,
 }
 
 
 DEFAULT_DEPC_KEY_MAPPING = {
-    'curvrank_daily_cache'               : 'use_daily_cache',
-    'curvrank_daily_tag'                 : 'daily_cache_tag',
-    'curvrank_cache_recompute'           : 'force_cache_recompute',
-    'curvrank_model_type'                : 'model_type',
-    'curvrank_width'                     : 'width',
-    'curvrank_height'                    : 'height',
-    'curvrank_greyscale'                 : 'greyscale',
-    'curvrank_scale'                     : 'scale',
-    'curvature_scales'                   : 'scales',
-    'outline_allow_diagonal'             : 'allow_diagonal',
-    'curvatute_transpose_dims'           : 'transpose_dims',
-    'segmentation_gt_radius'             : 'groundtruth_radius',
-    'segmentation_gt_opacity'            : 'groundtruth_opacity',
-    'segmentation_gt_smooth'             : 'groundtruth_smooth',
-    'segmentation_gt_smooth_margin'      : 'groundtruth_smooth_margin',
-    'curvature_descriptor_curv_length'   : 'curv_length',
-    'curvature_descriptor_num_keypoints' : 'num_keypoints',
-    'curvature_descriptor_uniform'       : 'uniform',
-    'curvature_descriptor_feat_dim'      : 'feat_dim',
+    'curvrank_daily_cache'                 : 'use_daily_cache',
+    'curvrank_daily_tag'                   : 'daily_cache_tag',
+    'curvrank_cache_recompute'             : 'force_cache_recompute',
+    'curvrank_model_type'                  : 'model_type',
+    'curvrank_width'                       : 'width',
+    'curvrank_height'                      : 'height',
+    'curvrank_greyscale'                   : 'greyscale',
+    'curvrank_scale'                       : 'scale',
+    'curvature_scales'                     : 'scales',
+    'outline_allow_diagonal'               : 'allow_diagonal',
+    'curvatute_transpose_dims'             : 'transpose_dims',
+    'segmentation_gt_radius'               : 'groundtruth_radius',
+    'segmentation_gt_opacity'              : 'groundtruth_opacity',
+    'segmentation_gt_smooth'               : 'groundtruth_smooth',
+    'segmentation_gt_smooth_margin'        : 'groundtruth_smooth_margin',
+    'trailing_edge_finfindr_smooth'        : 'finfindr_smooth',
+    'trailing_edge_finfindr_smooth_margin' : 'finfindr_smooth_margin',
+    'curvature_descriptor_curv_length'     : 'curv_length',
+    'curvature_descriptor_num_keypoints'   : 'num_keypoints',
+    'curvature_descriptor_uniform'         : 'uniform',
+    'curvature_descriptor_feat_dim'        : 'feat_dim',
 }
 
 
@@ -822,10 +828,12 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
 class TrailingEdgeConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type', 'dorsal'),
-            ut.ParamInfo('curvrank_width',      DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height',     DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale',      DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvrank_model_type',                  'dorsal'),
+            ut.ParamInfo('curvrank_width',                       DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height',                      DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale',                       DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('trailing_edge_finfindr_smooth',        True),
+            ut.ParamInfo('trailing_edge_finfindr_smooth_margin', 0.0),
         ]
 
 
@@ -898,10 +906,12 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
     """
     ibs = depc.controller
 
-    model_type = config['curvrank_model_type']
-    width      = config['curvrank_width']
-    height     = config['curvrank_height']
-    scale      = config['curvrank_scale']
+    model_type              = config['curvrank_model_type']
+    width                   = config['curvrank_width']
+    height                  = config['curvrank_height']
+    scale                   = config['curvrank_scale']
+    finfindr_smooth         = config['trailing_edge_finfindr_smooth']
+    finfindr_smooth_margin  = config['trailing_edge_finfindr_smooth_margin']
 
     aid_list = depc.get_ancestor_rowids('outline', outline_rowid_list)
     success_list      = depc.get_native('outline', outline_rowid_list, 'success')
@@ -909,7 +919,9 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
 
     values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines,
                                                       model_type=model_type, width=width,
-                                                      height=height, scale=scale)
+                                                      height=height, scale=scale,
+                                                      finfindr_smooth=finfindr_smooth,
+                                                      finfindr_smooth_margin=finfindr_smooth_margin)
     success_list, trailing_edges = values
 
     for success, trailing_edge in zip(success_list, trailing_edges):

@@ -39,22 +39,27 @@ RIGHT_FLIP_LIST = [  # CASE IN-SINSITIVE
 ]
 
 
+HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK = False
+
+
 URL_DICT = {
     'dorsal': {
         'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'dorsalfinfindrhybrid': {
-        'localization': None,
-        'segmentation': None,
-        # 'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
-        # 'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
+        'localization': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.localization.dorsal.weights.pkl',
+        'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'fluke': {
         'localization': None,
         'segmentation': 'https://cthulhu.dyn.wildme.io/public/models/curvrank.segmentation.fluke.weights.pkl',
     },
 }
+
+if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
+    URL_DICT['dorsalfinfindrhybrid']['localization'] = None
+    URL_DICT['dorsalfinfindrhybrid']['segmentation'] = None
 
 
 @register_ibs_method
@@ -607,7 +612,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
             if groundtruth_smooth:
                 try:
-                    length = len(segment) * 3
+                    # length = len(segment) * 3
+                    length = 10000
                     mytck, _ = interpolate.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
                     values = interpolate.splev(np.linspace(0, 1, length), mytck)
                     segment_x, segment_y = values
@@ -643,8 +649,11 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     else:
         model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
         if model_url is None:
-            segmentations = [None] * len(aid_list)
-            refined_segmentations = [None] * len(aid_list)
+            segmentation_ = np.zeros((height, width, 1), dtype=np.float64)
+            refined_segmentation = np.zeros((height * scale, width * scale, 1), dtype=np.float64)
+
+            segmentations = [segmentation_] * len(aid_list)
+            refined_segmentations = [refined_segmentation] * len(aid_list)
         else:
             from ibeis_curvrank import segmentation, model, theano_funcs
             weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
@@ -811,7 +820,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     """
     num_total = len(segmentations)
 
-    if model_type in ['dorsalfinfindrhybrid']:
+    if model_type in ['dorsalfinfindrhybrid'] and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
         success_list = [False] * num_total
         starts       = [(None, None)] * num_total
         ends         = [(None, None)] * num_total
@@ -993,7 +1002,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     """
     num_total = len(success_list)
 
-    if model_type in ['dorsalfinfindrhybrid']:
+    if model_type in ['dorsalfinfindrhybrid'] and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
         success_list_ = [False] * num_total
         outlines      = [None] * num_total
     else:
@@ -1042,7 +1051,8 @@ def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
 @register_ibs_method
 def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                                          model_type='dorsal', width=256, height=256,
-                                         scale=4, **kwargs):
+                                         scale=4, finfindr_smooth=True,
+                                         finfindr_smooth_margin=0.001, **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1144,7 +1154,11 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         >>> assert success_list == [True]
         >>> assert ut.hash_data(trailing_edge[0]) in ['fczhuzbqtxjhctkymrlugyyypgrcegfy']
     """
-    if model_type in ['dorsal', 'dorsalfinfindrhybrid']:  # ['dorsal', 'dorsalfinfindrhybrid']:
+    model_tpe_list = ['dorsal']
+    if HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
+        model_tpe_list.append('dorsalfinfindrhybrid')
+
+    if model_type in model_tpe_list:
         zipped = zip(success_list, outlines)
 
         config_ = {
@@ -1254,22 +1268,26 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                     last_point = point
                 trailing_edge = np.array(trailing_edge)
 
-                x = trailing_edge[:, 0]
-                y = trailing_edge[:, 1]
-                mytck, _ = interpolate.splprep([x, y], s=0)
-                x_, y_ = interpolate.splev(np.linspace(0, 1, 10000), mytck)
+                if finfindr_smooth:
+                    try:
+                        x = trailing_edge[:, 0]
+                        y = trailing_edge[:, 1]
+                        mytck, _ = interpolate.splprep([x, y], s=finfindr_smooth_margin)
+                        x_, y_ = interpolate.splev(np.linspace(0, 1, 10000), mytck)
 
-                trailing_edge_ = np.array(list(zip(x_, y_)))
-                trailing_edge_ = np.around(trailing_edge_).astype(trailing_edge.dtype)
+                        trailing_edge_ = np.array(list(zip(x_, y_)))
+                        trailing_edge_ = np.around(trailing_edge_).astype(trailing_edge.dtype)
 
-                trailing_edge = []
-                last_point = None
-                for point in trailing_edge_:
-                    point = list(point)
-                    if point != last_point:
-                        trailing_edge.append(point)
-                    last_point = point
-                trailing_edge = np.array(trailing_edge)
+                        new_trailing_edge = []
+                        last_point = None
+                        for point in trailing_edge_:
+                            point = list(point)
+                            if point != last_point:
+                                new_trailing_edge.append(point)
+                            last_point = point
+                        trailing_edge = np.array(new_trailing_edge)
+                    except:
+                        pass
 
             success_list_.append(success)
             trailing_edges.append(trailing_edge)
