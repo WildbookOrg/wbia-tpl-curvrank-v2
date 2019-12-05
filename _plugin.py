@@ -1289,6 +1289,12 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                     except:
                         pass
 
+                # Make sure the first point of the trailing_edge is the top of the fin
+                first_y = trailing_edge[0][0]
+                last_y  = trailing_edge[-1][0]
+                if last_y < first_y:
+                    trailing_edge = trailing_edge[::-1]
+
             success_list_.append(success)
             trailing_edges.append(trailing_edge)
 
@@ -1555,14 +1561,17 @@ def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_
 
     success_ = success
     if success:
-        curvature_descriptor_list = F.compute_curvature_descriptors(
-            curvature,
-            curv_length,
-            scales,
-            num_keypoints,
-            uniform,
-            feat_dim
-        )
+        try:
+            curvature_descriptor_list = F.compute_curvature_descriptors(
+                curvature,
+                curv_length,
+                scales,
+                num_keypoints,
+                uniform,
+                feat_dim
+            )
+        except:
+            ut.embed()
 
         if curvature_descriptor_list is None:
             success_ = False
