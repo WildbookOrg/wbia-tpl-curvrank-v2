@@ -1107,28 +1107,24 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
 
 class CurvatuveDescriptorOptimizedConfig(dtool.Config):
     def get_param_info_list(self):
-        return [
-            ut.ParamInfo('curvrank_model_type',                  'dorsal'),
-            ut.ParamInfo('curvrank_width',                       DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_height',                      DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_greyscale',                   False),
-            ut.ParamInfo('curvrank_scale',                       DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('curvature_scales',                     DEFAULT_SCALES['dorsal']),
-            ut.ParamInfo('outline_allow_diagonal',               DEFAULT_ALLOW_DIAGONAL['dorsal']),
-            ut.ParamInfo('curvatute_transpose_dims',             DEFAULT_TRANSPOSE_DIMS['dorsal']),
-            ut.ParamInfo('localization_model_tag',               'localization'),
-            ut.ParamInfo('segmentation_model_tag',               'segmentation'),
-            ut.ParamInfo('segmentation_gt_radius',               25),
-            ut.ParamInfo('segmentation_gt_opacity',              0.5),
-            ut.ParamInfo('segmentation_gt_smooth',               True),
-            ut.ParamInfo('segmentation_gt_smooth_margin',        0.001),
-            ut.ParamInfo('trailing_edge_finfindr_smooth',        True),
-            ut.ParamInfo('trailing_edge_finfindr_smooth_margin', 0.0),
-            ut.ParamInfo('curvature_descriptor_curv_length',     1024),
-            ut.ParamInfo('curvature_descriptor_num_keypoints',   32),
-            ut.ParamInfo('curvature_descriptor_uniform',         False),
-            ut.ParamInfo('curvature_descriptor_feat_dim',        32),
+        exclude_key_list = [
+            'curvrank_daily_cache',
+            'curvrank_daily_tag',
+            'curvrank_cache_recompute',
         ]
+
+        param_list = []
+        key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            if key in exclude_key_list:
+                continue
+            value = DEFAULT_DORSAL_TEST_CONFIG[key]
+            if key.startswith('trailing_edge_finfindr'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
+        return param_list
 
 
 @register_preproc_annot(
@@ -1451,10 +1447,16 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
-        return [
-            ut.ParamInfo(key, DEFAULT_DORSAL_TEST_CONFIG[key])
-            for key in sorted(DEFAULT_DORSAL_TEST_CONFIG.keys())
-        ]
+        param_list = []
+        key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            value = DEFAULT_DORSAL_TEST_CONFIG[key]
+            if key.startswith('trailing_edge_finfindr'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
+        return param_list
 
 class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     _tablename = 'CurvRankDorsal'
@@ -1524,10 +1526,16 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
-        return [
-            ut.ParamInfo(key, DEFAULT_FLUKE_TEST_CONFIG[key])
-            for key in sorted(DEFAULT_FLUKE_TEST_CONFIG.keys())
-        ]
+        param_list = []
+        key_list = DEFAULT_FLUKE_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            value = DEFAULT_FLUKE_TEST_CONFIG[key]
+            if key.startswith('trailing_edge_finfindr'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
+        return param_list
 
 
 class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
@@ -1599,13 +1607,19 @@ class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
         CurvRankFinfindrHybridDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_greyscale=False,curvrank_height=256,curvrank_model_type=dorsalfinfindrhybrid,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
-        DEFAULT_DORSAL_TEST_CONFIG_ = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        DEFAULT_DORSAL_TEST_CONFIG_['curvrank_model_type'] = 'dorsalfinfindrhybrid'
-        param_list = [
-            ut.ParamInfo(key, DEFAULT_DORSAL_TEST_CONFIG_[key])
-            for key in sorted(DEFAULT_DORSAL_TEST_CONFIG_.keys())
-        ]
+        param_list = []
+        key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            value = DEFAULT_DORSAL_TEST_CONFIG[key]
+            if key == 'curvrank_model_type':
+                value = 'dorsalfinfindrhybrid'
+            if key.startswith('trailing_edge_finfindr'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
         return param_list
+
 
 class CurvRankFinfindrHybridDorsalRequest(CurvRankRequest):  # NOQA
     _tablename = 'CurvRankFinfindrHybridDorsal'
