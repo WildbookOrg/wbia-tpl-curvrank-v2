@@ -1107,23 +1107,46 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
 
 class CurvatuveDescriptorOptimizedConfig(dtool.Config):
     def get_param_info_list(self):
-        exclude_key_list = [
-            'curvrank_daily_cache',
-            'curvrank_daily_tag',
-            'curvrank_cache_recompute',
-        ]
+        # exclude_key_list = [
+        #     'curvrank_daily_cache',
+        #     'curvrank_daily_tag',
+        #     'curvrank_cache_recompute',
+        # ]
 
-        param_list = []
-        key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
-        for key in sorted(key_list):
-            if key in exclude_key_list:
-                continue
-            value = DEFAULT_DORSAL_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
-                param = ut.ParamInfo(key, value, hideif=value)
-            else:
-                param = ut.ParamInfo(key, value)
-            param_list.append(param)
+        # param_list = []
+        # key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
+        # for key in sorted(key_list):
+        #     if key in exclude_key_list:
+        #         continue
+        #     value = DEFAULT_DORSAL_TEST_CONFIG[key]
+        #     if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
+        #         param = ut.ParamInfo(key, value, hideif=value)
+        #     else:
+        #         param = ut.ParamInfo(key, value)
+        #     param_list.append(param)
+        # return param_list
+        param_list = [
+            ut.ParamInfo('curvrank_model_type',                  'dorsal'),
+            ut.ParamInfo('curvrank_width',                       DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_height',                      DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_greyscale',                   False),
+            ut.ParamInfo('curvrank_scale',                       DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvature_scales',                     DEFAULT_SCALES['dorsal']),
+            ut.ParamInfo('outline_allow_diagonal',               DEFAULT_ALLOW_DIAGONAL['dorsal']),
+            ut.ParamInfo('curvatute_transpose_dims',             DEFAULT_TRANSPOSE_DIMS['dorsal']),
+            ut.ParamInfo('localization_model_tag',               'localization'),
+            ut.ParamInfo('segmentation_model_tag',               'segmentation'),
+            ut.ParamInfo('segmentation_gt_radius',               25),
+            ut.ParamInfo('segmentation_gt_opacity',              0.5),
+            ut.ParamInfo('segmentation_gt_smooth',               True),
+            ut.ParamInfo('segmentation_gt_smooth_margin',        0.001),
+            ut.ParamInfo('curvature_descriptor_curv_length',     1024),
+            ut.ParamInfo('curvature_descriptor_num_keypoints',   32),
+            ut.ParamInfo('curvature_descriptor_uniform',         False),
+            ut.ParamInfo('curvature_descriptor_feat_dim',        32),
+            ut.ParamInfo('trailing_edge_finfindr_smooth',        True, hideif=True),
+            ut.ParamInfo('trailing_edge_finfindr_smooth_margin', 0.0, hideif=0.0),
+        ]
         return param_list
 
 
