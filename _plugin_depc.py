@@ -1387,10 +1387,6 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     def overlay_trailing_edge(request, chip, outline, trailing_edge, edge_color=(0, 255, 255)):
         import cv2
         scale = request.config.curvrank_scale
-        model_type = request.config.curvrank_model_type
-
-        if model_type in ['dorsalfinfindrhybrid']:
-            outline = None
 
         chip_ = np.copy(chip)
         chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
@@ -1413,13 +1409,19 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     @ut.accepts_scalar_input
     def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
         depc = request.depc
+
         chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
+        outlines = [None] * len(chips)
+        trailing_edges = [None] * len(chips)
+
+        model_type = request.config.curvrank_model_type
+        if model_type in ['dorsalfinfindrhybrid']:
+            chips = depc.get('localization', aid_list, 'localized_img', config=DEFAULT_DORSAL_TEST_CONFIG)
+
         if overlay:
-            outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+            if model_type not in ['dorsalfinfindrhybrid']:
+                outlines = depc.get('outline', aid_list, 'outline', config=request.config)
             trailing_edges = depc.get('trailing_edge', aid_list, 'trailing_edge', config=request.config)
-        else:
-            outlines = [None] * len(chips)
-            trailing_edges = [None] * len(chips)
 
         overlay_chips = [
             request.overlay_trailing_edge(chip, outline, trailing_edge)
