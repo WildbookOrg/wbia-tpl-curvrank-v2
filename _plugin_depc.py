@@ -1119,7 +1119,7 @@ class CurvatuveDescriptorOptimizedConfig(dtool.Config):
             if key in exclude_key_list:
                 continue
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
@@ -1451,7 +1451,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
@@ -1530,7 +1530,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         key_list = DEFAULT_FLUKE_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_FLUKE_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
@@ -1613,7 +1613,7 @@ class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
             if key == 'curvrank_model_type':
                 value = 'dorsalfinfindrhybrid'
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
