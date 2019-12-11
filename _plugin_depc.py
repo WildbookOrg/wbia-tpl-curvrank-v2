@@ -1633,12 +1633,16 @@ class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
         CurvRankFinfindrHybridDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_greyscale=False,curvrank_height=256,curvrank_model_type=dorsalfinfindrhybrid,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
     def get_param_info_list(self):
+        value_mapping_dict = {
+            'curvrank_model_type'                : 'dorsalfinfindrhybrid',
+            'curvature_descriptor_uniform'       : True,
+            'curvature_descriptor_num_keypoints' : 64,
+        }
         param_list = []
         key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
-            if key == 'curvrank_model_type':
-                value = 'dorsalfinfindrhybrid'
+            value = value_mapping_dict.get(key, value)
             if key.startswith('trailing_edge_finfindr'):
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
