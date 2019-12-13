@@ -13,7 +13,9 @@ import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
 import ibeis_curvrank._plugin_depc  # NOQA
-from ibeis_curvrank._plugin_depc import DEFAULT_SCALES, _convert_kwargs_config_to_depc_config
+from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
+                                         INDEX_SEARCH_K, INDEX_LNBNN_K,
+                                         _convert_kwargs_config_to_depc_config)
 
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
@@ -22,7 +24,6 @@ register_api = controller_inject.get_ibeis_flask_api(__name__)
 
 USE_DEPC = True
 USE_DEPC_OPTIMIZED = True
-ANNOT_INDEX_TREES = 10
 
 
 FORCE_SERIAL = False
@@ -2027,7 +2028,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
 @register_ibs_method
 def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
-                                 lnbnn_k=2, verbose=False,
+                                 verbose=False,
                                  use_names=True,
                                  minimum_score=-1e-5,
                                  use_depc=USE_DEPC,
@@ -2211,12 +2212,19 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     TTL_HOUR_DELETE = 3 * 24
     TTL_HOUR_PREVIOUS = 1 * 24
 
-    use_daily_cache = config.pop('use_daily_cache', False)
-    daily_cache_tag = config.pop('daily_cache_tag', 'global')
+    use_daily_cache       = config.pop('use_daily_cache', False)
+    daily_cache_tag       = config.pop('daily_cache_tag', 'global')
     force_cache_recompute = config.pop('force_cache_recompute', False)
+
+    num_trees = config.pop('num_trees', INDEX_NUM_TREES)
+    search_k  = config.pop('search_k',  INDEX_SEARCH_K)
+    lnbnn_k   = config.pop('lnbnn_k',   INDEX_LNBNN_K)
 
     args = (use_daily_cache, daily_cache_tag, force_cache_recompute, )
     print('CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r\n\tforce_cache_recompute = %r\n\t' % args)
+    print('CurvRank num_trees   : %r' % (num_trees, ))
+    print('CurvRank search_k    : %r' % (search_k, ))
+    print('CurvRank lnbnn_k     : %r' % (lnbnn_k, ))
     print('CurvRank algo  config: %s' % (ut.repr3(config), ))
 
     config_hash = ut.hash_data(ut.repr3(config))
@@ -2322,7 +2330,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             index_filepath_dict = {}
             aids_filepath_dict = {}
             for scale in scale_list:
-                args = (scale, ANNOT_INDEX_TREES, )
+                args = (scale, num_trees, )
                 base_directory = 'db_index_scale_%s_trees_%d' % args
                 base_path = join(index_path, base_directory)
 
@@ -2369,7 +2377,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     if not exists(index_filepath):
                         print('Writing computed Annoy scale=%r index to %r...' % (scale, future_index_filepath, ))
                         descriptors, aids = db_lnbnn_data[scale]
-                        F.build_lnbnn_index(descriptors, future_index_filepath, num_trees=ANNOT_INDEX_TREES)
+                        F.build_lnbnn_index(descriptors, future_index_filepath, num_trees=num_trees)
                     else:
                         ut.copy(index_filepath, future_index_filepath)
                         print('Using existing Annoy scale=%r index in %r...' % (scale, index_filepath, ))
@@ -2417,7 +2425,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 else:
                     db_rowids = db_aids
 
-                score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids)
+                score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids, search_k=search_k)
                 for rowid in score_dict_:
                     if rowid not in score_dict:
                         score_dict[rowid] = 0.0

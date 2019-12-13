@@ -38,6 +38,11 @@ DEFAULT_TRANSPOSE_DIMS = {
 }
 
 
+INDEX_NUM_TREES = 10
+INDEX_SEARCH_K  = -1
+INDEX_LNBNN_K   = 2
+
+
 DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_daily_cache'                 : True,
     'curvrank_daily_tag'                   : 'global',
@@ -62,6 +67,9 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvature_descriptor_num_keypoints'   : 32,
     'curvature_descriptor_uniform'         : False,
     'curvature_descriptor_feat_dim'        : 32,
+    'index_trees'                          : INDEX_NUM_TREES,
+    'index_search_k'                       : INDEX_SEARCH_K,
+    'index_lnbnn_k'                        : INDEX_LNBNN_K,
 }
 
 
@@ -89,6 +97,9 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvature_descriptor_num_keypoints'   : 32,
     'curvature_descriptor_uniform'         : False,
     'curvature_descriptor_feat_dim'        : 32,
+    'index_trees'                          : INDEX_NUM_TREES,
+    'index_search_k'                       : INDEX_SEARCH_K,
+    'index_lnbnn_k'                        : INDEX_LNBNN_K,
 }
 
 
@@ -114,6 +125,9 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvature_descriptor_num_keypoints'   : 'num_keypoints',
     'curvature_descriptor_uniform'         : 'uniform',
     'curvature_descriptor_feat_dim'        : 'feat_dim',
+    'index_trees'                          : 'num_trees',
+    'index_search_k'                       : 'search_k',
+    'index_lnbnn_k'                        : 'lnbnn_k',
 }
 
 
@@ -1477,7 +1491,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr_') or key.startswith('index_'):
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
@@ -1556,7 +1570,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         key_list = DEFAULT_FLUKE_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_FLUKE_TEST_CONFIG[key]
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr_') or key.startswith('index_'):
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)
@@ -1636,14 +1650,14 @@ class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
         value_mapping_dict = {
             'curvrank_model_type'                : 'dorsalfinfindrhybrid',
             'curvature_descriptor_uniform'       : True,
-            'curvature_descriptor_num_keypoints' : 64,
+            # 'curvature_descriptor_num_keypoints' : 64,
         }
         param_list = []
         key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
         for key in sorted(key_list):
             value = DEFAULT_DORSAL_TEST_CONFIG[key]
             value = value_mapping_dict.get(key, value)
-            if key.startswith('trailing_edge_finfindr'):
+            if key.startswith('trailing_edge_finfindr_') or key.startswith('index_'):
                 param = ut.ParamInfo(key, value, hideif=value)
             else:
                 param = ut.ParamInfo(key, value)

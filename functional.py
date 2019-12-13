@@ -224,7 +224,7 @@ def build_lnbnn_index(data, fpath, num_trees=10):
 
 # LNBNN classification using: www.cs.ubc.ca/~lowe/papers/12mccannCVPR.pdf
 # Performance is about the same using: https://arxiv.org/abs/1609.06323
-def lnbnn_identify(index_fpath, k, descriptors, names):
+def lnbnn_identify(index_fpath, k, descriptors, names, search_k=-1):
     print('Loading Annoy index...')
     fdim = descriptors.shape[1]
     index = annoy.AnnoyIndex(fdim, metric='euclidean')
@@ -235,7 +235,7 @@ def lnbnn_identify(index_fpath, k, descriptors, names):
     scores = {name: 0.0 for name in names}
     for data in tqdm.tqdm(list(descriptors)):
         ind, dist = index.get_nns_by_vector(
-            data, k + 1, search_k=-1, include_distances=True
+            data, k + 1, search_k=search_k, include_distances=True
         )
         # entry at k + 1 is the normalizing distance
         classes = np.array([names[idx] for idx in ind[:-1]])
