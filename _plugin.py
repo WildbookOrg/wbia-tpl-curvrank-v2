@@ -2262,7 +2262,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     ut.delete(path)
                 else:
                     if past_previous <= then:
-                        if daily_index_hash in directory:
+                        daily_index_search_str = '_hash_%s_config_' % (daily_index_hash, )
+                        if daily_index_search_str in directory:
                             available_previous_list.append(directory)
                     delta = then - past_delete
                     hours = delta.total_seconds() / 60 / 60
