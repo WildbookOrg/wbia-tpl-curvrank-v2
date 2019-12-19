@@ -1462,7 +1462,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         return cm_list
 
     def execute(request, *args, **kwargs):
-        # kwargs['use_cache'] = False
+        kwargs['use_cache'] = False
         result_list = super(CurvRankRequest, request).execute(*args, **kwargs)
         qaids = kwargs.pop('qaids', None)
         if qaids is not None:
