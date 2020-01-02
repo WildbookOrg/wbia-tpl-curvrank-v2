@@ -15,6 +15,7 @@ import cv2
 import ibeis_curvrank._plugin_depc  # NOQA
 from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
                                          INDEX_SEARCH_K, INDEX_LNBNN_K,
+                                         INDEX_SEARCH_D,
                                          _convert_kwargs_config_to_depc_config)
 
 
@@ -2292,6 +2293,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         args = (ut.repr3(available_previous_list), )
         print('\nAvailable previous cached: %s' % args)
 
+    all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
+
     if use_daily_cache:
         if force_cache_recompute or len(available_previous_list) == 0:
             args = (timestamp, daily_index_hash, config_hash, )
@@ -2301,7 +2304,6 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             index_directory = available_previous_list[-1]
             print('Using the most recent available index: %r' % (index_directory, ))
     else:
-        all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
         all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
         index_hash = ut.hash_data(all_annot_uuid_list)
 
@@ -2313,9 +2315,12 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         num_annots = len(all_aid_list)
         num_trees_ = int(np.ceil(num_annots / 1000.0))
         num_trees_ = max(num_trees, num_trees_)
+        search_k_  = lnbnn_k * num_trees * INDEX_SEARCH_D
         if num_trees_ != num_trees:
             print('WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
+            print('WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
             num_trees = num_trees_
+            search_k = search_k_
 
     index_path = join(cache_path, index_directory)
 
