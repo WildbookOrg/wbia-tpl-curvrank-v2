@@ -2225,7 +2225,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     print('CurvRank num_trees   : %r' % (num_trees, ))
     print('CurvRank search_k    : %r' % (search_k, ))
     print('CurvRank lnbnn_k     : %r' % (lnbnn_k, ))
-    print('CurvRank algo  config: %s' % (ut.repr3(config), ))
+    print('CurvRank algo config : %s' % (ut.repr3(config), ))
 
     config_hash = ut.hash_data(ut.repr3(config))
     now = datetime.datetime.now()
@@ -2308,6 +2308,14 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         args = (timestamp, index_hash, config_hash, )
         index_directory = 'index_%s_hash_%s_config_%s' % args
         print('Using hashed index: %r' % (index_directory, ))
+
+    if daily_cache_tag in ['global']:
+        num_annots = len(all_aid_list)
+        num_trees_ = int(np.ceil(num_annots / 1000.0))
+        num_trees_ = max(num_trees, num_trees_)
+        if num_trees_ != num_trees:
+            print('WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
+            num_trees = num_trees_
 
     index_path = join(cache_path, index_directory)
 
