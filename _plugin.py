@@ -15,7 +15,7 @@ import cv2
 import ibeis_curvrank._plugin_depc  # NOQA
 from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
                                          INDEX_SEARCH_K, INDEX_LNBNN_K,
-                                         INDEX_SEARCH_D,
+                                         INDEX_SEARCH_D, INDEX_NUM_ANNOTS,
                                          _convert_kwargs_config_to_depc_config)
 
 
@@ -2313,12 +2313,12 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     if daily_cache_tag in ['global']:
         num_annots = len(all_aid_list)
-        num_trees_ = int(np.ceil(num_annots / 1000.0))
+        num_trees_ = int(np.ceil(num_annots / INDEX_NUM_ANNOTS))
         num_trees_ = max(num_trees, num_trees_)
         search_k_  = lnbnn_k * num_trees_ * INDEX_SEARCH_D
         if num_trees_ != num_trees:
-            print('WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
-            print('WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
+            print('[global] WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
+            print('[global] WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
             num_trees = num_trees_
             search_k = search_k_
 
@@ -2353,6 +2353,17 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 base_path_list = ut.glob(base_path)
                 if daily_cache_tag in ['global'] and len(base_path_list) == 1:
                     base_path = base_path_list[0]
+
+                    try:
+                        num_trees_ = int(base_path.strip().strip('/').split('_')[1])
+                        search_k_  = lnbnn_k * num_trees_ * INDEX_SEARCH_D
+                        if num_trees_ != num_trees:
+                            print('[local] WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
+                            print('[local] WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
+                            num_trees = num_trees_
+                            search_k = search_k_
+                    except:
+                        pass
                 else:
                     args = (scale, num_trees, )
                     base_directory = base_directory_fmtstr % args
