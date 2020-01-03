@@ -2344,9 +2344,19 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             index_filepath_dict = {}
             aids_filepath_dict = {}
             for scale in scale_list:
-                args = (scale, num_trees, )
-                base_directory = 'db_index_scale_%s_trees_%d' % args
+                base_directory_fmtstr = 'db_index_scale_%s_trees_%s'
+
+                args = (scale, '*')
+                base_directory = base_directory_fmtstr % args
                 base_path = join(index_path, base_directory)
+
+                base_path_list = ut.glob(base_path)
+                if daily_cache_tag in ['global'] and len(base_path_list) == 1:
+                    base_path = base_path_list[0]
+                else:
+                    args = (scale, num_trees, )
+                    base_directory = base_directory_fmtstr % args
+                    base_path = join(index_path, base_directory)
 
                 index_filepath = join(base_path, 'index.ann')
                 aids_filepath  = join(base_path, 'aids.pkl')
