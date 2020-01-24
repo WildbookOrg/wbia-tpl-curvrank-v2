@@ -18,6 +18,7 @@ from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
                                          INDEX_SEARCH_D, INDEX_NUM_ANNOTS,
                                          _convert_kwargs_config_to_depc_config)
 
+(print, rrr, profile) = ut.inject2(__name__)
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 register_api = controller_inject.get_ibeis_flask_api(__name__)
@@ -2337,6 +2338,9 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             qr_lnbnn_data_list.append(qr_lnbnn_data)
         scale_list = sorted(list(scale_set))
 
+    if not exists(index_path):
+        force_cache_recompute = True
+
     with ut.Timer('Loading database'):
         with ut.Timer('Checking database cache'):
             compute = force_cache_recompute
@@ -2368,6 +2372,14 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     args = (scale, num_trees, )
                     base_directory = base_directory_fmtstr % args
                     base_path = join(index_path, base_directory)
+
+                if not exists(index_path):
+                    print('Missing: %r' % (index_path, ))
+                    compute = True
+
+                if not exists(base_path):
+                    print('Missing: %r' % (base_path, ))
+                    compute = True
 
                 index_filepath = join(base_path, 'index.ann')
                 aids_filepath  = join(base_path, 'aids.pkl')
