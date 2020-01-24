@@ -2235,6 +2235,9 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     timestamp = now.strftime(timestamp_fmtstr)
 
     daily_cache_tag = str(daily_cache_tag)
+    if daily_cache_tag in [None, '']:
+        daily_cache_tag = 'global'
+
     if daily_cache_tag in ['global']:
         qr_aid_list = ut.flatten(qr_aids_list)
         qr_species_set = set(ibs.get_annot_species_texts(qr_aid_list))
