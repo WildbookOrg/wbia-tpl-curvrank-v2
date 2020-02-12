@@ -2211,8 +2211,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     ut.ensuredir(cache_path)
 
     FUTURE_PREFIX = '__future__'
-    TTL_HOUR_DELETE = 3 * 24
-    TTL_HOUR_PREVIOUS = 1 * 24
+    TTL_HOUR_DELETE = 7 * 24
+    TTL_HOUR_PREVIOUS = 2 * 24
 
     use_daily_cache       = config.pop('use_daily_cache', False)
     daily_cache_tag       = config.pop('daily_cache_tag', 'global')
