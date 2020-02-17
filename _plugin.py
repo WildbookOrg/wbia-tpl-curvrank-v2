@@ -47,16 +47,16 @@ HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK = False
 
 URL_DICT = {
     'dorsal': {
-        'localization': 'https://wildbookiarepository.blob.core.windows.net/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://wildbookiarepository.blob.core.windows.net/models/curvrank.segmentation.dorsal.weights.pkl',
+        'localization': 'https://wildbookiarepository.azureedge.net/models/curvrank.localization.dorsal.weights.pkl',
+        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'dorsalfinfindrhybrid': {
-        'localization': 'https://wildbookiarepository.blob.core.windows.net/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://wildbookiarepository.blob.core.windows.net/models/curvrank.segmentation.dorsal.weights.pkl',
+        'localization': 'https://wildbookiarepository.azureedge.net/models/curvrank.localization.dorsal.weights.pkl',
+        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.dorsal.weights.pkl',
     },
     'fluke': {
         'localization': None,
-        'segmentation': 'https://wildbookiarepository.blob.core.windows.net/models/curvrank.segmentation.fluke.weights.pkl',
+        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.fluke.weights.pkl',
     },
 }
 
