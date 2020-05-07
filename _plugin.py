@@ -1307,7 +1307,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                                 new_trailing_edge.append(point)
                             last_point = point
                         trailing_edge = np.array(new_trailing_edge)
-                    except:
+                    except Exception:
                         pass
 
                 # Make sure the first point of the trailing_edge is the top of the fin
@@ -1591,7 +1591,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_
                 uniform,
                 feat_dim
             )
-        except:
+        except Exception:
             curvature_descriptor_list = None
 
         if curvature_descriptor_list is None:
@@ -2273,7 +2273,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                     delta = then - past_delete
                     hours = delta.total_seconds() / 60 / 60
                     print('\tkeeping cache for %0.2f more hours...' % (hours, ))
-            except:
+            except Exception:
                 print('\tinvalid (parse error), deleting %r...' % (path, ))
                 ut.delete(path)
 
@@ -2289,7 +2289,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 if then < past_delete:
                     print('\ttoo old, deleting %r...' % (path, ))
                     ut.delete(path)
-            except:
+            except Exception:
                 print('\tinvalid (parse error), deleting %r...' % (path, ))
                 ut.delete(path)
 
@@ -2369,7 +2369,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                             print('[local] WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
                             num_trees = num_trees_
                             search_k = search_k_
-                    except:
+                    except Exception:
                         pass
                 else:
                     args = (scale, num_trees, )
