@@ -3,7 +3,7 @@ from ibeis.control import controller_inject  # NOQA
 import numpy as np
 import utool as ut
 import vtool as vt
-import dtool
+from ibeis import dtool
 import ibeis
 
 
