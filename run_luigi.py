@@ -1674,13 +1674,13 @@ class HotSpotterId(luigi.Task):
         return output
 
     def run(self):
-        import ibeis
+        import wbia
         import utool as ut
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_targets = db_qr_target.output()['database']
         qr_targets = db_qr_target.output()['queries']
 
-        ibs = ibeis.opendb(
+        ibs = wbia.opendb(
             #self.output()[run_idx]['ibs'].path, allow_newdir=True
             self.output()['ibs'].path
         )
