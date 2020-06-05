@@ -1,9 +1,9 @@
 from __future__ import absolute_import, division, print_function
-from ibeis.control import controller_inject  # NOQA
+from wbia.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
 import ibeis_curvrank.functional as F
 from ibeis_curvrank import imutils
-# import ibeis.constants as const
+# import wbia.constants as const
 from scipy import interpolate
 import numpy as np
 import utool as ut
@@ -21,7 +21,7 @@ from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
 (print, rrr, profile) = ut.inject2(__name__)
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
-register_api = controller_inject.get_ibeis_flask_api(__name__)
+register_api = controller_inject.get_wbia_flask_api(__name__)
 
 
 USE_DEPC = True
@@ -87,10 +87,10 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -109,10 +109,10 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -191,11 +191,11 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -218,11 +218,11 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -294,10 +294,10 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> aid_list *= 20
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
@@ -316,11 +316,11 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -473,10 +473,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -495,11 +495,11 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -521,10 +521,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
         >>> try:
         >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
@@ -545,10 +545,10 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     Example3:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -719,10 +719,10 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -744,11 +744,11 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -773,10 +773,10 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
         >>> try:
         >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
@@ -800,10 +800,10 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     Example3:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
@@ -900,10 +900,10 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -925,11 +925,11 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -955,10 +955,10 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
         >>> try:
         >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
@@ -982,10 +982,10 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     Example3:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
@@ -1074,10 +1074,10 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -1101,11 +1101,11 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -1133,10 +1133,10 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
     Example2:
         >>> # DISABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -1348,10 +1348,10 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -1377,11 +1377,11 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -1470,10 +1470,10 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
@@ -1505,11 +1505,11 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
@@ -1631,10 +1631,10 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
@@ -1650,10 +1650,10 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> config = {
@@ -1678,10 +1678,10 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> aid_list *= 20
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
@@ -1700,10 +1700,10 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> aid_list *= 20
         >>> model_type = 'fluke'
@@ -1779,10 +1779,10 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
@@ -1797,10 +1797,10 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> config = {
@@ -1880,10 +1880,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
         >>> hash_list = [
@@ -1895,10 +1895,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
     Example1:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=False)
         >>> hash_list = [
@@ -1910,10 +1910,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=True)
         >>> hash_list = [
@@ -1926,10 +1926,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> config = {
@@ -1952,10 +1952,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> config = {
@@ -1978,10 +1978,10 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> model_type = 'fluke'
         >>> config = {
@@ -2057,10 +2057,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
@@ -2077,10 +2077,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     Example1:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
@@ -2097,10 +2097,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     Example2:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
@@ -2118,10 +2118,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
@@ -2149,10 +2149,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
@@ -2180,10 +2180,10 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin import *  # NOQA
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
-        >>> from ibeis.init import sysres
+        >>> import wbia
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
@@ -2505,11 +2505,11 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     Example:
         >>> # ENABLE_DOCTEST
         >>> from ibeis_curvrank._plugin_depc import *  # NOQA
-        >>> import ibeis
+        >>> import wbia
         >>> import itertools as it
-        >>> from ibeis.init import sysres
+        >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = ibeis.opendb(dbdir=dbdir)
+        >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> depc = ibs.depc_annot
         >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Dorsal Database', 'Dorsal Query'])
         >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))

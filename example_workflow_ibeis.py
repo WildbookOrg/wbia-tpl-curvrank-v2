@@ -1,11 +1,11 @@
 from __future__ import absolute_import, division, print_function
-from ibeis.init import sysres
-import ibeis
+from wbia.init import sysres
+import wbia
 
 
 if __name__ == '__main__':
     dbdir = sysres.ensure_testdb_curvrank()
-    ibs = ibeis.opendb(dbdir=dbdir)
+    ibs = wbia.opendb(dbdir=dbdir)
 
     db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
     db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
