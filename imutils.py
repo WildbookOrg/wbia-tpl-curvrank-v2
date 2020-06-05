@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-from ibeis_curvrank import affine
+from wbia_curvrank import affine
 import cv2
 import numpy as np
 
