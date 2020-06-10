@@ -224,7 +224,7 @@ def create_segmentation_func(layers):
 
 
 def test_localization_funcs():
-    from ibeis_curvrank import localization
+    from wbia_curvrank import localization
     print('testing localization')
     print('  building model')
     layers = localization.build_model((None, 3, 256, 256), downsample=2)
@@ -256,7 +256,7 @@ def test_localization_funcs():
 
 
 def test_segmentation_funcs():
-    from ibeis_curvrank import segmentation
+    from wbia_curvrank import segmentation
     print('testing segmentation')
     print('  building model')
     layers = segmentation.build_model((None, 3, 128, 128))

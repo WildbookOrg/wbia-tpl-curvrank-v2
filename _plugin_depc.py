@@ -185,7 +185,7 @@ class PreprocessConfig(dtool.Config):
     rm_extern_on_delete=True,
     chunksize=256,
 )
-def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
+def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     r"""
     Pre-process images for CurvRank with Dependency Cache (depc)
 
@@ -195,13 +195,13 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         config    (PreprocessConfig): config for depcache
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_preprocessing_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_preprocessing_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_preprocessing_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -223,7 +223,7 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -249,7 +249,7 @@ def ibeis_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     height    = config['curvrank_height']
     greyscale = config['curvrank_greyscale']
 
-    values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height,
+    values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height,
                                                      greyscale=greyscale)
     resized_images, resized_masks, pre_transforms = values
 
@@ -291,18 +291,18 @@ class LocalizationConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=None):
+def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=None):
     r"""
     Localize images for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_localization_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_localization_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_localization_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -326,7 +326,7 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -357,7 +357,7 @@ def ibeis_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=
     resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img')
     resized_masks  = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
 
-    values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks,
+    values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks,
                                                     width=width, height=height,
                                                     model_type=model_type,
                                                     model_tag=model_tag)
@@ -401,19 +401,19 @@ class RefinementConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
+def wbia_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
                                           preprocess_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_refinement_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_refinement_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_refinement_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -430,7 +430,7 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -456,7 +456,7 @@ def ibeis_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
     loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
     pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
 
-    values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms,
+    values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms,
                                                   width=width, height=height, scale=scale,
                                                   greyscale=greyscale)
     refined_localizations, refined_masks = values
@@ -502,21 +502,21 @@ class SegmentationConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preprocess_rowid_list,
+def wbia_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preprocess_rowid_list,
                                             localization_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:1
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:2
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_segmentation_depc:3
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -531,7 +531,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -546,12 +546,12 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
         >>> try:
         >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
         >>>     config['localization_model_tag'] = 'groundtruth'
@@ -563,11 +563,11 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
         >>>     assert ut.hash_data(segmentation)         in ['owryieckgcmjqptjflybacfcmzgllhiw']
         >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
         >>> finally:
-        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -600,7 +600,7 @@ def ibeis_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproc
     pre_transforms        = depc.get_native('preprocess',   preprocess_rowid_list,    'pretransform')
     loc_transforms        = depc.get_native('localization', localization_rowid_list,  'transform')
 
-    values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks,
+    values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks,
                                                     pre_transforms, loc_transforms,
                                                     width=width, height=height,
                                                     scale=scale, model_type=model_type,
@@ -650,19 +650,19 @@ class KeypointsConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localization_rowid_list, config=None):
+def wbia_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localization_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:1
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_keypoints_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -676,7 +676,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -690,7 +690,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -711,7 +711,7 @@ def ibeis_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localiza
     segmentations   = depc.get_native('segmentation', segmentation_rowid_list, 'segmentations_img')
     localized_masks = depc.get_native('localization', localization_rowid_list, 'mask_img')
 
-    values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+    values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
     success_list, starts, ends = values
 
     for success, start, end in zip(success_list, starts, ends):
@@ -744,20 +744,20 @@ class OutlineConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement_rowid_list, keypoints_rowid_list, config=None):
+def wbia_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement_rowid_list, keypoints_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:1
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:2
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_outline_depc:3
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -771,7 +771,7 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -785,12 +785,12 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
         >>> try:
         >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
         >>>     config['localization_model_tag'] = 'groundtruth'
@@ -801,11 +801,11 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         >>>     assert success_list == [True]
         >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
         >>> finally:
-        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -833,7 +833,7 @@ def ibeis_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement
         'scale':          config['curvrank_scale'],
         'allow_diagonal': config['outline_allow_diagonal'],
     }
-    success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, **kwargs)
+    success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, **kwargs)
     for success, outline in zip(success_list, outlines):
         yield (
             success,
@@ -864,19 +864,19 @@ class TrailingEdgeConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=None):
+def wbia_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:1
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_trailing_edges_depc:2 --finfindr
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_trailing_edges_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_trailing_edges_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_trailing_edges_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_trailing_edges_depc:2 --finfindr
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -890,7 +890,7 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -905,7 +905,7 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -933,7 +933,7 @@ def ibeis_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=N
     success_list      = depc.get_native('outline', outline_rowid_list, 'success')
     outlines          = depc.get_native('outline', outline_rowid_list, 'outline')
 
-    values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines,
+    values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines,
                                                       model_type=model_type, width=width,
                                                       height=height, scale=scale,
                                                       finfindr_smooth=finfindr_smooth,
@@ -966,18 +966,18 @@ class CurvatuveConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=None):
+def wbia_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvatures_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvatures_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvatures_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -992,7 +992,7 @@ def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1012,7 +1012,7 @@ def ibeis_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config
     success_list   = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'success')
     trailing_edges = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'trailing_edge')
 
-    values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges,
+    values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges,
                                                   scales=scales,
                                                   transpose_dims=transpose_dims)
     success_list, curvatures = values
@@ -1046,18 +1046,18 @@ class CurvatuveDescriptorConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list, config=None):
+def wbia_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1076,7 +1076,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1103,7 +1103,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list,
     success_list = depc.get_native('curvature', curvature_rowid_list, 'success')
     curvatures   = depc.get_native('curvature', curvature_rowid_list, 'curvature')
 
-    values = ibs.ibeis_plugin_curvrank_curvature_descriptors(
+    values = ibs.wbia_plugin_curvrank_curvature_descriptors(
         success_list,
         curvatures,
         curv_length,
@@ -1178,18 +1178,18 @@ class CurvatuveDescriptorOptimizedConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, config=None):
+def wbia_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, config=None):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_curvature_descriptors_optimized_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_optimized_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_optimized_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvature_descriptors_optimized_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1208,7 +1208,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1227,7 +1227,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
     ibs = depc.controller
 
     config_ = _convert_depc_config_to_kwargs_config(config)
-    values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config_)
+    values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config_)
     success_list, curvature_descriptor_dicts = values
 
     for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
@@ -1238,7 +1238,7 @@ def ibeis_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, c
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
+def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     r"""
     CurvRank Example
 
@@ -1250,16 +1250,16 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         score_dict
 
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:0
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:1
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:2
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_scores_depc:3
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1270,7 +1270,7 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_DORSAL_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1281,8 +1281,8 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1293,7 +1293,7 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_DORSAL_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1304,8 +1304,8 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1316,7 +1316,7 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1327,8 +1327,8 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1339,7 +1339,7 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1350,7 +1350,7 @@ def ibeis_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     """
     kwargs['use_depc'] = True
     kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
-    return ibs.ibeis_plugin_curvrank_scores(db_aid_list, qr_aid_list, **kwargs)
+    return ibs.wbia_plugin_curvrank_scores(db_aid_list, qr_aid_list, **kwargs)
 
 
 def get_match_results(depc, qaid_list, daid_list, score_list, config):
@@ -1478,11 +1478,11 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 class CurvRankDorsalConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-CurvRankDorsalConfig
+        python -m wbia_curvrank._plugin_depc --test-CurvRankDorsalConfig
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
@@ -1512,14 +1512,14 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     fname='curvrank_scores_dorsal',
     rm_extern_on_delete=True,
     chunksize=None)
-def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
+def wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --exec-ibeis_plugin_curvrank_dorsal --show
+        python -m wbia_curvrank._plugin_depc --exec-wbia_plugin_curvrank_dorsal --show
 
     Example:
         >>> # DISABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1537,7 +1537,7 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
         >>> # Call function via depcache
         >>> prop_list = depc.get('CurvRankDorsal', root_rowids)
         >>> # Call function normally
-        >>> score_list = list(ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config))
+        >>> score_list = list(wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config))
         >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
         >>> assert score_list == prop_list, 'error in cache'
         >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
@@ -1549,7 +1549,7 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     label = 'CurvRankDorsal'
-    value_iter = ibs.ibeis_plugin_curvrank(label, qaid_list, daid_list, config)
+    value_iter = ibs.wbia_plugin_curvrank(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
 
@@ -1557,11 +1557,11 @@ def ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
 class CurvRankFlukeConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-CurvRankFlukeConfig
+        python -m wbia_curvrank._plugin_depc --test-CurvRankFlukeConfig
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
@@ -1592,14 +1592,14 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
     fname='curvrank_scores_fluke',
     rm_extern_on_delete=True,
     chunksize=None)
-def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
+def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-ibeis_plugin_curvrank_fluke --show
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fluke --show
 
     Example:
         >>> # DISABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1617,7 +1617,7 @@ def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
         >>> # Call function via depcache
         >>> prop_list = depc.get('CurvRankFluke', root_rowids)
         >>> # Call function normally
-        >>> score_list = list(ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config))
+        >>> score_list = list(wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config))
         >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
         >>> assert score_list == prop_list, 'error in cache'
         >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
@@ -1630,7 +1630,7 @@ def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     label = 'CurvRankFluke'
-    value_iter = ibs.ibeis_plugin_curvrank(label, qaid_list, daid_list, config)
+    value_iter = ibs.wbia_plugin_curvrank(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
 
@@ -1638,11 +1638,11 @@ def ibeis_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
 class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --test-CurvRankFinfindrHybridDorsalConfig
+        python -m wbia_curvrank._plugin_depc --test-CurvRankFinfindrHybridDorsalConfig
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> config = CurvRankFinfindrHybridDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
@@ -1679,14 +1679,14 @@ class CurvRankFinfindrHybridDorsalRequest(CurvRankRequest):  # NOQA
     fname='curvrank_scores_dorsal',
     rm_extern_on_delete=True,
     chunksize=None)
-def ibeis_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, config):
+def wbia_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --exec-ibeis_plugin_curvrank_dorsal --show
+        python -m wbia_curvrank._plugin_depc --exec-wbia_plugin_curvrank_dorsal --show
 
     Example:
         >>> # DISABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1704,7 +1704,7 @@ def ibeis_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, con
         >>> # Call function via depcache
         >>> prop_list = depc.get('CurvRankFinfindrHybridDorsal', root_rowids)
         >>> # Call function normally
-        >>> score_list = list(ibeis_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config))
+        >>> score_list = list(wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config))
         >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
         >>> assert score_list == prop_list, 'error in cache'
         >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
@@ -1716,7 +1716,7 @@ def ibeis_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, con
     ibs = depc.controller
 
     label = 'CurvRankFinfindrHybridDorsal'
-    value_iter = ibs.ibeis_plugin_curvrank(label, qaid_list, daid_list, config)
+    value_iter = ibs.wbia_plugin_curvrank(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
 
@@ -1724,7 +1724,7 @@ def ibeis_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, con
 if __name__ == '__main__':
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin_depc --allexamples
+        python -m wbia_curvrank._plugin_depc --allexamples
     """
     import multiprocessing
     multiprocessing.freeze_support()  # for win32

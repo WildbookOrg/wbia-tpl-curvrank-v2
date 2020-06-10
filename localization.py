@@ -177,7 +177,7 @@ def build_model_batchnorm(input_shape, downsample=1):
 
 
 def test_build_model():
-    from ibeis_curvrank import model
+    from wbia_curvrank import model
     layer_dict = build_model((None, 3, 256, 256), downsample=2)
     model.print_info([layer_dict['loc'], layer_dict['trans']])
 

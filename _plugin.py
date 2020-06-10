@@ -1,8 +1,8 @@
 from __future__ import absolute_import, division, print_function
 from wbia.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
-import ibeis_curvrank.functional as F
-from ibeis_curvrank import imutils
+import wbia_curvrank.functional as F
+from wbia_curvrank import imutils
 # import wbia.constants as const
 from scipy import interpolate
 import numpy as np
@@ -12,8 +12,8 @@ import datetime
 import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
-import ibeis_curvrank._plugin_depc  # NOQA
-from ibeis_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
+import wbia_curvrank._plugin_depc  # NOQA
+from wbia_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
                                          INDEX_SEARCH_K, INDEX_LNBNN_K,
                                          INDEX_SEARCH_D, INDEX_NUM_ANNOTS,
                                          _convert_kwargs_config_to_depc_config)
@@ -66,7 +66,7 @@ if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, greyscale=False, **kwargs):
+def wbia_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, greyscale=False, **kwargs):
     r"""
     Pre-process images for CurvRank
 
@@ -80,19 +80,19 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
         pre_transforms
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_preprocessing
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_preprocessing:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_preprocessing:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
@@ -107,8 +107,8 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -117,7 +117,7 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
         >>> height = DEFAULT_HEIGHT[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
         >>> resized_image = resized_images[0]
         >>> resized_mask  = resized_masks[0]
@@ -166,7 +166,7 @@ def ibeis_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gr
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
+def wbia_plugin_curvrank_localization(ibs, resized_images, resized_masks,
                                        width=256, height=256, model_type='dorsal',
                                        model_tag='localization', **kwargs):
     r"""
@@ -184,22 +184,22 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         loc_transforms
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_localization:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_localization
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_localization:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_localization:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
         >>> localized_image = localized_images[0]
         >>> localized_mask  = localized_masks[0]
@@ -216,8 +216,8 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -227,9 +227,9 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         >>> model_type = 'fluke'
         >>> width = DEFAULT_WIDTH[model_type]
         >>> height = DEFAULT_HEIGHT[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
         >>> loc_transform = loc_transforms[0]
         >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
@@ -248,9 +248,9 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
         localized_masks = resized_masks
         loc_transforms = [np.eye(3, dtype=np.float32)] * len(localized_images)
     else:
-        from ibeis_curvrank import localization, model, theano_funcs
+        from wbia_curvrank import localization, model, theano_funcs
 
-        weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+        weight_filepath = ut.grab_file_url(model_url, appname='wbia_curvrank', check_hash=True)
 
         # Make sure resized images all have the same shape
         layers = localization.build_model((None, 3, height, width))
@@ -269,7 +269,7 @@ def ibeis_plugin_curvrank_localization(ibs, resized_images, resized_masks,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
+def wbia_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
                                      loc_transforms, width=256, height=256,
                                      scale=4, greyscale=False, **kwargs):
     r"""
@@ -287,24 +287,24 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         refined_masks
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_refinement:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_refinement
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_refinement:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_refinement:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> aid_list *= 20
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
@@ -314,8 +314,8 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -326,11 +326,11 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         >>> width = DEFAULT_WIDTH[model_type]
         >>> height = DEFAULT_HEIGHT[model_type]
         >>> scale = DEFAULT_SCALE[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
         >>> refined_localization = refined_localizations[0]
         >>> refined_mask         = refined_masks[0]
@@ -374,7 +374,7 @@ def ibeis_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_test_setup_groundtruth(ibs):
+def wbia_plugin_curvrank_test_setup_groundtruth(ibs):
     part_rowid_list = ibs.get_valid_part_rowids()
     part_type_list = ibs.get_part_types(part_rowid_list)
     part_contour_list = ibs.get_part_contour(part_rowid_list)
@@ -432,16 +432,16 @@ def ibeis_plugin_curvrank_test_setup_groundtruth(ibs):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_test_cleanup_groundtruth(ibs, values=None):
+def wbia_plugin_curvrank_test_cleanup_groundtruth(ibs, values=None):
     if values is None:
-        values = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        values = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
     aid_list, part_rowid_list = values
     ibs.delete_parts(part_rowid_list)
     ibs.delete_annots(aid_list)
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refined_masks,
+def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refined_masks,
                                        pre_transforms, loc_transforms,
                                        width=256, height=256, scale=4, model_type='dorsal',
                                        model_tag='segmentation',
@@ -454,8 +454,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
     Args:
         ibs       (IBEISController): IBEIS controller object
-        refined_localizations: output of ibeis_plugin_curvrank_refinement
-        refined_masks: output of ibeis_plugin_curvrank_refinement
+        refined_localizations: output of wbia_plugin_curvrank_refinement
+        refined_masks: output of wbia_plugin_curvrank_refinement
         model_tag  (string): Key to URL_DICT entry for this model
         scale (int): upsampling factor from coarse to fine-grained (default to 4).
 
@@ -464,27 +464,27 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         refined_segmentations
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_segmentation:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_segmentation
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_segmentation:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_segmentation:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_segmentation:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_segmentation:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
@@ -493,8 +493,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -505,13 +505,13 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
         >>> width = DEFAULT_WIDTH[model_type]
         >>> height = DEFAULT_HEIGHT[model_type]
         >>> scale = DEFAULT_SCALE[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
@@ -520,43 +520,43 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
         >>> try:
-        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>>     resized_images, resized_masks, pre_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
         >>>     localized_images, localized_masks, loc_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>>     refined_localizations, refined_masks = values
-        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
         >>>     segmentations, refined_segmentations = values
         >>>     segmentation = segmentations[0]
         >>>     refined_segmentation = refined_segmentations[0]
         >>>     assert ut.hash_data(segmentation)         in ['owryieckgcmjqptjflybacfcmzgllhiw']
         >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
         >>> finally:
-        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
         >>> segmentations, refined_segmentations = values
         >>> segmentation = segmentations[0]
         >>> refined_segmentation = refined_segmentations[0]
@@ -657,8 +657,8 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
             segmentations = [segmentation_] * len(aid_list)
             refined_segmentations = [refined_segmentation] * len(aid_list)
         else:
-            from ibeis_curvrank import segmentation, model, theano_funcs
-            weight_filepath = ut.grab_file_url(model_url, appname='ibeis_curvrank', check_hash=True)
+            from wbia_curvrank import segmentation, model, theano_funcs
+            weight_filepath = ut.grab_file_url(model_url, appname='wbia_curvrank', check_hash=True)
 
             segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
 
@@ -673,12 +673,12 @@ def ibeis_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, ref
     return segmentations, refined_segmentations
 
 
-def ibeis_plugin_curvrank_keypoints_worker(model_type, segmentation,
+def wbia_plugin_curvrank_keypoints_worker(model_type, segmentation,
                                            localized_mask):
     if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
-        from ibeis_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
+        from wbia_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
     else:
-        from ibeis_curvrank.dorsal_utils import find_fluke_keypoints as find_func
+        from wbia_curvrank.dorsal_utils import find_fluke_keypoints as find_func
 
     try:
         start, end = F.find_keypoints(
@@ -696,13 +696,13 @@ def ibeis_plugin_curvrank_keypoints_worker(model_type, segmentation,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
+def wbia_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
                                     model_type='dorsal', **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        segmentations: output of ibeis_plugin_curvrank_segmentation
-        refined_masks: output of ibeis_plugin_curvrank_refinement
+        segmentations: output of wbia_plugin_curvrank_segmentation
+        refined_masks: output of wbia_plugin_curvrank_refinement
 
     Returns:
         success_list: bool list
@@ -710,29 +710,29 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         ends: list of keypoint ends
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_keypoints:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_keypoints
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_keypoints:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_keypoints:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_keypoints:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_keypoints:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
         >>> start = tuple(starts[0])
         >>> end = tuple(ends[0])
@@ -742,8 +742,8 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -754,15 +754,15 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>> width = DEFAULT_WIDTH[model_type]
         >>> height = DEFAULT_HEIGHT[model_type]
         >>> scale = DEFAULT_SCALE[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
         >>> start = tuple(starts[0])
         >>> end = tuple(ends[0])
@@ -772,22 +772,22 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
         >>> try:
-        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>>     resized_images, resized_masks, pre_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
         >>>     localized_images, localized_masks, loc_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>>     refined_localizations, refined_masks = values
-        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
         >>>     segmentations, refined_segmentations = values
-        >>>     values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>>     values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>>     success_list, starts, ends = values
         >>>     start = tuple(starts[0])
         >>>     end = tuple(ends[0])
@@ -795,24 +795,24 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
         >>>     assert start == (238, 3)
         >>>     assert end   == (182, 253)
         >>> finally:
-        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
         >>> success_list, starts, ends = values
         >>> start = tuple(starts[0])
         >>> end = tuple(ends[0])
@@ -837,7 +837,7 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
             'force_serial': ibs.force_serial or FORCE_SERIAL,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(ibeis_plugin_curvrank_keypoints_worker, zipped,
+        generator = ut.generate2(wbia_plugin_curvrank_keypoints_worker, zipped,
                                  nTasks=num_total, **config_)
 
         starts, ends, success_list = [], [], []
@@ -849,12 +849,12 @@ def ibeis_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     return success_list, starts, ends
 
 
-def ibeis_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
+def wbia_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
                                          refined_mask, refined_seg, scale, allow_diagonal):
     if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
-        from ibeis_curvrank.dorsal_utils import dorsal_cost_func as cost_func
+        from wbia_curvrank.dorsal_utils import dorsal_cost_func as cost_func
     else:
-        from ibeis_curvrank.dorsal_utils import fluke_cost_func as cost_func
+        from wbia_curvrank.dorsal_utils import fluke_cost_func as cost_func
 
     success_ = success
     if success:
@@ -872,7 +872,7 @@ def ibeis_plugin_curvrank_outline_worker(model_type, success, start, end, refine
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
+def wbia_plugin_curvrank_outline(ibs, success_list, starts, ends,
                                   refined_localizations, refined_masks,
                                   refined_segmentations, scale=4,
                                   model_type='dorsal', allow_diagonal=False,
@@ -880,51 +880,51 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_keypoints
-        starts: output of ibeis_plugin_curvrank_keypoints
-        ends: output of ibeis_plugin_curvrank_keypoints
-        refined_localizations: output of ibeis_plugin_curvrank_refinement
-        refined_masks: output of ibeis_plugin_curvrank_refinement
-        refined_segmentations: output of ibeis_plugin_curvrank_refinement
+        success_list: output of wbia_plugin_curvrank_keypoints
+        starts: output of wbia_plugin_curvrank_keypoints
+        ends: output of wbia_plugin_curvrank_keypoints
+        refined_localizations: output of wbia_plugin_curvrank_refinement
+        refined_masks: output of wbia_plugin_curvrank_refinement
+        refined_segmentations: output of wbia_plugin_curvrank_refinement
     Returns:
         success_list
         outlines
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_outline:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_outline
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_outline:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_outline:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_outline:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_outline:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args)
         >>> outline = outlines[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outline) in ['lyrkwgzncvjpjvovikkvspdkecardwyz']
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -936,68 +936,68 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
         >>> height = DEFAULT_HEIGHT[model_type]
         >>> scale = DEFAULT_SCALE[model_type]
         >>> allow_diagonal = DEFAULT_ALLOW_DIAGONAL[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> outline = outlines[0]
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outline) in ['qqvetxfhhipfuqneuinwrvcztkjlfoak']
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.ibeis_plugin_curvrank_test_setup_groundtruth()
+        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
         >>> try:
-        >>>     values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>>     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>>     resized_images, resized_masks, pre_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_tag='groundtruth')
         >>>     localized_images, localized_masks, loc_transforms = values
-        >>>     values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>>     values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>>     refined_localizations, refined_masks = values
-        >>>     values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
+        >>>     values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_tag='groundtruth')
         >>>     segmentations, refined_segmentations = values
-        >>>     values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>>     values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>>     success_list, starts, ends = values
         >>>     args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>>     success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
+        >>>     success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args)
         >>>     outline = outlines[0]
         >>>     assert success_list == [True]
         >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
         >>> finally:
-        >>>     ibs.ibeis_plugin_curvrank_test_cleanup_groundtruth()
+        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
         >>> outline = outlines[0]
         >>> assert success_list == [True]
         >>> assert outline is None
@@ -1023,7 +1023,7 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
             'force_serial': True,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(ibeis_plugin_curvrank_outline_worker, zipped,
+        generator = ut.generate2(wbia_plugin_curvrank_outline_worker, zipped,
                                  nTasks=num_total, **config_)
 
         success_list_, outlines = [], []
@@ -1034,8 +1034,8 @@ def ibeis_plugin_curvrank_outline(ibs, success_list, starts, ends,
     return success_list_, outlines
 
 
-def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
-    from ibeis_curvrank.dorsal_utils import separate_leading_trailing_edges
+def wbia_plugin_curvrank_trailing_edges_worker(success, outline):
+    from wbia_curvrank.dorsal_utils import separate_leading_trailing_edges
 
     success_ = success
     if success:
@@ -1051,47 +1051,47 @@ def ibeis_plugin_curvrank_trailing_edges_worker(success, outline):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
+def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                                          model_type='dorsal', width=256, height=256,
                                          scale=4, finfindr_smooth=True,
                                          finfindr_smooth_margin=0.001, **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         trailing_edges
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_trailing_edges:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_trailing_edges
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_trailing_edges:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_trailing_edges:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_trailing_edges:2
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
@@ -1099,8 +1099,8 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -1112,45 +1112,45 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         >>> height = DEFAULT_HEIGHT[model_type]
         >>> scale = DEFAULT_SCALE[model_type]
         >>> allow_diagonal = DEFAULT_ALLOW_DIAGONAL[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
+        >>> values = ibs.wbia_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
         >>> assert success_list == [True]
         >>> assert ut.hash_data(outlines) == ut.hash_data(trailing_edges)
 
     Example2:
         >>> # DISABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, model_type='dorsalfinfindrhybrid')
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, model_type='dorsalfinfindrhybrid')
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type='dorsalfinfindrhybrid')
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type='dorsalfinfindrhybrid')
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, model_type='dorsalfinfindrhybrid')
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type='dorsalfinfindrhybrid')
         >>> success_list, trailing_edges = values
         >>> trailing_edge = trailing_edges[0]
         >>> assert success_list == [True]
@@ -1169,7 +1169,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             'force_serial': ibs.force_serial or FORCE_SERIAL,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(ibeis_plugin_curvrank_trailing_edges_worker, zipped,
+        generator = ut.generate2(wbia_plugin_curvrank_trailing_edges_worker, zipped,
                                  nTasks=len(success_list), **config_)
 
         success_list_ = []
@@ -1180,7 +1180,7 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
     if model_type in ['dorsalfinfindrhybrid']:
         from numpy.linalg import inv
-        from ibeis_curvrank import affine
+        from wbia_curvrank import affine
 
         # backup_success_list_ = success_list_[:]
         # backup_trailing_edges = trailing_edges[:]
@@ -1198,9 +1198,9 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
         flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
 
         # Get CurvRank primitives
-        values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         resized_images, resized_masks, pre_transforms = values
-        values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         localized_images, localized_masks, loc_transforms = values
 
         # Get FinfindR primitives
@@ -1237,19 +1237,19 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                 print('[Hybrid] Using CurvRank trailing edge as a backup for AID %r because FinfindR failed to extract' % (aid, ))
 
                 backup_aid_list = [aid]
-                values = ibs.ibeis_plugin_curvrank_preprocessing(backup_aid_list)
+                values = ibs.wbia_plugin_curvrank_preprocessing(backup_aid_list)
                 backup_resized_images_, backup_resized_masks, backup_pre_transforms = values
-                values = ibs.ibeis_plugin_curvrank_localization(backup_resized_images_, backup_resized_masks)
+                values = ibs.wbia_plugin_curvrank_localization(backup_resized_images_, backup_resized_masks)
                 backup_localized_images, backup_localized_masks, backup_loc_transforms = values
-                values = ibs.ibeis_plugin_curvrank_refinement(backup_aid_list, backup_pre_transforms, backup_loc_transforms)
+                values = ibs.wbia_plugin_curvrank_refinement(backup_aid_list, backup_pre_transforms, backup_loc_transforms)
                 backup_refined_localizations, backup_refined_masks = values
-                values = ibs.ibeis_plugin_curvrank_segmentation(backup_aid_list, backup_refined_localizations, backup_refined_masks, backup_pre_transforms, backup_loc_transforms)
+                values = ibs.wbia_plugin_curvrank_segmentation(backup_aid_list, backup_refined_localizations, backup_refined_masks, backup_pre_transforms, backup_loc_transforms)
                 backup_segmentations, backup_refined_segmentations = values
-                values = ibs.ibeis_plugin_curvrank_keypoints(backup_segmentations, backup_localized_masks)
+                values = ibs.wbia_plugin_curvrank_keypoints(backup_segmentations, backup_localized_masks)
                 backup_success_list, backup_starts, backup_ends = values
                 args = backup_success_list, backup_starts, backup_ends, backup_refined_localizations, backup_refined_masks, backup_refined_segmentations
-                backup_success_list, backup_outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-                values = ibs.ibeis_plugin_curvrank_trailing_edges(backup_aid_list, backup_success_list, backup_outlines)
+                backup_success_list, backup_outlines = ibs.wbia_plugin_curvrank_outline(*args)
+                values = ibs.wbia_plugin_curvrank_trailing_edges(backup_aid_list, backup_success_list, backup_outlines)
                 backup_success_list_, backup_trailing_edges_ = values
                 success = backup_success_list_[0]
                 trailing_edge = backup_trailing_edges_[0]
@@ -1327,47 +1327,47 @@ def ibeis_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
+def wbia_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
                                      scales=DEFAULT_SCALES['dorsal'], transpose_dims=False,
                                      **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         curvatures
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvatures
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvatures:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvatures:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges)
+        >>> values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges)
         >>> success_list, curvatures = values
         >>> curvature = curvatures[0]
         >>> assert success_list == [True]
@@ -1375,8 +1375,8 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -1390,22 +1390,22 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         >>> scales = DEFAULT_SCALES[model_type]
         >>> allow_diagonal = DEFAULT_ALLOW_DIAGONAL[model_type]
         >>> transpose_dims = DEFAULT_TRANSPOSE_DIMS[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
+        >>> values = ibs.wbia_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
+        >>> values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
         >>> success_list, curvatures = values
         >>> curvature = curvatures[0]
         >>> assert success_list == [True]
@@ -1421,7 +1421,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(ibeis_plugin_curvrank_curvatures_worker, zipped,
+    generator = ut.generate2(wbia_plugin_curvrank_curvatures_worker, zipped,
                              nTasks=len(success_list), **config_)
 
     success_list_ = []
@@ -1433,7 +1433,7 @@ def ibeis_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
     return success_list_, curvatures
 
 
-def ibeis_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
+def wbia_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
                                             transpose_dims):
     success_ = success
     if success:
@@ -1448,50 +1448,50 @@ def ibeis_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
+def wbia_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
                                                 curv_length=1024, scales=DEFAULT_SCALES['dorsal'],
                                                 num_keypoints=32, uniform=False,
                                                 feat_dim=32, **kwargs):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         curvature_descriptors
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvature_descriptors
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvature_descriptors:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_curvature_descriptors:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvature_descriptors
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvature_descriptors:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvature_descriptors:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> success_list, outlines = ibs.ibeis_plugin_curvrank_outline(*args)
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
+        >>> success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines)
         >>> success_list, trailing_edges = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges)
+        >>> values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges)
         >>> success_list, curvatures = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvature_descriptors(success_list, curvatures)
+        >>> values = ibs.wbia_plugin_curvrank_curvature_descriptors(success_list, curvatures)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
@@ -1503,8 +1503,8 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> import numpy as np
@@ -1518,24 +1518,24 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> scales = DEFAULT_SCALES[model_type]
         >>> allow_diagonal = DEFAULT_ALLOW_DIAGONAL[model_type]
         >>> transpose_dims = DEFAULT_TRANSPOSE_DIMS[model_type]
-        >>> values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
+        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
         >>> resized_images, resized_masks, pre_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, width=width, height=height, model_type=model_type)
         >>> localized_images, localized_masks, loc_transforms = values
-        >>> values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
+        >>> values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, width=width, height=height, scale=scale)
         >>> refined_localizations, refined_masks = values
-        >>> values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, width=width, height=height, scale=scale, model_type=model_type)
         >>> segmentations, refined_segmentations = values
-        >>> values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
         >>> success_list, starts, ends = values
         >>> args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
-        >>> values = ibs.ibeis_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
+        >>> values = ibs.wbia_plugin_curvrank_outline(*args, scale=scale, model_type=model_type, allow_diagonal=allow_diagonal)
         >>> success_list, outlines = values
-        >>> values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
+        >>> values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines, model_type=model_type)
         >>> success_list, trailing_edges = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
+        >>> values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims)
         >>> success_list, curvatures = values
-        >>> values = ibs.ibeis_plugin_curvrank_curvature_descriptors(success_list, curvatures, scales=scales)
+        >>> values = ibs.wbia_plugin_curvrank_curvature_descriptors(success_list, curvatures, scales=scales)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
@@ -1560,7 +1560,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(ibeis_plugin_curvrank_curvature_descriptors_worker, zipped,
+    generator = ut.generate2(wbia_plugin_curvrank_curvature_descriptors_worker, zipped,
                              nTasks=len(success_list), **config_)
 
     success_list_ = []
@@ -1572,7 +1572,7 @@ def ibeis_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
     return success_list_, curvature_descriptor_dicts
 
 
-def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_length,
+def wbia_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_length,
                                                        scales, num_keypoints, uniform,
                                                        feat_dim):
     scale_str_list = [
@@ -1610,33 +1610,33 @@ def ibeis_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
+def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         curvature_descriptors
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_compute:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:3
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
@@ -1648,8 +1648,8 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1665,7 +1665,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
         >>> assert success_list == [True]
@@ -1677,14 +1677,14 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> aid_list *= 20
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> success_list = success_list[:1]
         >>> curvature_descriptor_dicts = curvature_descriptor_dicts[:1]
@@ -1698,8 +1698,8 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1716,7 +1716,7 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
         >>> success_list, curvature_descriptor_dicts = values
         >>> success_list = success_list[:1]
         >>> curvature_descriptor_dicts = curvature_descriptor_dicts[:1]
@@ -1728,65 +1728,65 @@ def ibeis_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
     """
-    values = ibs.ibeis_plugin_curvrank_preprocessing(aid_list, **config)
+    values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
     resized_images, resized_masks, pre_transforms = values
 
-    values = ibs.ibeis_plugin_curvrank_localization(resized_images, resized_masks, **config)
+    values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, **config)
     localized_images, localized_masks, loc_transforms = values
 
-    values = ibs.ibeis_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, **config)
+    values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, **config)
     refined_localizations, refined_masks = values
 
-    values = ibs.ibeis_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, **config)
+    values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, **config)
     segmentations, refined_segmentations = values
 
-    values = ibs.ibeis_plugin_curvrank_keypoints(segmentations, localized_masks, **config)
+    values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, **config)
     success, starts, ends = values
 
     args = success, starts, ends, refined_localizations, refined_masks, refined_segmentations
-    success, outlines = ibs.ibeis_plugin_curvrank_outline(*args, **config)
+    success, outlines = ibs.wbia_plugin_curvrank_outline(*args, **config)
 
-    values = ibs.ibeis_plugin_curvrank_trailing_edges(aid_list, success, outlines, **config)
+    values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success, outlines, **config)
     success, trailing_edges = values
 
-    values = ibs.ibeis_plugin_curvrank_curvatures(success, trailing_edges, **config)
+    values = ibs.wbia_plugin_curvrank_curvatures(success, trailing_edges, **config)
     success, curvatures = values
 
-    values = ibs.ibeis_plugin_curvrank_curvature_descriptors(success, curvatures, **config)
+    values = ibs.wbia_plugin_curvrank_curvature_descriptors(success, curvatures, **config)
     success, curvature_descriptors = values
 
     return success, curvature_descriptors
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
+def wbia_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
                                              descriptor_dict_list):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         curvature_descriptors
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_aggregate
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_aggregate:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline_aggregate:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
-        >>> lnbnn_dict = ibs.ibeis_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
+        >>> lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1795,8 +1795,8 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1812,9 +1812,9 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
+        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
         >>> success_list, curvature_descriptor_dicts = values
-        >>> lnbnn_dict = ibs.ibeis_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
+        >>> lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1854,38 +1854,38 @@ def ibeis_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
+def wbia_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
                                    config={}, use_depc=USE_DEPC,
                                    use_depc_optimized=USE_DEPC_OPTIMIZED,
                                    verbose=False):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of ibeis_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of ibeis_plugin_curvrank_outline
+        success_list: output of wbia_plugin_curvrank_outline
+        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
 
     Returns:
         success_list_
         curvature_descriptors
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:3
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:4
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_pipeline:5
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:4
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:5
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1894,13 +1894,13 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1909,13 +1909,13 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=True)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1924,8 +1924,8 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1941,7 +1941,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1950,8 +1950,8 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     Example4:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1967,7 +1967,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -1976,8 +1976,8 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     Example5:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1993,7 +1993,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> lnbnn_dict, aid_list = ibs.ibeis_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=True)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -2013,13 +2013,13 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         success_list         = ibs.depc_annot.get(table_name, aid_list, 'success',    config=config_)
         descriptor_dict_list = ibs.depc_annot.get(table_name, aid_list, 'descriptor', config=config_)
     else:
-        values = ibs.ibeis_plugin_curvrank_pipeline_compute(aid_list, config=config)
+        values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
         success_list, descriptor_dict_list = values
 
     if verbose:
         print('\tAggregate Pipeline Results')
 
-    lnbnn_dict = ibs.ibeis_plugin_curvrank_pipeline_aggregate(
+    lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(
         aid_list,
         success_list,
         descriptor_dict_list
@@ -2029,7 +2029,7 @@ def ibeis_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
+def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                                  verbose=False,
                                  use_names=True,
                                  minimum_score=-1e-5,
@@ -2046,17 +2046,17 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         score_dict
 
     CommandLine:
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:0
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:1
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:2
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:3
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:4
-        python -m ibeis_curvrank._plugin --test-ibeis_plugin_curvrank_scores:5
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:2
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:3
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:4
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:5
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2065,7 +2065,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2076,7 +2076,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2085,7 +2085,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2096,7 +2096,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2105,7 +2105,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2116,8 +2116,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     Example3:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2136,7 +2136,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2147,8 +2147,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     Example4:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2167,7 +2167,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=False)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2178,8 +2178,8 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     Example5:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin import *  # NOQA
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -2198,7 +2198,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict_iter = ibs.ibeis_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -2332,7 +2332,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
         scale_set = set([])
         qr_lnbnn_data_list = []
         for qr_aid_list in ut.ProgressIter(qr_aids_list, lbl='CurvRank Query LNBNN', freq=1000):
-            values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
+            values = ibs.wbia_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
                                                         verbose=verbose, use_depc=use_depc,
                                                         use_depc_optimized=use_depc_optimized)
             qr_lnbnn_data, _ = values
@@ -2407,7 +2407,7 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
             ut.ensuredir(future_index_path)
 
             with ut.Timer('Loading database LNBNN descriptors from depc'):
-                values = ibs.ibeis_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
+                values = ibs.wbia_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
                                                             verbose=verbose, use_depc=use_depc,
                                                             use_depc_optimized=use_depc_optimized)
                 db_lnbnn_data, _ = values
@@ -2497,14 +2497,14 @@ def ibeis_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
+def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin --exec-ibeis_plugin_curvrank
+        python -m wbia_curvrank._plugin --exec-wbia_plugin_curvrank
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from ibeis_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -2517,7 +2517,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         >>> qaid_list, daid_list = root_rowids
         >>> # Call function normally
         >>> config = CurvRankDorsalConfig()
-        >>> score_list = list(ibs.ibeis_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
+        >>> score_list = list(ibs.wbia_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
         >>> result = score_list
         >>> print(result)
         [(-0.0,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (-0.0,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (-0.0,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (-0.0,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (-0.0,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (-0.0,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (-0.0,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (-0.0,)]
@@ -2541,7 +2541,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     args = (label, len(qaid_list), len(qaid_list_), len(daid_list), len(daid_list_))
     message = 'Computing IBEIS CurvRank (%s) on %d total qaids (%d unique), %d total daids (%d unique)' % args
     with ut.Timer(message):
-        value_iter = ibs.ibeis_plugin_curvrank_scores_depc(db_aid_list, qr_aids_list,
+        value_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, qr_aids_list,
                                                            config=config,
                                                            use_names=False,
                                                            use_depc_optimized=USE_DEPC_OPTIMIZED)
@@ -2562,7 +2562,7 @@ def ibeis_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
 
 
 @register_ibs_method
-def ibeis_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
+def wbia_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
     import networkx as nx
 
     assert tablename in ['CurvRankDorsal', 'CurvRankFluke', 'CurvRankFinfindrHybridDorsal']
@@ -2615,7 +2615,7 @@ def ibeis_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
 if __name__ == '__main__':
     r"""
     CommandLine:
-        python -m ibeis_curvrank._plugin --allexamples
+        python -m wbia_curvrank._plugin --allexamples
     """
     import multiprocessing
     multiprocessing.freeze_support()  # for win32
