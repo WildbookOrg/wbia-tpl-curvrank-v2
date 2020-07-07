@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # THIS FILE IS GENERATED FROM SETUP.PY
 from wbia_curvrank import _plugin  # NOQA
 
