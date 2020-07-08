@@ -11,19 +11,24 @@ PATH = split(abspath(__file__))[0]
 lib = ctypes.cdll.LoadLibrary(join(PATH, 'astar.so'))
 
 astar = lib.astar
-ndmat_f_type = np.ctypeslib.ndpointer(
-    dtype=np.float32, ndim=1, flags='C_CONTIGUOUS')
-ndmat_i_type = np.ctypeslib.ndpointer(
-    dtype=np.int32, ndim=1, flags='C_CONTIGUOUS')
+ndmat_f_type = np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS')
+ndmat_i_type = np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags='C_CONTIGUOUS')
 astar.restype = ctypes.c_bool
-astar.argtypes = [ndmat_f_type, ctypes.c_int, ctypes.c_int,
-                  ctypes.c_int, ctypes.c_int, ctypes.c_bool,
-                  ndmat_i_type]
+astar.argtypes = [
+    ndmat_f_type,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_bool,
+    ndmat_i_type,
+]
 
 
 def astar_path(weights, start, goal, allow_diagonal=False):
-    assert weights.min(axis=None) >= 1., (
-        'weights.min() = %.2f != 1' % weights.min(axis=None))
+    assert weights.min(axis=None) >= 1.0, 'weights.min() = %.2f != 1' % weights.min(
+        axis=None
+    )
     height, width = weights.shape
     start_idx = np.ravel_multi_index(start, (height, width))
     goal_idx = np.ravel_multi_index(goal, (height, width))
@@ -31,8 +36,13 @@ def astar_path(weights, start, goal, allow_diagonal=False):
     # The C++ code writes the solution to the paths array
     paths = np.full(height * width, -1, dtype=np.int32)
     success = astar(
-        weights.flatten(), height, width, start_idx, goal_idx, allow_diagonal,
-        paths  # output parameter
+        weights.flatten(),
+        height,
+        width,
+        start_idx,
+        goal_idx,
+        allow_diagonal,
+        paths,  # output parameter
     )
     if not success:
         return np.array([])

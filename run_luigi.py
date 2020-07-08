@@ -16,6 +16,7 @@ from time import time
 from tqdm import tqdm
 from os.path import basename, exists, isfile, join, splitext
 import six
+
 if six.PY2:
     import cPickle as pickle
 else:
@@ -39,8 +40,9 @@ class HDF5LocalTarget(luigi.LocalTarget):
 
 class PrepareData(luigi.Task):
     dataset = luigi.ChoiceParameter(
-        choices=['nz', 'sdrp', 'fb', 'crc', 'crc2018', 'coa'], var_type=str,
-        description='Name of the dataset to use.'
+        choices=['nz', 'sdrp', 'fb', 'crc', 'crc2018', 'coa'],
+        var_type=str,
+        description='Name of the dataset to use.',
     )
 
     def requires(self):
@@ -50,7 +52,7 @@ class PrepareData(luigi.Task):
         basedir = join('data', self.dataset, self.__class__.__name__,)
         return {
             'csv': luigi.LocalTarget(join(basedir, '%s.csv' % self.dataset)),
-            'pkl': luigi.LocalTarget(join(basedir, '%s.pickle' % self.dataset))
+            'pkl': luigi.LocalTarget(join(basedir, '%s.pickle' % self.dataset)),
         }
 
     def run(self):
@@ -62,9 +64,7 @@ class PrepareData(luigi.Task):
         with output['csv'].open('w') as f:
             f.write('impath,individual,encounter,side\n')
             for img_fpath, indiv_name, enc_name, side in data_list:
-                f.write('%s,%s,%s,%s\n' % (
-                    img_fpath, indiv_name, enc_name, side)
-                )
+                f.write('%s,%s,%s,%s\n' % (img_fpath, indiv_name, enc_name, side))
         with output['pkl'].open('wb') as f:
             pickle.dump(data_list, f, pickle.HIGHEST_PROTOCOL)
 
@@ -77,25 +77,20 @@ class PrepareData(luigi.Task):
 
 @inherits(PrepareData)
 class EncounterStats(luigi.Task):
-
     def requires(self):
-        return {
-            'PrepareData': self.clone(PrepareData)
-        }
+        return {'PrepareData': self.clone(PrepareData)}
 
     def complete(self):
         if not exists(self.requires()['PrepareData'].output()['csv'].path):
             return False
         else:
-            return all(map(
-                lambda output: output.exists(),
-                luigi.task.flatten(self.output())
-            ))
+            return all(
+                map(lambda output: output.exists(), luigi.task.flatten(self.output()))
+            )
 
     def output(self):
         return luigi.LocalTarget(
-            join('data', self.dataset, self.__class__.__name__,
-                 '%s.png' % self.dataset)
+            join('data', self.dataset, self.__class__.__name__, '%s.png' % self.dataset)
         )
 
     def run(self):
@@ -104,7 +99,7 @@ class EncounterStats(luigi.Task):
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
         ind_enc_count_dict = {}
-        for img, ind, enc, _  in input_filepaths:
+        for img, ind, enc, _ in input_filepaths:
             if ind not in ind_enc_count_dict:
                 ind_enc_count_dict[ind] = {}
             if enc not in ind_enc_count_dict[ind]:
@@ -133,7 +128,7 @@ class EncounterStats(luigi.Task):
             encounter_counts, bins=range(1, 20), density=True,
         )
 
-        f, (ax1, ax2) = plt.subplots(2, 1, figsize=(22., 12))
+        f, (ax1, ax2) = plt.subplots(2, 1, figsize=(22.0, 12))
 
         ax1.set_title('Number of encounters f(x) with x images')
         ax1.set_xlabel('Images')
@@ -153,9 +148,7 @@ class Preprocess(luigi.Task):
     height = luigi.IntParameter(
         default=256, description='Height of images after resizing.'
     )
-    width = luigi.IntParameter(
-        default=256, description='Width of images after resizing.'
-    )
+    width = luigi.IntParameter(default=256, description='Width of images after resizing.')
 
     def requires(self):
         return {'PrepareData': self.clone(PrepareData)}
@@ -168,13 +161,18 @@ class Preprocess(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
-                      not exists(output[fpath]['resized'].path) or
-                      not exists(output[fpath]['mask'].path) or
-                      not exists(output[fpath]['transform'].path)]
+        to_process = [
+            (fpath, side)
+            for fpath, _, _, side in input_filepaths
+            if not exists(output[fpath]['resized'].path)
+            or not exists(output[fpath]['mask'].path)
+            or not exists(output[fpath]['transform'].path)
+        ]
 
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths)))
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
+        )
 
         return to_process
 
@@ -188,12 +186,9 @@ class Preprocess(luigi.Task):
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
-                'resized': luigi.LocalTarget(
-                    join(basedir, 'resized', png_fname)),
-                'transform': luigi.LocalTarget(
-                    join(basedir, 'transform', pkl_fname)),
-                'mask': luigi.LocalTarget(
-                    join(basedir, 'mask', png_fname)),
+                'resized': luigi.LocalTarget(join(basedir, 'resized', png_fname)),
+                'transform': luigi.LocalTarget(join(basedir, 'transform', pkl_fname)),
+                'mask': luigi.LocalTarget(join(basedir, 'mask', png_fname)),
             }
 
         return outputs
@@ -211,7 +206,7 @@ class Preprocess(luigi.Task):
             width=self.width,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
+        # for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_preprocess_images(fpath)
         try:
             pool = mp.Pool(processes=None)
@@ -220,8 +215,7 @@ class Preprocess(luigi.Task):
             pool.close()
             pool.join()
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -244,12 +238,16 @@ class Localization(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
-                      not exists(output[fpath]['localization'].path) or
-                      not exists(output[fpath]['mask'].path) or
-                      not exists(output[fpath]['transform'].path)]
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        to_process = [
+            fpath
+            for fpath, _, _, _ in input_filepaths
+            if not exists(output[fpath]['localization'].path)
+            or not exists(output[fpath]['mask'].path)
+            or not exists(output[fpath]['transform'].path)
+        ]
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -261,16 +259,15 @@ class Localization(luigi.Task):
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
-            fname =  splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'localization': luigi.LocalTarget(
-                    join(basedir, 'localization', png_fname)),
-                'mask': luigi.LocalTarget(
-                    join(basedir, 'mask', png_fname)),
-                'transform': luigi.LocalTarget(
-                    join(basedir, 'transform', pkl_fname)),
+                    join(basedir, 'localization', png_fname)
+                ),
+                'mask': luigi.LocalTarget(join(basedir, 'mask', png_fname)),
+                'transform': luigi.LocalTarget(join(basedir, 'transform', pkl_fname)),
             }
 
         return outputs
@@ -285,12 +282,13 @@ class Localization(luigi.Task):
         preprocess_images_targets = self.requires()['Preprocess'].output()
         if self.no_localization:
             from workers import localization_identity
+
             partial_localization_identity = partial(
                 localization_identity,
                 height=self.height,
                 width=self.width,
                 input_targets=preprocess_images_targets,
-                output_targets=output
+                output_targets=output,
             )
 
             try:
@@ -301,34 +299,37 @@ class Localization(luigi.Task):
                 pool.join()
         else:
             from workers import localization_stn
+
             logger.info('Building localization model')
             layers = localization.build_model(
-                (None, 3, self.height, self.width), downsample=1)
+                (None, 3, self.height, self.width), downsample=1
+            )
 
             localization_weightsfile = join(
                 'data', 'weights', 'weights_localization.pickle'
             )
             logger.info(
-                'Loading weights for the localization network from %s' % (
-                    localization_weightsfile))
-            model.load_weights([
-                layers['trans'], layers['loc']],
-                localization_weightsfile
+                'Loading weights for the localization network from %s'
+                % (localization_weightsfile)
             )
+            model.load_weights([layers['trans'], layers['loc']], localization_weightsfile)
 
             logger.info('Compiling theano functions for localization')
-            localization_func = theano_funcs.create_localization_infer_func(
-                layers)
+            localization_func = theano_funcs.create_localization_infer_func(layers)
 
             # we don't parallelize this function because it uses the gpu
-            localization_stn(to_process,
-                             self.batch_size, self.height, self.width,
-                             localization_func,
-                             preprocess_images_targets, output)
+            localization_stn(
+                to_process,
+                self.batch_size,
+                self.height,
+                self.width,
+                localization_func,
+                preprocess_images_targets,
+                output,
+            )
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -345,11 +346,15 @@ class Refinement(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [(fpath, side) for fpath, _, _, side in input_filepaths if
-                      not exists(output[fpath]['refn'].path) or
-                      not exists(output[fpath]['mask'].path)]
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        to_process = [
+            (fpath, side)
+            for fpath, _, _, side in input_filepaths
+            if not exists(output[fpath]['refn'].path)
+            or not exists(output[fpath]['mask'].path)
+        ]
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -361,20 +366,19 @@ class Refinement(luigi.Task):
 
         outputs = {}
         for fpath, _, _, _ in input_filepaths:
-            fname =  splitext(basename(fpath))[0]
+            fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
-                'refn': luigi.LocalTarget(
-                    join(basedir, 'refn', png_fname)),
-                'mask': luigi.LocalTarget(
-                    join(basedir, 'mask', pkl_fname)),
+                'refn': luigi.LocalTarget(join(basedir, 'refn', png_fname)),
+                'mask': luigi.LocalTarget(join(basedir, 'mask', pkl_fname)),
             }
 
         return outputs
 
     def run(self):
         from workers import refine_localization_star
+
         preprocess_images_targets = self.requires()['Preprocess'].output()
         localization_targets = self.requires()['Localization'].output()
         to_process = self.get_incomplete()
@@ -421,14 +425,17 @@ class Segmentation(luigi.Task):
             seg_data_fpath = output[fpath]['segmentation-data'].path
             seg_full_img_fpath = output[fpath]['segmentation-full-image'].path
             seg_full_data_fpath = output[fpath]['segmentation-full-data'].path
-            if not exists(seg_img_fpath) \
-                    or not exists(seg_data_fpath) \
-                    or not exists(seg_full_img_fpath) \
-                    or not exists(seg_full_data_fpath):
+            if (
+                not exists(seg_img_fpath)
+                or not exists(seg_data_fpath)
+                or not exists(seg_full_img_fpath)
+                or not exists(seg_full_data_fpath)
+            ):
                 to_process.append(fpath)
 
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -444,13 +451,17 @@ class Segmentation(luigi.Task):
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'segmentation-image': luigi.LocalTarget(
-                    join(basedir, 'segmentation-image', png_fname)),
+                    join(basedir, 'segmentation-image', png_fname)
+                ),
                 'segmentation-data': luigi.LocalTarget(
-                    join(basedir, 'segmentation-data', pkl_fname)),
+                    join(basedir, 'segmentation-data', pkl_fname)
+                ),
                 'segmentation-full-image': luigi.LocalTarget(
-                    join(basedir, 'segmentation-full-image', png_fname)),
+                    join(basedir, 'segmentation-full-image', png_fname)
+                ),
                 'segmentation-full-data': luigi.LocalTarget(
-                    join(basedir, 'segmentation-full-data', pkl_fname)),
+                    join(basedir, 'segmentation-full-data', pkl_fname)
+                ),
             }
 
         return outputs
@@ -463,16 +474,19 @@ class Segmentation(luigi.Task):
         t_start = time()
         input_shape = (None, 3, self.height, self.width)
 
-        logger.info('Building segmentation model with input shape %r' % (
-            input_shape,))
+        logger.info('Building segmentation model with input shape %r' % (input_shape,))
         layers_segm = segmentation.build_model_batchnorm_full(input_shape)
 
         segmentation_weightsfile = join(
-            'data', 'weights', 'weights_segmentation.pickle'
+            'data',
+            'weights',
+            'weights_segmentation.pickle'
             #'data', 'weights', 'weights_humpbacks_segmentation.pickle'
         )
-        logger.info('Loading weights for the segmentation network from %s' % (
-            segmentation_weightsfile))
+        logger.info(
+            'Loading weights for the segmentation network from %s'
+            % (segmentation_weightsfile)
+        )
         model.load_weights(layers_segm['seg_out'], segmentation_weightsfile)
 
         logger.info('Compiling theano functions for segmentation')
@@ -483,18 +497,17 @@ class Segmentation(luigi.Task):
 
         to_process = self.get_incomplete()
         num_batches = (len(to_process) + self.batch_size - 1) // self.batch_size
-        logger.info('%d batches of size %d to process' % (
-            num_batches, self.batch_size))
+        logger.info('%d batches of size %d to process' % (num_batches, self.batch_size))
         for i in tqdm(range(num_batches), total=num_batches, leave=False):
-            idx_range = range(i * self.batch_size,
-                              min((i + 1) * self.batch_size, len(to_process)))
+            idx_range = range(
+                i * self.batch_size, min((i + 1) * self.batch_size, len(to_process))
+            )
             X_batch = np.empty(
                 (len(idx_range), 3, self.height, self.width), dtype=np.float32
             )
             M_batch = np.empty(
-                (len(idx_range), 1,
-                    self.scale * self.height, self.scale * self.width),
-                dtype=np.float32
+                (len(idx_range), 1, self.scale * self.height, self.scale * self.width),
+                dtype=np.float32,
             )
 
             for i, idx in enumerate(idx_range):
@@ -504,10 +517,10 @@ class Segmentation(luigi.Task):
                 img = cv2.imread(img_path)
 
                 resz = cv2.resize(img, (self.width, self.height))
-                X_batch[i] = resz.transpose(2, 0, 1) / 255.
+                X_batch[i] = resz.transpose(2, 0, 1) / 255.0
                 M_batch[i, 0] = cv2.imread(msk_path, cv2.IMREAD_GRAYSCALE)
 
-            S_batch  = segm_func(X_batch)
+            S_batch = segm_func(X_batch)
             for i, idx in enumerate(idx_range):
                 fpath = to_process[idx]
                 segm_img_target = output[fpath]['segmentation-image']
@@ -520,28 +533,29 @@ class Segmentation(luigi.Task):
 
                 segm_refn = imutils.refine_segmentation(segm, self.scale)
 
-                segm_refn[mask[:, :, 0] < 255] = 0.
+                segm_refn[mask[:, :, 0] < 255] = 0.0
 
-                _, segm_buf = cv2.imencode('.png', 255. * segm)
-                _, segm_refn_buf = cv2.imencode('.png', 255. * segm_refn)
-                with segm_img_target.open('wb') as f1,\
-                        segm_data_target.open('wb') as f2,\
-                        segm_full_img_target.open('wb') as f3,\
-                        segm_full_data_target.open('wb') as f4:
+                _, segm_buf = cv2.imencode('.png', 255.0 * segm)
+                _, segm_refn_buf = cv2.imencode('.png', 255.0 * segm_refn)
+                with segm_img_target.open('wb') as f1, segm_data_target.open(
+                    'wb'
+                ) as f2, segm_full_img_target.open(
+                    'wb'
+                ) as f3, segm_full_data_target.open(
+                    'wb'
+                ) as f4:
                     f1.write(segm_buf)
                     pickle.dump(segm, f2, pickle.HIGHEST_PROTOCOL)
                     f3.write(segm_refn_buf)
                     pickle.dump(segm_refn, f4, pickle.HIGHEST_PROTOCOL)
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
 @inherits(Localization)
 @inherits(Segmentation)
 class Keypoints(luigi.Task):
-
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -552,11 +566,15 @@ class Keypoints(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
-                      not exists(output[fpath]['keypoints-visual'].path) or
-                      not exists(output[fpath]['keypoints-coords'].path)]
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        to_process = [
+            fpath
+            for fpath, _, _, _ in input_filepaths
+            if not exists(output[fpath]['keypoints-visual'].path)
+            or not exists(output[fpath]['keypoints-coords'].path)
+        ]
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -573,15 +591,18 @@ class Keypoints(luigi.Task):
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'keypoints-visual': luigi.LocalTarget(
-                    join(basedir, 'keypoints-visual', png_fname)),
+                    join(basedir, 'keypoints-visual', png_fname)
+                ),
                 'keypoints-coords': luigi.LocalTarget(
-                    join(basedir, 'keypoints-coords', pkl_fname)),
+                    join(basedir, 'keypoints-coords', pkl_fname)
+                ),
             }
 
         return outputs
 
     def run(self):
         from workers import find_keypoints
+
         t_start = time()
         output = self.output()
         localization_targets = self.requires()['Localization'].output()
@@ -590,9 +611,11 @@ class Keypoints(luigi.Task):
 
         if self.dataset in ('sdrp', 'nz'):
             from dorsal_utils import find_dorsal_keypoints
+
             method = find_dorsal_keypoints
         elif self.dataset in ('crc', 'fb'):
             from dorsal_utils import find_fluke_keypoints
+
             method = find_fluke_keypoints
         else:
             assert False, 'No keypoint method for dataset %s' % (self.dataset)
@@ -604,7 +627,7 @@ class Keypoints(luigi.Task):
             input2_targets=segmentation_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
+        # for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_find_keypoints(fpath)
         try:
             pool = mp.Pool(processes=None)
@@ -614,8 +637,7 @@ class Keypoints(luigi.Task):
             pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -623,7 +645,6 @@ class Keypoints(luigi.Task):
 @inherits(Segmentation)
 @inherits(Keypoints)
 class ExtractOutline(luigi.Task):
-
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -635,11 +656,15 @@ class ExtractOutline(luigi.Task):
     def get_incomplete(self):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
-                      not exists(output[fpath]['outline-visual'].path) or
-                      not exists(output[fpath]['outline-coords'].path)]
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        to_process = [
+            fpath
+            for fpath, _, _, _ in input_filepaths
+            if not exists(output[fpath]['outline-visual'].path)
+            or not exists(output[fpath]['outline-coords'].path)
+        ]
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -655,9 +680,11 @@ class ExtractOutline(luigi.Task):
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
                 'outline-visual': luigi.LocalTarget(
-                    join(basedir, 'outline-visual', png_fname)),
+                    join(basedir, 'outline-visual', png_fname)
+                ),
                 'outline-coords': luigi.LocalTarget(
-                    join(basedir, 'outline-coords', pkl_fname)),
+                    join(basedir, 'outline-coords', pkl_fname)
+                ),
             }
 
         return outputs
@@ -667,10 +694,12 @@ class ExtractOutline(luigi.Task):
 
         if self.dataset in ('sdrp', 'nz'):
             from dorsal_utils import dorsal_cost_func
+
             allow_diagonal = False
             cost_func = dorsal_cost_func
         elif self.dataset in ('crc', 'fb'):
             from dorsal_utils import fluke_cost_func
+
             allow_diagonal = True
             cost_func = fluke_cost_func
         else:
@@ -693,7 +722,7 @@ class ExtractOutline(luigi.Task):
             input3_targets=keypoints_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
+        # for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_extract_outline(fpath)
         try:
             pool = mp.Pool(processes=None)
@@ -703,15 +732,13 @@ class ExtractOutline(luigi.Task):
             pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
 @inherits(Refinement)
 @inherits(ExtractOutline)
 class SeparateEdges(luigi.Task):
-
     def requires(self):
         return {
             'PrepareData': self.clone(PrepareData),
@@ -723,12 +750,16 @@ class SeparateEdges(luigi.Task):
         output = self.output()
         input_filepaths = self.requires()['PrepareData'].get_input_list()
 
-        to_process = [fpath for fpath, _, _, _ in input_filepaths if
-                      not exists(output[fpath]['visual'].path) or
-                      not exists(output[fpath]['leading-coords'].path) or
-                      not exists(output[fpath]['trailing-coords'].path)]
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        to_process = [
+            fpath
+            for fpath, _, _, _ in input_filepaths
+            if not exists(output[fpath]['visual'].path)
+            or not exists(output[fpath]['leading-coords'].path)
+            or not exists(output[fpath]['trailing-coords'].path)
+        ]
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -744,12 +775,13 @@ class SeparateEdges(luigi.Task):
             png_fname = '%s.png' % fname
             pkl_fname = '%s.pickle' % fname
             outputs[fpath] = {
-                'visual': luigi.LocalTarget(
-                    join(basedir, 'visual', png_fname)),
+                'visual': luigi.LocalTarget(join(basedir, 'visual', png_fname)),
                 'leading-coords': luigi.LocalTarget(
-                    join(basedir, 'leading-coords', pkl_fname)),
+                    join(basedir, 'leading-coords', pkl_fname)
+                ),
                 'trailing-coords': luigi.LocalTarget(
-                    join(basedir, 'trailing-coords', pkl_fname)),
+                    join(basedir, 'trailing-coords', pkl_fname)
+                ),
             }
 
         return outputs
@@ -777,7 +809,7 @@ class SeparateEdges(luigi.Task):
             input2_targets=extract_outline_targets,
             output_targets=output,
         )
-        #for fpath in tqdm(to_process, total=len(to_process)):
+        # for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_separate_edges(fpath)
         try:
             pool = mp.Pool(processes=None)
@@ -787,8 +819,7 @@ class SeparateEdges(luigi.Task):
             pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -830,8 +861,9 @@ class BlockCurvature(luigi.Task):
             else:
                 to_process.append((fpath, tuple(self.curv_scales)))
 
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -851,8 +883,7 @@ class BlockCurvature(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             for s in self.curv_scales:
                 outputs[fpath] = {
-                    'curvature': HDF5LocalTarget(
-                        join(basedir, h5py_fname)),
+                    'curvature': HDF5LocalTarget(join(basedir, h5py_fname)),
                 }
 
         return outputs
@@ -889,25 +920,21 @@ class BlockCurvature(luigi.Task):
                 pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
 @inherits(SeparateEdges)
 class SeparateDatabaseQueries(luigi.Task):
     num_db_encounters = luigi.IntParameter(
-        default=10, description='Number of encounters to use to represent '
-        'each individual in the database.'
+        default=10,
+        description='Number of encounters to use to represent '
+        'each individual in the database.',
     )
 
-    eval_dir = luigi.Parameter(
-        description='The directory in which to store the splits.'
-    )
+    eval_dir = luigi.Parameter(description='The directory in which to store the splits.')
 
-    runs = luigi.IntParameter(
-        description='The number of database/query splits to do.'
-    )
+    runs = luigi.IntParameter(description='The number of database/query splits to do.')
 
     def requires(self):
         return {
@@ -918,16 +945,13 @@ class SeparateDatabaseQueries(luigi.Task):
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
         outdir = join(
-            basedir, self.eval_dir,
-            '%s' % self.runs, '%s' % self.num_db_encounters
+            basedir, self.eval_dir, '%s' % self.runs, '%s' % self.num_db_encounters
         )
         db_targets = [
-            luigi.LocalTarget(join(outdir, 'db%d.pickle' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'db%d.pickle' % i)) for i in range(self.runs)
         ]
         qr_targets = [
-            luigi.LocalTarget(join(outdir, 'qr%d.pickle' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'qr%d.pickle' % i)) for i in range(self.runs)
         ]
         return {'database': db_targets, 'queries': qr_targets}
 
@@ -940,8 +964,9 @@ class SeparateDatabaseQueries(luigi.Task):
         trailing_edge_dict = self.requires()['SeparateEdges'].output()
         trailing_edge_filepaths = trailing_edge_dict.keys()
         logger.info('Collecting trailing edge extractions.')
-        for fpath in tqdm(trailing_edge_filepaths,
-                          total=len(trailing_edge_filepaths), leave=False):
+        for fpath in tqdm(
+            trailing_edge_filepaths, total=len(trailing_edge_filepaths), leave=False
+        ):
             trailing_edge_target = trailing_edge_dict[fpath]['trailing-coords']
             with open(trailing_edge_target.path, 'rb') as f:
                 trailing_edge = pickle.load(f, encoding='latin1')
@@ -952,31 +977,38 @@ class SeparateDatabaseQueries(luigi.Task):
                 fname = splitext(basename(fpath))[0]
                 fname_trailing_edge_dict[fname] = fpath
 
-        logger.info('Successful trailing edge extractions: %d of %d' % (
-            len(fname_trailing_edge_dict.keys()), len(trailing_edge_filepaths))
+        logger.info(
+            'Successful trailing edge extractions: %d of %d'
+            % (len(fname_trailing_edge_dict.keys()), len(trailing_edge_filepaths))
         )
         for i in range(self.runs):
             db_dict, qr_dict = datasets.separate_database_queries(
-                self.dataset, filepaths, individuals, encounters,
+                self.dataset,
+                filepaths,
+                individuals,
+                encounters,
                 fname_trailing_edge_dict,
-                num_db_encounters=self.num_db_encounters
+                num_db_encounters=self.num_db_encounters,
             )
 
             output = self.output()
             db_target = output['database'][i]
-            logger.info('Saving database with %d individuals to %s' % (
-                len(db_dict), db_target.path))
+            logger.info(
+                'Saving database with %d individuals to %s'
+                % (len(db_dict), db_target.path)
+            )
             with db_target.open('wb') as f:
                 pickle.dump(db_dict, f, pickle.HIGHEST_PROTOCOL)
             qr_target = output['queries'][i]
-            logger.info('Saving queries with %d individuals to %s' % (
-                len(qr_dict), qr_target.path))
+            logger.info(
+                'Saving queries with %d individuals to %s'
+                % (len(qr_dict), qr_target.path)
+            )
             with qr_target.open('wb') as f:
                 pickle.dump(qr_dict, f, pickle.HIGHEST_PROTOCOL)
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -1017,8 +1049,9 @@ class GaussDescriptors(luigi.Task):
             else:
                 to_process.append((fpath, tuple(scales)))
 
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -1039,7 +1072,8 @@ class GaussDescriptors(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
                 'descriptors': HDF5LocalTarget(
-                    join(basedir, unifdir, featdir, h5py_fname)),
+                    join(basedir, unifdir, featdir, h5py_fname)
+                ),
             }
 
         return outputs
@@ -1074,8 +1108,7 @@ class GaussDescriptors(luigi.Task):
                 pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -1113,8 +1146,9 @@ class CurvatureDescriptors(luigi.Task):
             else:
                 to_process.append((fpath, tuple(self.curv_scales)))
 
-        logger.info('%s has %d of %d images to process' % (
-            self.__class__.__name__, len(to_process), len(input_filepaths))
+        logger.info(
+            '%s has %d of %d images to process'
+            % (self.__class__.__name__, len(to_process), len(input_filepaths))
         )
 
         return to_process
@@ -1135,7 +1169,8 @@ class CurvatureDescriptors(luigi.Task):
             h5py_fname = '%s.h5py' % fname
             outputs[fpath] = {
                 'descriptors': HDF5LocalTarget(
-                    join(basedir, unifdir, featdir, h5py_fname)),
+                    join(basedir, unifdir, featdir, h5py_fname)
+                ),
             }
 
         return outputs
@@ -1170,8 +1205,7 @@ class CurvatureDescriptors(luigi.Task):
                 pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -1181,9 +1215,7 @@ class CurvatureDescriptors(luigi.Task):
 @inherits(SeparateDatabaseQueries)
 class DescriptorsId(luigi.Task):
     k = luigi.IntParameter(default=2)
-    descriptor_type = luigi.ChoiceParameter(
-        choices=['gauss', 'curv'], var_type=str
-    )
+    descriptor_type = luigi.ChoiceParameter(choices=['gauss', 'curv'], var_type=str)
 
     def requires(self):
         if self.descriptor_type == 'gauss':
@@ -1222,11 +1254,10 @@ class DescriptorsId(luigi.Task):
     def _get_descriptor_scales(self):
         if self.descriptor_type == 'gauss':
             descriptor_scales = [
-                '%s' % (s,)
-                for s in zip(self.descriptor_m, self.descriptor_s)
+                '%s' % (s,) for s in zip(self.descriptor_m, self.descriptor_s)
             ]
         elif self.descriptor_type == 'curv':
-            descriptor_scales = ['%.3f' % s for s in  self.curv_scales]
+            descriptor_scales = ['%.3f' % s for s in self.curv_scales]
         else:
             assert False, 'bad descriptor type: %s' % (self.descriptor_type)
 
@@ -1243,9 +1274,15 @@ class DescriptorsId(luigi.Task):
         output = {}
         for i in range(self.runs):
             outdir = join(
-                basedir, self.eval_dir,
-                self.descriptor_type, kdir, unifdir, featdir, descdir,
-                '%s' % self.num_db_encounters, '%s' % i
+                basedir,
+                self.eval_dir,
+                self.descriptor_type,
+                kdir,
+                unifdir,
+                featdir,
+                descdir,
+                '%s' % self.num_db_encounters,
+                '%s' % i,
             )
             qr_fpath_dict_target = db_qr_target.output()['queries'][i]
             if not qr_fpath_dict_target.exists():
@@ -1277,11 +1314,12 @@ class DescriptorsId(luigi.Task):
         qr_targets = db_qr_target.output()['queries']
 
         descriptor_scales = self._get_descriptor_scales()
-        logger.info('Using descriptor type = %s and feature dimension = %s' % (
-            self.descriptor_type, self.feat_dim))
+        logger.info(
+            'Using descriptor type = %s and feature dimension = %s'
+            % (self.descriptor_type, self.feat_dim)
+        )
         t_start = time()
-        for run_idx, (db_target, qr_target) in enumerate(
-                zip(db_targets, qr_targets)):
+        for run_idx, (db_target, qr_target) in enumerate(zip(db_targets, qr_targets)):
             with db_target.open('rb') as f:
                 db_fpath_dict = pickle.load(f, encoding='latin1')
             with qr_target.open('rb') as f:
@@ -1295,8 +1333,9 @@ class DescriptorsId(luigi.Task):
 
             db_names_dict = defaultdict(list)
             db_descs_dict = defaultdict(list)
-            logger.info('Loading descriptors for %d database individuals' % (
-                len(db_fpath_dict)))
+            logger.info(
+                'Loading descriptors for %d database individuals' % (len(db_fpath_dict))
+            )
 
             dindivs = db_fpath_dict.keys()
             for dind in tqdm(dindivs, total=len(db_fpath_dict), leave=False):
@@ -1319,24 +1358,22 @@ class DescriptorsId(luigi.Task):
             for s in descriptor_scales:
                 num_names = len(db_names_dict[s])
                 num_descs = db_descs_dict[s].shape[0]
-                assert num_names == num_descs, (
-                    '%d != %d' % (num_names, num_descs))
+                assert num_names == num_descs, '%d != %d' % (num_names, num_descs)
 
             index_fpath_dict = {
                 s: join('data', 'tmp', '%s.ann') % s for s in descriptor_scales
             }
             indexes_to_build = [
-                (db_descs_dict[s], index_fpath_dict[s])
-                for s in descriptor_scales
+                (db_descs_dict[s], index_fpath_dict[s]) for s in descriptor_scales
             ]
 
-            logger.info('Building %d kdtrees for scales: %s' % (
-                len(descriptor_scales),
-                ', '.join('%s' % s for s in descriptor_scales))
+            logger.info(
+                'Building %d kdtrees for scales: %s'
+                % (len(descriptor_scales), ', '.join('%s' % s for s in descriptor_scales))
             )
-            data_dims = ', '.join([
-                '%s' % (db_descs_dict[s].shape,) for s in descriptor_scales
-            ])
+            data_dims = ', '.join(
+                ['%s' % (db_descs_dict[s].shape,) for s in descriptor_scales]
+            )
             logger.info('Data dims: %s' % data_dims)
 
             t_trees_start = time()
@@ -1347,24 +1384,27 @@ class DescriptorsId(luigi.Task):
                 pool.close()
                 pool.join()
             t_trees_end = time()
-            logger.info('Built %d kdtrees in %.3fs' % (
-                len(descriptor_scales), (t_trees_end - t_trees_start))
+            logger.info(
+                'Built %d kdtrees in %.3fs'
+                % (len(descriptor_scales), (t_trees_end - t_trees_start))
             )
 
             to_process = self.get_incomplete()[run_idx]
             qindivs = qr_fpath_dict.keys()
             logger.info(
                 'Running id %d of %d for %d encounters from %d individuals'
-                % (
-                    1 + run_idx, self.runs, len(to_process), len(qindivs)))
+                % (1 + run_idx, self.runs, len(to_process), len(qindivs))
+            )
             logger.info(
-                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)' % (
+                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)'
+                % (
                     np.max(db_descs_list),
                     np.mean(db_descs_list),
                     np.min(db_descs_list),
                     np.max(qr_descs_list),
                     np.mean(qr_descs_list),
-                    np.min(db_descs_list))
+                    np.min(db_descs_list),
+                )
             )
             output = self.output()[run_idx]
             partial_identify_encounter_descriptors = partial(
@@ -1385,14 +1425,12 @@ class DescriptorsId(luigi.Task):
             else:
                 try:
                     pool = mp.Pool(processes=None)
-                    pool.map(
-                        partial_identify_encounter_descriptors, to_process)
+                    pool.map(partial_identify_encounter_descriptors, to_process)
                 finally:
                     pool.close()
                     pool.join()
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -1403,13 +1441,14 @@ class TimeWarpingId(luigi.Task):
         default=8, description='Sakoe-Chiba bound for time-warping alignment.'
     )
     curv_length = luigi.IntParameter(
-        default=128, description='Number of spatial points in curvature '
-        'vectors after resampling.'
+        default=128,
+        description='Number of spatial points in curvature ' 'vectors after resampling.',
     )
     serial = luigi.BoolParameter(default=False)
     cost_func = luigi.ChoiceParameter(
-        choices=costs.get_cost_func_dict().keys(), var_type=str,
-        description='Function to compute similarity of two curvature vectors.'
+        choices=costs.get_cost_func_dict().keys(),
+        var_type=str,
+        description='Function to compute similarity of two curvature vectors.',
     )
     spatial_weights = luigi.BoolParameter(default=False)
 
@@ -1453,8 +1492,12 @@ class TimeWarpingId(luigi.Task):
         output = {}
         for i in range(self.runs):
             outdir = join(
-                basedir, self.eval_dir,
-                weightdir, curvdir, '%s' % self.num_db_encounters, '%s' % i
+                basedir,
+                self.eval_dir,
+                weightdir,
+                curvdir,
+                '%s' % self.num_db_encounters,
+                '%s' % i,
             )
             qr_fpath_dict_target = db_qr_target.output()['queries'][i]
             if not qr_fpath_dict_target.exists():
@@ -1489,13 +1532,38 @@ class TimeWarpingId(luigi.Task):
         # coefficients for the sum of polynomials
         # coeffs for the SDRP Bottlenose dataset
         if self.dataset in ('sdrp', 'nz'):
-            coeffs = np.array([0.0960, 0.6537, 1.0000, 0.7943, 1.0000,
-                               0.3584, 0.4492, 0.0000, 0.4157, 0.0626])
+            coeffs = np.array(
+                [
+                    0.0960,
+                    0.6537,
+                    1.0000,
+                    0.7943,
+                    1.0000,
+                    0.3584,
+                    0.4492,
+                    0.0000,
+                    0.4157,
+                    0.0626,
+                ]
+            )
         # coeffs for the CRC Humpback dataset
         elif self.dataset in ('crc', 'fb'):
-            coeffs = np.array([0.0944, 0.5629, 0.7286, 0.6028, 0.0000,
-                               0.0434, 0.6906, 0.7316, 0.4671, 0.0258])
+            coeffs = np.array(
+                [
+                    0.0944,
+                    0.5629,
+                    0.7286,
+                    0.6028,
+                    0.0000,
+                    0.0434,
+                    0.6906,
+                    0.7316,
+                    0.4671,
+                    0.0258,
+                ]
+            )
         coeffs = coeffs.reshape(coeffs.shape[0], 1)
+
         def bernstein_poly(x, coeffs):
             interval = np.array([0, 1])
             f = BPoly(coeffs, interval, extrapolate=False)
@@ -1504,9 +1572,7 @@ class TimeWarpingId(luigi.Task):
 
         if self.spatial_weights:
             # coefficients to weights on the interval [0, 1]
-            weights = bernstein_poly(
-                np.linspace(0, 1, self.curv_length), coeffs
-            )
+            weights = bernstein_poly(np.linspace(0, 1, self.curv_length), coeffs)
         else:
             weights = np.ones(self.curv_length, dtype=np.float32)
         weights = weights.reshape(-1, 1).astype(np.float32)
@@ -1517,22 +1583,21 @@ class TimeWarpingId(luigi.Task):
         )
 
         t_start = time()
-        logger.info('Using cost function = %s and spatial weights = %s' % (
-            self.cost_func, self.spatial_weights))
-        for run_idx, (db_target, qr_target) in enumerate(
-                zip(db_targets, qr_targets)):
+        logger.info(
+            'Using cost function = %s and spatial weights = %s'
+            % (self.cost_func, self.spatial_weights)
+        )
+        for run_idx, (db_target, qr_target) in enumerate(zip(db_targets, qr_targets)):
             with db_target.open('rb') as f:
                 db_fpath_dict = pickle.load(f, encoding='latin1')
             with qr_target.open('rb') as f:
                 qr_fpath_dict = pickle.load(f, encoding='latin1')
 
             db_curv_dict = {}
-            num_db_curvs = np.sum(
-                [len(db_fpath_dict[dind]) for dind in db_fpath_dict]
-            )
+            num_db_curvs = np.sum([len(db_fpath_dict[dind]) for dind in db_fpath_dict])
             logger.info(
-                'Loading %d curv vectors for %d database individuals' %
-                (num_db_curvs, len(db_fpath_dict))
+                'Loading %d curv vectors for %d database individuals'
+                % (num_db_curvs, len(db_fpath_dict))
             )
             for dind in tqdm(db_fpath_dict, leave=False):
                 if dind not in db_curv_dict:
@@ -1540,17 +1605,23 @@ class TimeWarpingId(luigi.Task):
                 for fpath in db_fpath_dict[dind]:
                     curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                         curv_targets[fpath]['curvature'],
-                        self.curv_scales, self.curv_length
+                        self.curv_scales,
+                        self.curv_length,
                     )
                     db_curv_dict[dind].append(curv_matrix)
 
             qr_curv_dict = {}
-            num_qr_curvs = np.sum([
-                len(qr_fpath_dict[qind][qenc]) for qind in qr_fpath_dict
-                for qenc in qr_fpath_dict[qind]
-            ])
-            logger.info('Loading %d curv vectors for %d query individuals' % (
-                num_qr_curvs, len(qr_fpath_dict)))
+            num_qr_curvs = np.sum(
+                [
+                    len(qr_fpath_dict[qind][qenc])
+                    for qind in qr_fpath_dict
+                    for qenc in qr_fpath_dict[qind]
+                ]
+            )
+            logger.info(
+                'Loading %d curv vectors for %d query individuals'
+                % (num_qr_curvs, len(qr_fpath_dict))
+            )
             for qind in tqdm(qr_fpath_dict, leave=False):
                 if qind not in qr_curv_dict:
                     qr_curv_dict[qind] = {}
@@ -1560,7 +1631,8 @@ class TimeWarpingId(luigi.Task):
                     for fpath in qr_fpath_dict[qind][qenc]:
                         curv_matrix = dorsal_utils.load_curv_mat_from_h5py(
                             curv_targets[fpath]['curvature'],
-                            self.curv_scales, self.curv_length
+                            self.curv_scales,
+                            self.curv_length,
                         )
                         qr_curv_dict[qind][qenc].append(curv_matrix)
 
@@ -1573,16 +1645,19 @@ class TimeWarpingId(luigi.Task):
             to_process = self.get_incomplete()[run_idx]
             qindivs = qr_curv_dict.keys()
             logger.info(
-                'Running id %d of %d for %d encounters from %d individuals' % (
-                    1 + run_idx, self.runs, len(to_process), len(qindivs)))
+                'Running id %d of %d for %d encounters from %d individuals'
+                % (1 + run_idx, self.runs, len(to_process), len(qindivs))
+            )
             logger.info(
-                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)' % (
+                'Database/Queries split: (%.2f,%.2f,%.2f / %.2f,%.2f,%.2f)'
+                % (
                     np.max(db_curvs_list),
                     np.mean(db_curvs_list),
                     np.min(db_curvs_list),
                     np.max(qr_curvs_list),
                     np.mean(qr_curvs_list),
-                    np.min(db_curvs_list))
+                    np.min(db_curvs_list),
+                )
             )
             output = self.output()[run_idx]
             partial_identify_encounters = partial(
@@ -1594,8 +1669,7 @@ class TimeWarpingId(luigi.Task):
             )
 
             if self.serial:
-                for qind, qenc in tqdm(
-                        to_process, total=len(qindivs), leave=False):
+                for qind, qenc in tqdm(to_process, total=len(qindivs), leave=False):
                     partial_identify_encounters((qind, qenc))
             else:
                 try:
@@ -1606,8 +1680,7 @@ class TimeWarpingId(luigi.Task):
                     pool.join()
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -1645,16 +1718,14 @@ class HotSpotterId(luigi.Task):
     def output(self):
         basedir = join(
             '/home/hendrik/projects/dolphin-identification/data',
-            self.dataset, self.__class__.__name__
+            self.dataset,
+            self.__class__.__name__,
         )
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         output = {}
         ibs_target = luigi.LocalTarget(join(basedir, 'ibsdb'))
         for i in range(self.runs):
-            outdir = join(
-                basedir, self.eval_dir,
-                '%s' % self.num_db_encounters, '%s' % i
-            )
+            outdir = join(basedir, self.eval_dir, '%s' % self.num_db_encounters, '%s' % i)
             qr_fpath_dict_target = db_qr_target.output()['queries'][i]
             if not qr_fpath_dict_target.exists():
                 self.requires()['SeparateDatabaseQueries'].run()
@@ -1677,16 +1748,16 @@ class HotSpotterId(luigi.Task):
     def run(self):
         import wbia
         import utool as ut
+
         db_qr_target = self.requires()['SeparateDatabaseQueries']
         db_targets = db_qr_target.output()['database']
         qr_targets = db_qr_target.output()['queries']
 
         ibs = wbia.opendb(
-            #self.output()[run_idx]['ibs'].path, allow_newdir=True
+            # self.output()[run_idx]['ibs'].path, allow_newdir=True
             self.output()['ibs'].path
         )
-        for run_idx, (db_target, qr_target) in enumerate(
-                zip(db_targets, qr_targets)):
+        for run_idx, (db_target, qr_target) in enumerate(zip(db_targets, qr_targets)):
             image_list, name_list, db_qr_list = [], [], []
             with db_target.open('rb') as f:
                 db_fpath_dict = pickle.load(f, encoding='latin1')
@@ -1725,8 +1796,8 @@ class HotSpotterId(luigi.Task):
 
             qreq = ibs.new_query_request(qaids, daids, {'sv_on': False})
             chipmatch_list = qreq.execute()
-            #db_indivs = db_fpath_dict.keys()
-            #qgids = ibs.get_annot_gids(qaids)
+            # db_indivs = db_fpath_dict.keys()
+            # qgids = ibs.get_annot_gids(qaids)
             qinds = ibs.get_annot_names(qaids)
             qencs = ibs.get_annot_static_encounter(qaids)
 
@@ -1740,7 +1811,7 @@ class HotSpotterId(luigi.Task):
                     qr_cm_dict[qind][qenc] = defaultdict(list)
                 ranked_nids = list(qdf['dnid'].values)
                 ranked_indivs = ibs.get_name_texts(ranked_nids)
-                ranked_scores = list(-1. * qdf['score'].values)
+                ranked_scores = list(-1.0 * qdf['score'].values)
                 for dind, score in zip(ranked_indivs, ranked_scores):
 
                     qr_cm_dict[qind][qenc][dind].append(score)
@@ -1774,23 +1845,19 @@ class TimeWarpingResults(luigi.Task):
 
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
         outdir = join(
-            basedir, self.eval_dir,
-            weightdir, curvdir, '%s' % self.num_db_encounters,
+            basedir, self.eval_dir, weightdir, curvdir, '%s' % self.num_db_encounters,
         )
 
         all_targets = [
-            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i)) for i in range(self.runs)
         ]
 
         mrr_targets = [
-            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i)) for i in range(self.runs)
         ]
 
         topk_targets = [
-            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i)) for i in range(self.runs)
         ]
 
         aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
@@ -1804,6 +1871,7 @@ class TimeWarpingResults(luigi.Task):
 
     def run(self):
         from collections import defaultdict
+
         evaluation_targets = self.requires()['TimeWarpingId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
         topk_aggr = defaultdict(list)
@@ -1814,8 +1882,9 @@ class TimeWarpingResults(luigi.Task):
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
-                f.write('Enc,Ind,Rank,%s\n' % (
-                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                f.write(
+                    'Enc,Ind,Rank,%s\n'
+                    % (','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
                 )
                 qind_eval_targets = evaluation_targets[run_idx]
                 for qind in tqdm(qind_eval_targets, leave=False):
@@ -1828,12 +1897,10 @@ class TimeWarpingResults(luigi.Task):
                             scores[i] = result_matrix.min(axis=None)
 
                         asc_scores_idx = np.argsort(scores)
-                        ranked_indivs = [
-                            db_indivs[idx] for idx in asc_scores_idx
-                        ]
-                        #ranked_scores = [
+                        ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                        # ranked_scores = [
                         #    scores[idx] for idx in asc_scores_idx
-                        #]
+                        # ]
 
                         # handle unknown individuals
                         try:
@@ -1842,17 +1909,22 @@ class TimeWarpingResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
-                        f.write('"%s","%s",%s,%s\n' % (
-                            qenc, qind, rank,
-                            ','.join('%s' % r for r in ranked_indivs)
-                        ))
-                        #f.write('%s\n' % (
+                        f.write(
+                            '"%s","%s",%s,%s\n'
+                            % (
+                                qenc,
+                                qind,
+                                rank,
+                                ','.join('%s' % r for r in ranked_indivs),
+                            )
+                        )
+                        # f.write('%s\n' % (
                         #    ','.join(['%.6f' % s for s in ranked_scores])))
 
             with self.output()['mrr'][run_idx].open('w') as f:
                 f.write('individual,mrr\n')
                 for qind in indiv_rank_indices.keys():
-                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    mrr = np.mean(1.0 / np.array(indiv_rank_indices[qind]))
                     num = len(indiv_rank_indices[qind])
                     f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
@@ -1868,25 +1940,27 @@ class TimeWarpingResults(luigi.Task):
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
-                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk = (100.0 / num_queries) * (rank_indices <= k).sum()
                     topk_aggr[run_idx].append(topk)
                     f.write('top-%d,%.6f\n' % (k, topk))
 
         aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
         with self.output()['agg'].open('w') as f:
-            logger.info('Accuracy scores over %d runs for k = %s:' % (
-                self.runs, ', '.join(['%d' % k for k in topk_scores])))
+            logger.info(
+                'Accuracy scores over %d runs for k = %s:'
+                % (self.runs, ', '.join(['%d' % k for k in topk_scores]))
+            )
             f.write('mean,min,max,std\n')
             for i, k in enumerate(range(1, 1 + num_indivs)):
-                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
-                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
-                ))
+                f.write(
+                    '%.6f,%.6f,%.6f,%.6f\n'
+                    % (aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std())
+                )
                 if k in topk_scores:
                     logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(SeparateDatabaseQueries)
@@ -1896,7 +1970,8 @@ class DescriptorsResults(luigi.Task):
         default=False, description='Disable use of multiprocessing.Pool'
     )
     max_names = luigi.IntParameter(
-        default=-1, description='Number of individuals to include in ranking')
+        default=-1, description='Number of individuals to include in ranking'
+    )
 
     def requires(self):
         return {
@@ -1912,24 +1987,26 @@ class DescriptorsResults(luigi.Task):
         unifdir = 'uniform' if self.uniform else 'standard'
         featdir = '%d' % self.feat_dim
         outdir = join(
-            basedir, self.eval_dir,
-            self.descriptor_type, kdir, unifdir, featdir, descdir,
-            '%s' % self.num_db_encounters
+            basedir,
+            self.eval_dir,
+            self.descriptor_type,
+            kdir,
+            unifdir,
+            featdir,
+            descdir,
+            '%s' % self.num_db_encounters,
         )
 
         all_targets = [
-            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i)) for i in range(self.runs)
         ]
 
         mrr_targets = [
-            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i)) for i in range(self.runs)
         ]
 
         topk_targets = [
-            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i)) for i in range(self.runs)
         ]
 
         aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
@@ -1943,6 +2020,7 @@ class DescriptorsResults(luigi.Task):
 
     def run(self):
         from collections import defaultdict
+
         evaluation_targets = self.requires()['DescriptorsId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
         topk_aggr = defaultdict(list)
@@ -1953,8 +2031,9 @@ class DescriptorsResults(luigi.Task):
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
-                f.write('Enc,Ind,Rank,%s\n' % (
-                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                f.write(
+                    'Enc,Ind,Rank,%s\n'
+                    % (','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
                 )
                 qind_eval_targets = evaluation_targets[run_idx]
                 for qind in tqdm(qind_eval_targets, leave=False):
@@ -1967,12 +2046,10 @@ class DescriptorsResults(luigi.Task):
                             scores[i] = result_matrix
 
                         asc_scores_idx = np.argsort(scores)
-                        ranked_indivs = [
-                            db_indivs[idx] for idx in asc_scores_idx
-                        ]
-                        #ranked_scores = [
+                        ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                        # ranked_scores = [
                         #    scores[idx] for idx in asc_scores_idx]
-                        #]
+                        # ]
 
                         # handle unknown individuals
                         try:
@@ -1986,17 +2063,16 @@ class DescriptorsResults(luigi.Task):
                         else:
                             max_names = len(ranked_indivs)
                         fmt_ranking = ','.join(
-                            '%s' % r for r in ranked_indivs[0:max_names])
-                        f.write('"%s","%s",%s,%s\n' % (
-                            qenc, qind, rank, fmt_ranking
-                        ))
-                        #f.write('%s\n' % (
+                            '%s' % r for r in ranked_indivs[0:max_names]
+                        )
+                        f.write('"%s","%s",%s,%s\n' % (qenc, qind, rank, fmt_ranking))
+                        # f.write('%s\n' % (
                         #    ','.join(['%.6f' % s for s in ranked_scores])))
 
             with self.output()['mrr'][run_idx].open('w') as f:
                 f.write('individual,mrr\n')
                 for qind in indiv_rank_indices.keys():
-                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    mrr = np.mean(1.0 / np.array(indiv_rank_indices[qind]))
                     num = len(indiv_rank_indices[qind])
                     f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
@@ -2012,25 +2088,27 @@ class DescriptorsResults(luigi.Task):
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
-                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk = (100.0 / num_queries) * (rank_indices <= k).sum()
                     topk_aggr[run_idx].append(topk)
                     f.write('top-%d,%.6f\n' % (k, topk))
 
         aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
         with self.output()['agg'].open('w') as f:
-            logger.info('Accuracy scores over %d runs for k = %s:' % (
-                self.runs, ', '.join(['%d' % k for k in topk_scores])))
+            logger.info(
+                'Accuracy scores over %d runs for k = %s:'
+                % (self.runs, ', '.join(['%d' % k for k in topk_scores]))
+            )
             f.write('mean,min,max,std\n')
             for i, k in enumerate(range(1, 1 + num_indivs)):
-                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
-                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
-                ))
+                f.write(
+                    '%.6f,%.6f,%.6f,%.6f\n'
+                    % (aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std())
+                )
                 if k in topk_scores:
                     logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(SeparateDatabaseQueries)
@@ -2048,24 +2126,18 @@ class HotSpotterResults(luigi.Task):
 
     def output(self):
         basedir = join('data', self.dataset, self.__class__.__name__)
-        outdir = join(
-            basedir, self.eval_dir,
-            '%s' % self.num_db_encounters
-        )
+        outdir = join(basedir, self.eval_dir, '%s' % self.num_db_encounters)
 
         all_targets = [
-            luigi.LocalTarget(join(outdir, 'all%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'all%d.csv' % i)) for i in range(self.runs)
         ]
 
         mrr_targets = [
-            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'mrr%d.csv' % i)) for i in range(self.runs)
         ]
 
         topk_targets = [
-            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i))
-            for i in range(self.runs)
+            luigi.LocalTarget(join(outdir, 'topk%d.csv' % i)) for i in range(self.runs)
         ]
 
         aggr_target = luigi.LocalTarget(join(outdir, 'aggr.csv'))
@@ -2079,6 +2151,7 @@ class HotSpotterResults(luigi.Task):
 
     def run(self):
         from collections import defaultdict
+
         evaluation_targets = self.requires()['HotSpotterId'].output()
         db_qr_output = self.requires()['SeparateDatabaseQueries'].output()
         topk_aggr = defaultdict(list)
@@ -2089,8 +2162,9 @@ class HotSpotterResults(luigi.Task):
             db_indivs = db_dict.keys()
             indiv_rank_indices = defaultdict(list)
             with self.output()['all'][run_idx].open('w') as f:
-                f.write('Enc,Ind,Rank,%s\n' % (
-                    ','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
+                f.write(
+                    'Enc,Ind,Rank,%s\n'
+                    % (','.join('%s' % s for s in range(1, 1 + len(db_indivs))))
                 )
                 qind_eval_targets = evaluation_targets[run_idx]
                 for qind in tqdm(qind_eval_targets, leave=False):
@@ -2103,12 +2177,10 @@ class HotSpotterResults(luigi.Task):
                             scores[i] = result_matrix
 
                         asc_scores_idx = np.argsort(scores)
-                        ranked_indivs = [
-                            db_indivs[idx] for idx in asc_scores_idx
-                        ]
-                        #ranked_scores = [
+                        ranked_indivs = [db_indivs[idx] for idx in asc_scores_idx]
+                        # ranked_scores = [
                         #    scores[idx] for idx in asc_scores_idx]
-                        #]
+                        # ]
 
                         # handle unknown individuals
                         try:
@@ -2117,17 +2189,22 @@ class HotSpotterResults(luigi.Task):
                         except ValueError:
                             rank = -1
 
-                        f.write('"%s","%s",%s,%s\n' % (
-                            qenc, qind, rank,
-                            ','.join('%s' % r for r in ranked_indivs)
-                        ))
-                        #f.write('%s\n' % (
+                        f.write(
+                            '"%s","%s",%s,%s\n'
+                            % (
+                                qenc,
+                                qind,
+                                rank,
+                                ','.join('%s' % r for r in ranked_indivs),
+                            )
+                        )
+                        # f.write('%s\n' % (
                         #    ','.join(['%.6f' % s for s in ranked_scores])))
 
             with self.output()['mrr'][run_idx].open('w') as f:
                 f.write('individual,mrr\n')
                 for qind in indiv_rank_indices.keys():
-                    mrr = np.mean(1. / np.array(indiv_rank_indices[qind]))
+                    mrr = np.mean(1.0 / np.array(indiv_rank_indices[qind]))
                     num = len(indiv_rank_indices[qind])
                     f.write('%s (%d enc.),%.6f\n' % (qind, num, mrr))
 
@@ -2143,25 +2220,27 @@ class HotSpotterResults(luigi.Task):
             with self.output()['topk'][run_idx].open('w') as f:
                 f.write('topk,accuracy\n')
                 for k in range(1, 1 + num_indivs):
-                    topk = (100. / num_queries) * (rank_indices <= k).sum()
+                    topk = (100.0 / num_queries) * (rank_indices <= k).sum()
                     topk_aggr[run_idx].append(topk)
                     f.write('top-%d,%.6f\n' % (k, topk))
 
         aggr = np.vstack([topk_aggr[i] for i in range(self.runs)]).T
         with self.output()['agg'].open('w') as f:
-            logger.info('Accuracy scores over %d runs for k = %s:' % (
-                self.runs, ', '.join(['%d' % k for k in topk_scores])))
+            logger.info(
+                'Accuracy scores over %d runs for k = %s:'
+                % (self.runs, ', '.join(['%d' % k for k in topk_scores]))
+            )
             f.write('mean,min,max,std\n')
             for i, k in enumerate(range(1, 1 + num_indivs)):
-                f.write('%.6f,%.6f,%.6f,%.6f\n' % (
-                    aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std()
-                ))
+                f.write(
+                    '%.6f,%.6f,%.6f,%.6f\n'
+                    % (aggr[i].mean(), aggr[i].min(), aggr[i].max(), aggr[i].std())
+                )
                 if k in topk_scores:
                     logger.info(' top-%d: %.2f%%' % (k, aggr[i].mean()))
 
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 class VisualizeIndividuals(luigi.Task):
@@ -2171,11 +2250,15 @@ class VisualizeIndividuals(luigi.Task):
     scale = luigi.IntParameter(default=4)
 
     def requires(self):
-        return [PrepareData(dataset=self.dataset),
-                SeparateEdges(dataset=self.dataset,
-                              imsize=self.imsize,
-                              batch_size=self.batch_size,
-                              scale=self.scale)]
+        return [
+            PrepareData(dataset=self.dataset),
+            SeparateEdges(
+                dataset=self.dataset,
+                imsize=self.imsize,
+                batch_size=self.batch_size,
+                scale=self.scale,
+            ),
+        ]
 
     def output(self):
         csv_fpath = self.requires()[0].output().path
@@ -2183,8 +2266,7 @@ class VisualizeIndividuals(luigi.Task):
         if not exists(csv_fpath):
             self.requires()[0].run()
         df = pd.read_csv(
-            csv_fpath, header='infer',
-            usecols=['impath', 'individual', 'encounter']
+            csv_fpath, header='infer', usecols=['impath', 'individual', 'encounter']
         )
         basedir = join('data', self.dataset, self.__class__.__name__)
         image_filepaths = df['impath'].values
@@ -2195,33 +2277,37 @@ class VisualizeIndividuals(luigi.Task):
             fname = splitext(basename(fpath))[0]
             png_fname = '%s.png' % fname
             outputs[fpath] = {
-                'image': luigi.LocalTarget(
-                    join(basedir, indiv, png_fname)),
+                'image': luigi.LocalTarget(join(basedir, indiv, png_fname)),
             }
 
         return outputs
 
     def run(self):
         from workers import visualize_individuals
+
         output = self.output()
 
         separate_edges_targets = self.requires()[1].output()
         image_filepaths = separate_edges_targets.keys()
 
-        to_process = [fpath for fpath, _, _, _ in image_filepaths if
-                      not exists(output[fpath]['image'].path)]
+        to_process = [
+            fpath
+            for fpath, _, _, _ in image_filepaths
+            if not exists(output[fpath]['image'].path)
+        ]
 
-        logger.info('%d of %d images to process' % (
-            len(to_process), len(image_filepaths)))
+        logger.info(
+            '%d of %d images to process' % (len(to_process), len(image_filepaths))
+        )
 
         partial_visualize_individuals = partial(
             visualize_individuals,
             input_targets=separate_edges_targets,
-            output_targets=output
+            output_targets=output,
         )
 
         t_start = time()
-        #for fpath in tqdm(to_process, total=len(to_process)):
+        # for fpath in tqdm(to_process, total=len(to_process)):
         #    partial_visualize_individuals(fpath)
         try:
             pool = mp.Pool(processes=None)
@@ -2230,8 +2316,7 @@ class VisualizeIndividuals(luigi.Task):
             pool.close()
             pool.join()
         t_end = time()
-        logger.info('%s completed in %.3fs' % (
-            self.__class__.__name__, t_end - t_start))
+        logger.info('%s completed in %.3fs' % (self.__class__.__name__, t_end - t_start))
 
 
 @inherits(PrepareData)
@@ -2264,15 +2349,18 @@ class VisualizeMisidentifications(luigi.Task):
                 # an encounter may belong to multiple individuals, hence qind
                 output[qind][qenc] = {
                     'separate-edges': luigi.LocalTarget(
-                        join(basedir, curvdir, qind, '%s_edges.png' % qenc)),
+                        join(basedir, curvdir, qind, '%s_edges.png' % qenc)
+                    ),
                     'curvature': luigi.LocalTarget(
-                        join(basedir, curvdir, qind, '%s_curvs.png' % qenc)),
+                        join(basedir, curvdir, qind, '%s_curvs.png' % qenc)
+                    ),
                 }
 
         return output
 
     def run(self):
         from workers import visualize_misidentifications
+
         output = self.output()
         edges_targets = self.requires()['SeparateEdges'].output()
         db_qr_targets = self.requires()['SeparateDatabaseQueries'].output()
@@ -2298,7 +2386,7 @@ class VisualizeMisidentifications(luigi.Task):
             output_targets=output,
         )
 
-        #for qind in qindivs:
+        # for qind in qindivs:
         #    partial_visualize_misidentifications(qind)
         try:
             pool = mp.Pool(processes=None)

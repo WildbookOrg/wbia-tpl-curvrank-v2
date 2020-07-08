@@ -13,124 +13,124 @@ _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
 
-DEFAULT_WIDTH  = {
+DEFAULT_WIDTH = {
     'dorsal': 256,
-    'fluke' : 384,
+    'fluke': 384,
 }
 DEFAULT_HEIGHT = {
     'dorsal': 256,
-    'fluke' : 192,
+    'fluke': 192,
 }
-DEFAULT_SCALE  = {
+DEFAULT_SCALE = {
     'dorsal': 4,
-    'fluke' : 3,
+    'fluke': 3,
 }
 DEFAULT_SCALES = {
     'dorsal': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
-    'fluke' : np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
+    'fluke': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
 }
 DEFAULT_ALLOW_DIAGONAL = {
     'dorsal': False,
-    'fluke':  True,
+    'fluke': True,
 }
 DEFAULT_TRANSPOSE_DIMS = {
     'dorsal': False,
-    'fluke':  True,
+    'fluke': True,
 }
 
 
-INDEX_NUM_TREES  = 10
+INDEX_NUM_TREES = 10
 INDEX_NUM_ANNOTS = 2500  # 1000
-INDEX_LNBNN_K    = 2
-INDEX_SEARCH_D   = 1  # 1
-INDEX_SEARCH_K   = INDEX_LNBNN_K * INDEX_NUM_TREES * INDEX_SEARCH_D
+INDEX_LNBNN_K = 2
+INDEX_SEARCH_D = 1  # 1
+INDEX_SEARCH_K = INDEX_LNBNN_K * INDEX_NUM_TREES * INDEX_SEARCH_D
 
 
 DEFAULT_DORSAL_TEST_CONFIG = {
-    'curvrank_daily_cache'                 : True,
-    'curvrank_daily_tag'                   : 'global',
-    'curvrank_cache_recompute'             : False,
-    'curvrank_model_type'                  : 'dorsal',
-    'curvrank_width'                       : DEFAULT_WIDTH['dorsal'],
-    'curvrank_height'                      : DEFAULT_HEIGHT['dorsal'],
-    'curvrank_greyscale'                   : False,
-    'curvrank_scale'                       : DEFAULT_SCALE['dorsal'],
-    'curvature_scales'                     : DEFAULT_SCALES['dorsal'],
-    'outline_allow_diagonal'               : DEFAULT_ALLOW_DIAGONAL['dorsal'],
-    'curvatute_transpose_dims'             : DEFAULT_TRANSPOSE_DIMS['dorsal'],
-    'localization_model_tag'               : 'localization',
-    'segmentation_model_tag'               : 'segmentation',
-    'segmentation_gt_radius'               : 25,
-    'segmentation_gt_opacity'              : 0.5,
-    'segmentation_gt_smooth'               : True,
-    'segmentation_gt_smooth_margin'        : 0.001,
-    'trailing_edge_finfindr_smooth'        : True,
-    'trailing_edge_finfindr_smooth_margin' : 0.0,
-    'curvature_descriptor_curv_length'     : 1024,
-    'curvature_descriptor_num_keypoints'   : 32,
-    'curvature_descriptor_uniform'         : False,
-    'curvature_descriptor_feat_dim'        : 32,
-    'index_trees'                          : INDEX_NUM_TREES,
-    'index_search_k'                       : INDEX_SEARCH_K,
-    'index_lnbnn_k'                        : INDEX_LNBNN_K,
+    'curvrank_daily_cache': True,
+    'curvrank_daily_tag': 'global',
+    'curvrank_cache_recompute': False,
+    'curvrank_model_type': 'dorsal',
+    'curvrank_width': DEFAULT_WIDTH['dorsal'],
+    'curvrank_height': DEFAULT_HEIGHT['dorsal'],
+    'curvrank_greyscale': False,
+    'curvrank_scale': DEFAULT_SCALE['dorsal'],
+    'curvature_scales': DEFAULT_SCALES['dorsal'],
+    'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['dorsal'],
+    'curvatute_transpose_dims': DEFAULT_TRANSPOSE_DIMS['dorsal'],
+    'localization_model_tag': 'localization',
+    'segmentation_model_tag': 'segmentation',
+    'segmentation_gt_radius': 25,
+    'segmentation_gt_opacity': 0.5,
+    'segmentation_gt_smooth': True,
+    'segmentation_gt_smooth_margin': 0.001,
+    'trailing_edge_finfindr_smooth': True,
+    'trailing_edge_finfindr_smooth_margin': 0.0,
+    'curvature_descriptor_curv_length': 1024,
+    'curvature_descriptor_num_keypoints': 32,
+    'curvature_descriptor_uniform': False,
+    'curvature_descriptor_feat_dim': 32,
+    'index_trees': INDEX_NUM_TREES,
+    'index_search_k': INDEX_SEARCH_K,
+    'index_lnbnn_k': INDEX_LNBNN_K,
 }
 
 
 DEFAULT_FLUKE_TEST_CONFIG = {
-    'curvrank_daily_cache'                 : True,
-    'curvrank_daily_tag'                   : 'global',
-    'curvrank_cache_recompute'             : False,
-    'curvrank_model_type'                  : 'fluke',
-    'curvrank_width'                       : DEFAULT_WIDTH['fluke'],
-    'curvrank_height'                      : DEFAULT_HEIGHT['fluke'],
-    'curvrank_greyscale'                   : True,
-    'curvrank_scale'                       : DEFAULT_SCALE['fluke'],
-    'curvature_scales'                     : DEFAULT_SCALES['fluke'],
-    'outline_allow_diagonal'               : DEFAULT_ALLOW_DIAGONAL['fluke'],
-    'curvatute_transpose_dims'             : DEFAULT_TRANSPOSE_DIMS['fluke'],
-    'localization_model_tag'               : 'localization',
-    'segmentation_model_tag'               : 'segmentation',
-    'segmentation_gt_radius'               : 25,
-    'segmentation_gt_opacity'              : 0.5,
-    'segmentation_gt_smooth'               : True,
-    'segmentation_gt_smooth_margin'        : 0.001,
-    'trailing_edge_finfindr_smooth'        : True,
-    'trailing_edge_finfindr_smooth_margin' : 0.0,
-    'curvature_descriptor_curv_length'     : 1024,
-    'curvature_descriptor_num_keypoints'   : 32,
-    'curvature_descriptor_uniform'         : False,
-    'curvature_descriptor_feat_dim'        : 32,
-    'index_trees'                          : INDEX_NUM_TREES,
-    'index_search_k'                       : INDEX_SEARCH_K,
-    'index_lnbnn_k'                        : INDEX_LNBNN_K,
+    'curvrank_daily_cache': True,
+    'curvrank_daily_tag': 'global',
+    'curvrank_cache_recompute': False,
+    'curvrank_model_type': 'fluke',
+    'curvrank_width': DEFAULT_WIDTH['fluke'],
+    'curvrank_height': DEFAULT_HEIGHT['fluke'],
+    'curvrank_greyscale': True,
+    'curvrank_scale': DEFAULT_SCALE['fluke'],
+    'curvature_scales': DEFAULT_SCALES['fluke'],
+    'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
+    'curvatute_transpose_dims': DEFAULT_TRANSPOSE_DIMS['fluke'],
+    'localization_model_tag': 'localization',
+    'segmentation_model_tag': 'segmentation',
+    'segmentation_gt_radius': 25,
+    'segmentation_gt_opacity': 0.5,
+    'segmentation_gt_smooth': True,
+    'segmentation_gt_smooth_margin': 0.001,
+    'trailing_edge_finfindr_smooth': True,
+    'trailing_edge_finfindr_smooth_margin': 0.0,
+    'curvature_descriptor_curv_length': 1024,
+    'curvature_descriptor_num_keypoints': 32,
+    'curvature_descriptor_uniform': False,
+    'curvature_descriptor_feat_dim': 32,
+    'index_trees': INDEX_NUM_TREES,
+    'index_search_k': INDEX_SEARCH_K,
+    'index_lnbnn_k': INDEX_LNBNN_K,
 }
 
 
 DEFAULT_DEPC_KEY_MAPPING = {
-    'curvrank_daily_cache'                 : 'use_daily_cache',
-    'curvrank_daily_tag'                   : 'daily_cache_tag',
-    'curvrank_cache_recompute'             : 'force_cache_recompute',
-    'curvrank_model_type'                  : 'model_type',
-    'curvrank_width'                       : 'width',
-    'curvrank_height'                      : 'height',
-    'curvrank_greyscale'                   : 'greyscale',
-    'curvrank_scale'                       : 'scale',
-    'curvature_scales'                     : 'scales',
-    'outline_allow_diagonal'               : 'allow_diagonal',
-    'curvatute_transpose_dims'             : 'transpose_dims',
-    'segmentation_gt_radius'               : 'groundtruth_radius',
-    'segmentation_gt_opacity'              : 'groundtruth_opacity',
-    'segmentation_gt_smooth'               : 'groundtruth_smooth',
-    'segmentation_gt_smooth_margin'        : 'groundtruth_smooth_margin',
-    'trailing_edge_finfindr_smooth'        : 'finfindr_smooth',
-    'trailing_edge_finfindr_smooth_margin' : 'finfindr_smooth_margin',
-    'curvature_descriptor_curv_length'     : 'curv_length',
-    'curvature_descriptor_num_keypoints'   : 'num_keypoints',
-    'curvature_descriptor_uniform'         : 'uniform',
-    'curvature_descriptor_feat_dim'        : 'feat_dim',
-    'index_trees'                          : 'num_trees',
-    'index_search_k'                       : 'search_k',
-    'index_lnbnn_k'                        : 'lnbnn_k',
+    'curvrank_daily_cache': 'use_daily_cache',
+    'curvrank_daily_tag': 'daily_cache_tag',
+    'curvrank_cache_recompute': 'force_cache_recompute',
+    'curvrank_model_type': 'model_type',
+    'curvrank_width': 'width',
+    'curvrank_height': 'height',
+    'curvrank_greyscale': 'greyscale',
+    'curvrank_scale': 'scale',
+    'curvature_scales': 'scales',
+    'outline_allow_diagonal': 'allow_diagonal',
+    'curvatute_transpose_dims': 'transpose_dims',
+    'segmentation_gt_radius': 'groundtruth_radius',
+    'segmentation_gt_opacity': 'groundtruth_opacity',
+    'segmentation_gt_smooth': 'groundtruth_smooth',
+    'segmentation_gt_smooth_margin': 'groundtruth_smooth_margin',
+    'trailing_edge_finfindr_smooth': 'finfindr_smooth',
+    'trailing_edge_finfindr_smooth_margin': 'finfindr_smooth_margin',
+    'curvature_descriptor_curv_length': 'curv_length',
+    'curvature_descriptor_num_keypoints': 'num_keypoints',
+    'curvature_descriptor_uniform': 'uniform',
+    'curvature_descriptor_feat_dim': 'feat_dim',
+    'index_trees': 'num_trees',
+    'index_search_k': 'search_k',
+    'index_lnbnn_k': 'lnbnn_k',
 }
 
 
@@ -170,17 +170,34 @@ def _convert_kwargs_config_to_depc_config(config):
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_height',     DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_width',      DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_greyscale',  False, hideif=False),
-            ut.ParamInfo('ext',                 '.npy', hideif='.npy'),
+            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_width', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='preprocess', parents=[ROOT],
-    colnames=['resized_img', 'resized_width', 'resized_height', 'mask_img', 'mask_width', 'mask_height', 'pretransform'],
-    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
+    tablename='preprocess',
+    parents=[ROOT],
+    colnames=[
+        'resized_img',
+        'resized_width',
+        'resized_height',
+        'mask_img',
+        'mask_width',
+        'mask_height',
+        'pretransform',
+    ],
+    coltypes=[
+        ('extern', np.load, np.save),
+        int,
+        int,
+        ('extern', np.load, np.save),
+        int,
+        int,
+        np.ndarray,
+    ],
     configclass=PreprocessConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -246,12 +263,13 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     """
     ibs = depc.controller
 
-    width     = config['curvrank_width']
-    height    = config['curvrank_height']
+    width = config['curvrank_width']
+    height = config['curvrank_height']
     greyscale = config['curvrank_greyscale']
 
-    values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height,
-                                                     greyscale=greyscale)
+    values = ibs.wbia_plugin_curvrank_preprocessing(
+        aid_list, width=width, height=height, greyscale=greyscale
+    )
     resized_images, resized_masks, pre_transforms = values
 
     zipped = zip(resized_images, resized_masks, pre_transforms)
@@ -273,18 +291,35 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
 class LocalizationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type',     'dorsal'),
-            ut.ParamInfo('curvrank_height',         DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_width',          DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('localization_model_tag',  'localization'),
-            ut.ParamInfo('ext',                     '.npy', hideif='.npy'),
+            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_width', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('localization_model_tag', 'localization'),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='localization', parents=['preprocess'],
-    colnames=['localized_img', 'localized_width', 'localized_height', 'mask_img', 'mask_width', 'mask_height', 'transform'],
-    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int, np.ndarray],
+    tablename='localization',
+    parents=['preprocess'],
+    colnames=[
+        'localized_img',
+        'localized_width',
+        'localized_height',
+        'mask_img',
+        'mask_width',
+        'mask_height',
+        'transform',
+    ],
+    coltypes=[
+        ('extern', np.load, np.save),
+        int,
+        int,
+        ('extern', np.load, np.save),
+        int,
+        int,
+        np.ndarray,
+    ],
     configclass=LocalizationConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -351,17 +386,21 @@ def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=N
     ibs = depc.controller
 
     model_type = config['curvrank_model_type']
-    width      = config['curvrank_width']
-    height     = config['curvrank_height']
-    model_tag  = config['localization_model_tag']
+    width = config['curvrank_width']
+    height = config['curvrank_height']
+    model_tag = config['localization_model_tag']
 
     resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img')
-    resized_masks  = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
+    resized_masks = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
 
-    values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks,
-                                                    width=width, height=height,
-                                                    model_type=model_type,
-                                                    model_tag=model_tag)
+    values = ibs.wbia_plugin_curvrank_localization(
+        resized_images,
+        resized_masks,
+        width=width,
+        height=height,
+        model_type=model_type,
+        model_tag=model_tag,
+    )
     localized_images, localized_masks, loc_transforms = values
 
     # yield each column defined in register_preproc_annot
@@ -383,18 +422,33 @@ def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=N
 class RefinementConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_width',      DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height',     DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale',      DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('curvrank_greyscale',  False, hideif=False),
-            ut.ParamInfo('ext',                 '.npy', hideif='.npy'),
+            ut.ParamInfo('curvrank_width', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='refinement', parents=['localization', 'preprocess'],
-    colnames=['refined_img', 'refined_width', 'refined_height', 'mask_img', 'mask_width', 'mask_height'],
-    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
+    tablename='refinement',
+    parents=['localization', 'preprocess'],
+    colnames=[
+        'refined_img',
+        'refined_width',
+        'refined_height',
+        'mask_img',
+        'mask_width',
+        'mask_height',
+    ],
+    coltypes=[
+        ('extern', np.load, np.save),
+        int,
+        int,
+        ('extern', np.load, np.save),
+        int,
+        int,
+    ],
     configclass=RefinementConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -402,8 +456,9 @@ class RefinementConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
-                                          preprocess_rowid_list, config=None):
+def wbia_plugin_curvrank_refinement_depc(
+    depc, localization_rowid_list, preprocess_rowid_list, config=None
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -448,22 +503,31 @@ def wbia_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
     """
     ibs = depc.controller
 
-    width     = config['curvrank_width']
-    height    = config['curvrank_height']
-    scale     = config['curvrank_scale']
+    width = config['curvrank_width']
+    height = config['curvrank_height']
+    scale = config['curvrank_scale']
     greyscale = config['curvrank_greyscale']
 
-    aid_list = depc.get_ancestor_rowids('preprocess',  preprocess_rowid_list)
-    loc_transforms   = depc.get_native('localization', localization_rowid_list, 'transform')
-    pre_transforms   = depc.get_native('preprocess',   preprocess_rowid_list,   'pretransform')
+    aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
+    loc_transforms = depc.get_native('localization', localization_rowid_list, 'transform')
+    pre_transforms = depc.get_native('preprocess', preprocess_rowid_list, 'pretransform')
 
-    values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms,
-                                                  width=width, height=height, scale=scale,
-                                                  greyscale=greyscale)
+    values = ibs.wbia_plugin_curvrank_refinement(
+        aid_list,
+        pre_transforms,
+        loc_transforms,
+        width=width,
+        height=height,
+        scale=scale,
+        greyscale=greyscale,
+    )
     refined_localizations, refined_masks = values
 
     for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
-        refined_localization_height, refined_localization_width = refined_localization.shape[:2]
+        (
+            refined_localization_height,
+            refined_localization_width,
+        ) = refined_localization.shape[:2]
         refined_mask_height, refined_mask_width = refined_mask.shape[:2]
         yield (
             refined_localization,
@@ -471,31 +535,46 @@ def wbia_plugin_curvrank_refinement_depc(depc, localization_rowid_list,
             refined_localization_height,
             refined_mask,
             refined_mask_width,
-            refined_mask_height
+            refined_mask_height,
         )
 
 
 class SegmentationConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type',           'dorsal'),
-            ut.ParamInfo('curvrank_width',                DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height',               DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale',                DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('segmentation_model_tag',        'segmentation'),
-            ut.ParamInfo('segmentation_gt_radius',        25),
-            ut.ParamInfo('segmentation_gt_opacity',       0.5),
-            ut.ParamInfo('segmentation_gt_smooth',        True),
+            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_width', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('segmentation_model_tag', 'segmentation'),
+            ut.ParamInfo('segmentation_gt_radius', 25),
+            ut.ParamInfo('segmentation_gt_opacity', 0.5),
+            ut.ParamInfo('segmentation_gt_smooth', True),
             ut.ParamInfo('segmentation_gt_smooth_margin', 0.001),
-            ut.ParamInfo('curvrank_greyscale',            False, hideif=False),
-            ut.ParamInfo('ext',                           '.npy', hideif='.npy'),
+            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
+            ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='segmentation', parents=['refinement', 'preprocess', 'localization'],
-    colnames=['segmentations_img', 'refined_width', 'refined_height', 'refined_segmentations_img', 'refined_segmentations_width', 'refined_segmentations_height'],
-    coltypes=[('extern', np.load, np.save), int, int, ('extern', np.load, np.save), int, int],
+    tablename='segmentation',
+    parents=['refinement', 'preprocess', 'localization'],
+    colnames=[
+        'segmentations_img',
+        'refined_width',
+        'refined_height',
+        'refined_segmentations_img',
+        'refined_segmentations_width',
+        'refined_segmentations_height',
+    ],
+    coltypes=[
+        ('extern', np.load, np.save),
+        int,
+        int,
+        ('extern', np.load, np.save),
+        int,
+        int,
+    ],
     configclass=SegmentationConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -503,8 +582,13 @@ class SegmentationConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preprocess_rowid_list,
-                                            localization_rowid_list, config=None):
+def wbia_plugin_curvrank_segmentation_depc(
+    depc,
+    refinement_rowid_list,
+    preprocess_rowid_list,
+    localization_rowid_list,
+    config=None,
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -584,33 +668,42 @@ def wbia_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproce
     """
     ibs = depc.controller
 
-    model_type        = config['curvrank_model_type']
-    width             = config['curvrank_width']
-    height            = config['curvrank_height']
-    scale             = config['curvrank_scale']
-    model_tag         = config['segmentation_model_tag']
-    gt_radius         = config['segmentation_gt_radius']
-    gt_opacity        = config['segmentation_gt_opacity']
-    gt_smooth         = config['segmentation_gt_smooth']
-    gt_smooth_margin  = config['segmentation_gt_smooth_margin']
-    greyscale         = config['curvrank_greyscale']
+    model_type = config['curvrank_model_type']
+    width = config['curvrank_width']
+    height = config['curvrank_height']
+    scale = config['curvrank_scale']
+    model_tag = config['segmentation_model_tag']
+    gt_radius = config['segmentation_gt_radius']
+    gt_opacity = config['segmentation_gt_opacity']
+    gt_smooth = config['segmentation_gt_smooth']
+    gt_smooth_margin = config['segmentation_gt_smooth_margin']
+    greyscale = config['curvrank_greyscale']
 
-    aid_list     = depc.get_ancestor_rowids('refinement',   refinement_rowid_list)
-    refined_localizations = depc.get_native('refinement',   refinement_rowid_list,    'refined_img')
-    refined_masks         = depc.get_native('refinement',   refinement_rowid_list,    'mask_img')
-    pre_transforms        = depc.get_native('preprocess',   preprocess_rowid_list,    'pretransform')
-    loc_transforms        = depc.get_native('localization', localization_rowid_list,  'transform')
+    aid_list = depc.get_ancestor_rowids('refinement', refinement_rowid_list)
+    refined_localizations = depc.get_native(
+        'refinement', refinement_rowid_list, 'refined_img'
+    )
+    refined_masks = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
+    pre_transforms = depc.get_native('preprocess', preprocess_rowid_list, 'pretransform')
+    loc_transforms = depc.get_native('localization', localization_rowid_list, 'transform')
 
-    values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks,
-                                                    pre_transforms, loc_transforms,
-                                                    width=width, height=height,
-                                                    scale=scale, model_type=model_type,
-                                                    model_tag=model_tag,
-                                                    groundtruth_radius=gt_radius,
-                                                    groundtruth_opacity=gt_opacity,
-                                                    groundtruth_smooth=gt_smooth,
-                                                    groundtruth_smooth_margin=gt_smooth_margin,
-                                                    greyscale=greyscale)
+    values = ibs.wbia_plugin_curvrank_segmentation(
+        aid_list,
+        refined_localizations,
+        refined_masks,
+        pre_transforms,
+        loc_transforms,
+        width=width,
+        height=height,
+        scale=scale,
+        model_type=model_type,
+        model_tag=model_tag,
+        groundtruth_radius=gt_radius,
+        groundtruth_opacity=gt_opacity,
+        groundtruth_smooth=gt_smooth,
+        groundtruth_smooth_margin=gt_smooth_margin,
+        greyscale=greyscale,
+    )
     segmentations, refined_segmentations = values
 
     for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
@@ -621,7 +714,10 @@ def wbia_plugin_curvrank_segmentation_depc(depc, refinement_rowid_list, preproce
         if refined_segmentation is None:
             refined_segmentation_height, refined_segmentation_width = 0, 0
         else:
-            refined_segmentation_height, refined_segmentation_width = refined_segmentation.shape[:2]
+            (
+                refined_segmentation_height,
+                refined_segmentation_width,
+            ) = refined_segmentation.shape[:2]
 
         yield (
             segmentation,
@@ -641,7 +737,8 @@ class KeypointsConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='keypoints', parents=['segmentation', 'localization'],
+    tablename='keypoints',
+    parents=['segmentation', 'localization'],
     colnames=['success', 'start_y', 'start_x', 'end_y', 'end_x'],
     coltypes=[bool, int, int, int, int],
     configclass=KeypointsConfig,
@@ -651,7 +748,9 @@ class KeypointsConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localization_rowid_list, config=None):
+def wbia_plugin_curvrank_keypoints_depc(
+    depc, segmentation_rowid_list, localization_rowid_list, config=None
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -709,10 +808,14 @@ def wbia_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localizat
 
     model_type = config['curvrank_model_type']
 
-    segmentations   = depc.get_native('segmentation', segmentation_rowid_list, 'segmentations_img')
+    segmentations = depc.get_native(
+        'segmentation', segmentation_rowid_list, 'segmentations_img'
+    )
     localized_masks = depc.get_native('localization', localization_rowid_list, 'mask_img')
 
-    values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, model_type=model_type)
+    values = ibs.wbia_plugin_curvrank_keypoints(
+        segmentations, localized_masks, model_type=model_type
+    )
     success_list, starts, ends = values
 
     for success, start, end in zip(success_list, starts, ends):
@@ -728,14 +831,15 @@ def wbia_plugin_curvrank_keypoints_depc(depc, segmentation_rowid_list, localizat
 class OutlineConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type',     'dorsal'),
-            ut.ParamInfo('curvrank_scale',          DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('outline_allow_diagonal',  False),
+            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('outline_allow_diagonal', False),
         ]
 
 
 @register_preproc_annot(
-    tablename='outline', parents=['segmentation', 'refinement', 'keypoints'],
+    tablename='outline',
+    parents=['segmentation', 'refinement', 'keypoints'],
     colnames=['success', 'outline'],
     coltypes=[bool, np.ndarray],
     configclass=OutlineConfig,
@@ -745,7 +849,13 @@ class OutlineConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement_rowid_list, keypoints_rowid_list, config=None):
+def wbia_plugin_curvrank_outline_depc(
+    depc,
+    segmentation_rowid_list,
+    refinement_rowid_list,
+    keypoints_rowid_list,
+    config=None,
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -823,39 +933,48 @@ def wbia_plugin_curvrank_outline_depc(depc, segmentation_rowid_list, refinement_
 
     success_list = depc.get_native('keypoints', keypoints_rowid_list, 'success')
     starts = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'start_y', 'start_x')
-    ends   = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'end_y',   'end_x')
-    refined_localizations = depc.get_native('refinement', refinement_rowid_list, 'refined_img')
-    refined_masks         = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
-    refined_segmentations = depc.get_native('segmentation', segmentation_rowid_list, 'refined_segmentations_img')
+    ends = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'end_y', 'end_x')
+    refined_localizations = depc.get_native(
+        'refinement', refinement_rowid_list, 'refined_img'
+    )
+    refined_masks = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
+    refined_segmentations = depc.get_native(
+        'segmentation', segmentation_rowid_list, 'refined_segmentations_img'
+    )
 
-    args = success_list, starts, ends, refined_localizations, refined_masks, refined_segmentations
+    args = (
+        success_list,
+        starts,
+        ends,
+        refined_localizations,
+        refined_masks,
+        refined_segmentations,
+    )
     kwargs = {
-        'model_type':     config['curvrank_model_type'],
-        'scale':          config['curvrank_scale'],
+        'model_type': config['curvrank_model_type'],
+        'scale': config['curvrank_scale'],
         'allow_diagonal': config['outline_allow_diagonal'],
     }
     success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, **kwargs)
     for success, outline in zip(success_list, outlines):
-        yield (
-            success,
-            outline
-        )
+        yield (success, outline)
 
 
 class TrailingEdgeConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type',                  'dorsal'),
-            ut.ParamInfo('curvrank_width',                       DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height',                      DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale',                       DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('trailing_edge_finfindr_smooth',        True, hideif=True),
+            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_width', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('trailing_edge_finfindr_smooth', True, hideif=True),
             ut.ParamInfo('trailing_edge_finfindr_smooth_margin', 0.0, hideif=0.0),
         ]
 
 
 @register_preproc_annot(
-    tablename='trailing_edge', parents=['outline'],
+    tablename='trailing_edge',
+    parents=['outline'],
     colnames=['success', 'trailing_edge'],
     coltypes=[bool, np.ndarray],
     configclass=TrailingEdgeConfig,
@@ -923,22 +1042,28 @@ def wbia_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=No
     """
     ibs = depc.controller
 
-    model_type              = config['curvrank_model_type']
-    width                   = config['curvrank_width']
-    height                  = config['curvrank_height']
-    scale                   = config['curvrank_scale']
-    finfindr_smooth         = config['trailing_edge_finfindr_smooth']
-    finfindr_smooth_margin  = config['trailing_edge_finfindr_smooth_margin']
+    model_type = config['curvrank_model_type']
+    width = config['curvrank_width']
+    height = config['curvrank_height']
+    scale = config['curvrank_scale']
+    finfindr_smooth = config['trailing_edge_finfindr_smooth']
+    finfindr_smooth_margin = config['trailing_edge_finfindr_smooth_margin']
 
     aid_list = depc.get_ancestor_rowids('outline', outline_rowid_list)
-    success_list      = depc.get_native('outline', outline_rowid_list, 'success')
-    outlines          = depc.get_native('outline', outline_rowid_list, 'outline')
+    success_list = depc.get_native('outline', outline_rowid_list, 'success')
+    outlines = depc.get_native('outline', outline_rowid_list, 'outline')
 
-    values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success_list, outlines,
-                                                      model_type=model_type, width=width,
-                                                      height=height, scale=scale,
-                                                      finfindr_smooth=finfindr_smooth,
-                                                      finfindr_smooth_margin=finfindr_smooth_margin)
+    values = ibs.wbia_plugin_curvrank_trailing_edges(
+        aid_list,
+        success_list,
+        outlines,
+        model_type=model_type,
+        width=width,
+        height=height,
+        scale=scale,
+        finfindr_smooth=finfindr_smooth,
+        finfindr_smooth_margin=finfindr_smooth_margin,
+    )
     success_list, trailing_edges = values
 
     for success, trailing_edge in zip(success_list, trailing_edges):
@@ -951,13 +1076,14 @@ def wbia_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=No
 class CurvatuveConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvature_scales',         DEFAULT_SCALES['dorsal']),
+            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['dorsal']),
             ut.ParamInfo('curvatute_transpose_dims', False),
         ]
 
 
 @register_preproc_annot(
-    tablename='curvature', parents=['trailing_edge'],
+    tablename='curvature',
+    parents=['trailing_edge'],
     colnames=['success', 'curvature'],
     coltypes=[bool, np.ndarray],
     configclass=CurvatuveConfig,
@@ -1007,15 +1133,17 @@ def wbia_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=
     """
     ibs = depc.controller
 
-    scales         = config['curvature_scales']
+    scales = config['curvature_scales']
     transpose_dims = config['curvatute_transpose_dims']
 
-    success_list   = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'success')
-    trailing_edges = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'trailing_edge')
+    success_list = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'success')
+    trailing_edges = depc.get_native(
+        'trailing_edge', trailing_edge_rowid_list, 'trailing_edge'
+    )
 
-    values = ibs.wbia_plugin_curvrank_curvatures(success_list, trailing_edges,
-                                                  scales=scales,
-                                                  transpose_dims=transpose_dims)
+    values = ibs.wbia_plugin_curvrank_curvatures(
+        success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims
+    )
     success_list, curvatures = values
 
     for success, curvature in zip(success_list, curvatures):
@@ -1028,18 +1156,26 @@ def wbia_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=
 class CurvatuveDescriptorConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvature_scales',                   DEFAULT_SCALES['dorsal']),
-            ut.ParamInfo('curvature_descriptor_curv_length',   1024),
+            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['dorsal']),
+            ut.ParamInfo('curvature_descriptor_curv_length', 1024),
             ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
-            ut.ParamInfo('curvature_descriptor_uniform',       False),
-            ut.ParamInfo('curvature_descriptor_feat_dim',      32),
+            ut.ParamInfo('curvature_descriptor_uniform', False),
+            ut.ParamInfo('curvature_descriptor_feat_dim', 32),
         ]
 
 
 @register_preproc_annot(
-    tablename='curvature_descriptor', parents=['curvature'],
+    tablename='curvature_descriptor',
+    parents=['curvature'],
     colnames=['success', 'descriptor'],
-    coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
+    coltypes=[
+        bool,
+        (
+            'extern',
+            ut.partial(ut.load_cPkl, verbose=False),
+            ut.partial(ut.save_cPkl, verbose=False),
+        ),
+    ],
     configclass=CurvatuveDescriptorConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -1047,7 +1183,9 @@ class CurvatuveDescriptorConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list, config=None):
+def wbia_plugin_curvrank_curvature_descriptors_depc(
+    depc, curvature_rowid_list, config=None
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -1095,27 +1233,23 @@ def wbia_plugin_curvrank_curvature_descriptors_depc(depc, curvature_rowid_list, 
     """
     ibs = depc.controller
 
-    scales         = config['curvature_scales']
-    curv_length    = config['curvature_descriptor_curv_length']
-    num_keypoints  = config['curvature_descriptor_num_keypoints']
-    uniform        = config['curvature_descriptor_uniform']
-    feat_dim       = config['curvature_descriptor_feat_dim']
+    scales = config['curvature_scales']
+    curv_length = config['curvature_descriptor_curv_length']
+    num_keypoints = config['curvature_descriptor_num_keypoints']
+    uniform = config['curvature_descriptor_uniform']
+    feat_dim = config['curvature_descriptor_feat_dim']
 
     success_list = depc.get_native('curvature', curvature_rowid_list, 'success')
-    curvatures   = depc.get_native('curvature', curvature_rowid_list, 'curvature')
+    curvatures = depc.get_native('curvature', curvature_rowid_list, 'curvature')
 
     values = ibs.wbia_plugin_curvrank_curvature_descriptors(
-        success_list,
-        curvatures,
-        curv_length,
-        scales,
-        num_keypoints,
-        uniform,
-        feat_dim
+        success_list, curvatures, curv_length, scales, num_keypoints, uniform, feat_dim
     )
     success_list, curvature_descriptor_dicts = values
 
-    for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
+    for success, curvature_descriptor_dict in zip(
+        success_list, curvature_descriptor_dicts
+    ):
         yield (
             success,
             curvature_descriptor_dict,
@@ -1143,35 +1277,43 @@ class CurvatuveDescriptorOptimizedConfig(dtool.Config):
         #     param_list.append(param)
 
         param_list = [
-            ut.ParamInfo('curvrank_model_type',                  'dorsal'),
-            ut.ParamInfo('curvrank_width',                       DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_height',                      DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_greyscale',                   False),
-            ut.ParamInfo('curvrank_scale',                       DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('curvature_scales',                     DEFAULT_SCALES['dorsal']),
-            ut.ParamInfo('outline_allow_diagonal',               DEFAULT_ALLOW_DIAGONAL['dorsal']),
-            ut.ParamInfo('curvatute_transpose_dims',             DEFAULT_TRANSPOSE_DIMS['dorsal']),
-            ut.ParamInfo('localization_model_tag',               'localization'),
-            ut.ParamInfo('segmentation_model_tag',               'segmentation'),
-            ut.ParamInfo('segmentation_gt_radius',               25),
-            ut.ParamInfo('segmentation_gt_opacity',              0.5),
-            ut.ParamInfo('segmentation_gt_smooth',               True),
-            ut.ParamInfo('segmentation_gt_smooth_margin',        0.001),
-            ut.ParamInfo('trailing_edge_finfindr_smooth',        True, hideif=True),
+            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_width', DEFAULT_WIDTH['dorsal']),
+            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT['dorsal']),
+            ut.ParamInfo('curvrank_greyscale', False),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
+            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['dorsal']),
+            ut.ParamInfo('outline_allow_diagonal', DEFAULT_ALLOW_DIAGONAL['dorsal']),
+            ut.ParamInfo('curvatute_transpose_dims', DEFAULT_TRANSPOSE_DIMS['dorsal']),
+            ut.ParamInfo('localization_model_tag', 'localization'),
+            ut.ParamInfo('segmentation_model_tag', 'segmentation'),
+            ut.ParamInfo('segmentation_gt_radius', 25),
+            ut.ParamInfo('segmentation_gt_opacity', 0.5),
+            ut.ParamInfo('segmentation_gt_smooth', True),
+            ut.ParamInfo('segmentation_gt_smooth_margin', 0.001),
+            ut.ParamInfo('trailing_edge_finfindr_smooth', True, hideif=True),
             ut.ParamInfo('trailing_edge_finfindr_smooth_margin', 0.0, hideif=0.0),
-            ut.ParamInfo('curvature_descriptor_curv_length',     1024),
-            ut.ParamInfo('curvature_descriptor_num_keypoints',   32),
-            ut.ParamInfo('curvature_descriptor_uniform',         False),
-            ut.ParamInfo('curvature_descriptor_feat_dim',        32),
+            ut.ParamInfo('curvature_descriptor_curv_length', 1024),
+            ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
+            ut.ParamInfo('curvature_descriptor_uniform', False),
+            ut.ParamInfo('curvature_descriptor_feat_dim', 32),
         ]
 
         return param_list
 
 
 @register_preproc_annot(
-    tablename='curvature_descriptor_optimized', parents=[ROOT],
+    tablename='curvature_descriptor_optimized',
+    parents=[ROOT],
     colnames=['success', 'descriptor'],
-    coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
+    coltypes=[
+        bool,
+        (
+            'extern',
+            ut.partial(ut.load_cPkl, verbose=False),
+            ut.partial(ut.save_cPkl, verbose=False),
+        ),
+    ],
     configclass=CurvatuveDescriptorOptimizedConfig,
     fname='curvrank_optimized',
     rm_extern_on_delete=True,
@@ -1179,7 +1321,9 @@ class CurvatuveDescriptorOptimizedConfig(dtool.Config):
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, config=None):
+def wbia_plugin_curvrank_curvature_descriptors_optimized_depc(
+    depc, aid_list, config=None
+):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
@@ -1231,7 +1375,9 @@ def wbia_plugin_curvrank_curvature_descriptors_optimized_depc(depc, aid_list, co
     values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config_)
     success_list, curvature_descriptor_dicts = values
 
-    for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
+    for success, curvature_descriptor_dict in zip(
+        success_list, curvature_descriptor_dicts
+    ):
         yield (
             success,
             curvature_descriptor_dict,
@@ -1356,12 +1502,12 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
 def get_match_results(depc, qaid_list, daid_list, score_list, config):
     """ converts table results into format for ipython notebook """
-    #qaid_list, daid_list = request.get_parent_rowids()
-    #score_list = request.score_list
-    #config = request.config
+    # qaid_list, daid_list = request.get_parent_rowids()
+    # score_list = request.score_list
+    # config = request.config
 
     unique_qaids, groupxs = ut.group_indices(qaid_list)
-    #grouped_qaids_list = ut.apply_grouping(qaid_list, groupxs)
+    # grouped_qaids_list = ut.apply_grouping(qaid_list, groupxs)
     grouped_daids = ut.apply_grouping(daid_list, groupxs)
     grouped_scores = ut.apply_grouping(score_list, groupxs)
 
@@ -1378,7 +1524,7 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
         daid_list_ = np.array(daids)
         dnid_list_ = np.array(dnids)
 
-        is_valid = (daid_list_ != qaid)
+        is_valid = daid_list_ != qaid
         daid_list_ = daid_list_.compress(is_valid)
         dnid_list_ = dnid_list_.compress(is_valid)
         annot_scores = annot_scores.compress(is_valid)
@@ -1401,8 +1547,11 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
-    def overlay_trailing_edge(request, chip, outline, trailing_edge, edge_color=(0, 255, 255)):
+    def overlay_trailing_edge(
+        request, chip, outline, trailing_edge, edge_color=(0, 255, 255)
+    ):
         import cv2
+
         scale = request.config.curvrank_scale
 
         chip_ = np.copy(chip)
@@ -1433,12 +1582,19 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 
         model_type = request.config.curvrank_model_type
         if model_type in ['dorsalfinfindrhybrid']:
-            chips = depc.get('localization', aid_list, 'localized_img', config=DEFAULT_DORSAL_TEST_CONFIG)
+            chips = depc.get(
+                'localization',
+                aid_list,
+                'localized_img',
+                config=DEFAULT_DORSAL_TEST_CONFIG,
+            )
 
         if overlay:
             if model_type not in ['dorsalfinfindrhybrid']:
                 outlines = depc.get('outline', aid_list, 'outline', config=request.config)
-            trailing_edges = depc.get('trailing_edge', aid_list, 'trailing_edge', config=request.config)
+            trailing_edges = depc.get(
+                'trailing_edge', aid_list, 'trailing_edge', config=request.config
+            )
 
         overlay_chips = [
             request.overlay_trailing_edge(chip, outline, trailing_edge)
@@ -1449,9 +1605,11 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     def render_single_result(request, cm, aid, **kwargs):
         # HACK FOR WEB VIEWER
         overlay = kwargs.get('draw_fmatches')
-        chips = request.get_fmatch_overlayed_chip([cm.qaid, aid], overlay=overlay,
-                                                  config=request.config)
+        chips = request.get_fmatch_overlayed_chip(
+            [cm.qaid, aid], overlay=overlay, config=request.config
+        )
         import vtool as vt
+
         out_img = vt.stack_image_list(chips)
         return out_img
 
@@ -1460,8 +1618,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         score_list = ut.take_column(result_list, 0)
         depc = request.depc
         config = request.config
-        cm_list = list(get_match_results(depc, qaid_list, daid_list,
-                                         score_list, config))
+        cm_list = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
         return cm_list
 
     def execute(request, *args, **kwargs):
@@ -1469,10 +1626,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         result_list = super(CurvRankRequest, request).execute(*args, **kwargs)
         qaids = kwargs.pop('qaids', None)
         if qaids is not None:
-            result_list = [
-                result for result in result_list
-                if result.qaid in qaids
-            ]
+            result_list = [result for result in result_list if result.qaid in qaids]
         return result_list
 
 
@@ -1489,6 +1643,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> print(result)
         CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height=256,curvrank_model_type=dorsal,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
+
     def get_param_info_list(self):
         param_list = []
         key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
@@ -1501,18 +1656,22 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
             param_list.append(param)
         return param_list
 
+
 class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     _tablename = 'CurvRankDorsal'
 
 
 @register_preproc_annot(
-    tablename='CurvRankDorsal', parents=[ROOT, ROOT],
-    colnames=['score'], coltypes=[float],
+    tablename='CurvRankDorsal',
+    parents=[ROOT, ROOT],
+    colnames=['score'],
+    coltypes=[float],
     configclass=CurvRankDorsalConfig,
     requestclass=CurvRankDorsalRequest,
     fname='curvrank_scores_dorsal',
     rm_extern_on_delete=True,
-    chunksize=None)
+    chunksize=None,
+)
 def wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
@@ -1568,6 +1727,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> print(result)
         CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height=192,curvrank_model_type=fluke,curvrank_scale=3,curvrank_width=384,localization_model_tag=localization,outline_allow_diagonal=True,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
+
     def get_param_info_list(self):
         param_list = []
         key_list = DEFAULT_FLUKE_TEST_CONFIG.keys()
@@ -1586,13 +1746,16 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
 
 
 @register_preproc_annot(
-    tablename='CurvRankFluke', parents=[ROOT, ROOT],
-    colnames=['score'], coltypes=[float],
+    tablename='CurvRankFluke',
+    parents=[ROOT, ROOT],
+    colnames=['score'],
+    coltypes=[float],
     configclass=CurvRankFlukeConfig,
     requestclass=CurvRankFlukeRequest,
     fname='curvrank_scores_fluke',
     rm_extern_on_delete=True,
-    chunksize=None)
+    chunksize=None,
+)
 def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
@@ -1649,10 +1812,11 @@ class CurvRankFinfindrHybridDorsalConfig(dtool.Config):  # NOQA
         >>> print(result)
         CurvRankFinfindrHybridDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_greyscale=False,curvrank_height=256,curvrank_model_type=dorsalfinfindrhybrid,curvrank_scale=4,curvrank_width=256,localization_model_tag=localization,outline_allow_diagonal=False,segmentation_gt_opacity=0.5,segmentation_gt_radius=25,segmentation_gt_smooth=True,segmentation_gt_smooth_margin=0.001,segmentation_model_tag=segmentation)
     """
+
     def get_param_info_list(self):
         value_mapping_dict = {
-            'curvrank_model_type'                : 'dorsalfinfindrhybrid',
-            'curvature_descriptor_uniform'       : True,
+            'curvrank_model_type': 'dorsalfinfindrhybrid',
+            'curvature_descriptor_uniform': True,
             # 'curvature_descriptor_num_keypoints' : 64,
         }
         param_list = []
@@ -1673,13 +1837,16 @@ class CurvRankFinfindrHybridDorsalRequest(CurvRankRequest):  # NOQA
 
 
 @register_preproc_annot(
-    tablename='CurvRankFinfindrHybridDorsal', parents=[ROOT, ROOT],
-    colnames=['score'], coltypes=[float],
+    tablename='CurvRankFinfindrHybridDorsal',
+    parents=[ROOT, ROOT],
+    colnames=['score'],
+    coltypes=[float],
     configclass=CurvRankFinfindrHybridDorsalConfig,
     requestclass=CurvRankFinfindrHybridDorsalRequest,
     fname='curvrank_scores_dorsal',
     rm_extern_on_delete=True,
-    chunksize=None)
+    chunksize=None,
+)
 def wbia_plugin_curvrank_finfindr_hybrid_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
@@ -1728,6 +1895,8 @@ if __name__ == '__main__':
         python -m wbia_curvrank._plugin_depc --allexamples
     """
     import multiprocessing
+
     multiprocessing.freeze_support()  # for win32
     import utool as ut  # NOQA
+
     ut.doctest_funcs()

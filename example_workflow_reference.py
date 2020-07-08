@@ -42,8 +42,9 @@ def pipeline(images, names, flips):
     print('Preprocessing')
     resized_images, resized_masks, pre_transforms = [], [], []
     for i, _ in enumerate(images):
-        resized_image, resized_mask, pre_transform =\
-            F.preprocess_image(images[i], flips[i], height, width)
+        resized_image, resized_mask, pre_transform = F.preprocess_image(
+            images[i], flips[i], height, width
+        )
 
         resized_images.append(resized_image)
         resized_masks.append(resized_mask)
@@ -53,24 +54,25 @@ def pipeline(images, names, flips):
     print('Localization')
     layers = localization.build_model((None, 3, height, width))
     localization_weightsfile = join('..', '_weights', 'weights_localization.pickle')
-    model.load_weights([
-        layers['trans'], layers['loc']],
-        localization_weightsfile
-    )
+    model.load_weights([layers['trans'], layers['loc']], localization_weightsfile)
     localization_func = theano_funcs.create_localization_infer_func(layers)
 
-    localized_images, localized_masks, loc_transforms =\
-        F.localize(resized_images, resized_masks, height, width,
-                   localization_func)
+    localized_images, localized_masks, loc_transforms = F.localize(
+        resized_images, resized_masks, height, width, localization_func
+    )
 
     # Refinement
     print('Refinement')
     refined_localizations, refined_masks = [], []
     for i, _ in enumerate(images):
         refined_localization, refined_mask = F.refine_localization(
-            images[i], flips[i],
-            pre_transforms[i], loc_transforms[i],
-            scale, height, width
+            images[i],
+            flips[i],
+            pre_transforms[i],
+            loc_transforms[i],
+            scale,
+            height,
+            width,
         )
 
         refined_localizations.append(refined_localization)
@@ -78,17 +80,16 @@ def pipeline(images, names, flips):
 
     # Segmentation
     print('Segmentation')
-    segmentation_layers =\
-        segmentation.build_model_batchnorm_full((None, 3, height, width))
+    segmentation_layers = segmentation.build_model_batchnorm_full(
+        (None, 3, height, width)
+    )
 
     segmentation_weightsfile = join('..', '_weights', 'weights_segmentation.pickle')
-    model.load_weights(segmentation_layers['seg_out'],
-                       segmentation_weightsfile)
-    segmentation_func = theano_funcs.create_segmentation_func(
-        segmentation_layers)
+    model.load_weights(segmentation_layers['seg_out'], segmentation_weightsfile)
+    segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
     segmentations, refined_segmentations = F.segment_contour(
-        refined_localizations, refined_masks, scale, height, width,
-        segmentation_func)
+        refined_localizations, refined_masks, scale, height, width, segmentation_func
+    )
 
     # NOTE: Tasks downstream from here may fail!  Need to check status.
     # Keypoints
@@ -96,7 +97,8 @@ def pipeline(images, names, flips):
     starts, ends = [], []
     for i, _ in enumerate(images):
         start, end = F.find_keypoints(
-            find_dorsal_keypoints, segmentations[i], localized_masks[i])
+            find_dorsal_keypoints, segmentations[i], localized_masks[i]
+        )
         if start is None or end is None:
             success[i] = False
 
@@ -109,9 +111,15 @@ def pipeline(images, names, flips):
     for i, _ in enumerate(images):
         if success[i]:
             outline = F.extract_outline(
-                refined_localizations[i], refined_masks[i],
-                refined_segmentations[i], scale,
-                starts[i], ends[i], cost_func, allow_diagonal)
+                refined_localizations[i],
+                refined_masks[i],
+                refined_segmentations[i],
+                scale,
+                starts[i],
+                ends[i],
+                cost_func,
+                allow_diagonal,
+            )
             if outline is None:
                 success[i] = False
         else:
@@ -124,7 +132,8 @@ def pipeline(images, names, flips):
     for i, _ in enumerate(images):
         if success[i]:
             _, trailing_edge = F.separate_edges(
-                separate_leading_trailing_edges, outlines[i])
+                separate_leading_trailing_edges, outlines[i]
+            )
             if trailing_edge is None:
                 success[i] = None
         else:
@@ -136,8 +145,7 @@ def pipeline(images, names, flips):
     curvatures = []
     for i, _ in enumerate(images):
         if success[i]:
-            curvature = F.compute_curvature(
-                trailing_edges[i], scales, transpose_dims)
+            curvature = F.compute_curvature(trailing_edges[i], scales, transpose_dims)
         else:
             curvature = None
         curvatures.append(curvature)
@@ -148,8 +156,8 @@ def pipeline(images, names, flips):
     for i, _ in enumerate(images):
         if success[i]:
             feature_matrices = F.compute_curvature_descriptors(
-                curvatures[i], curv_length, scales,
-                num_keypoints, uniform, feat_dim)
+                curvatures[i], curv_length, scales, num_keypoints, uniform, feat_dim
+            )
         else:
             feature_matrices = None
         feature_matrices_list.append(feature_matrices)
@@ -166,10 +174,9 @@ def pipeline(images, names, flips):
     lnbnn_data = {}
     fmats_by_scale = list(zip(*valid_fmats))
     for i, s in enumerate(scales):
-        N = np.hstack([
-            [name] * fmat.shape[0]
-            for name, fmat in zip(valid_names, fmats_by_scale[i])
-        ])
+        N = np.hstack(
+            [[name] * fmat.shape[0] for name, fmat in zip(valid_names, fmats_by_scale[i])]
+        )
         D = np.vstack((fmats_by_scale[i]))
 
         lnbnn_data[s] = (D, N)
@@ -182,9 +189,12 @@ def pipeline(images, names, flips):
 def example():
     db_dir = join('..', '_images', 'db')
     db_fnames = [
-        '17874.JPG', '17541.JPG',
-        '23496.JPG', '25697.JPG',
-        '26929.JPG', '27516.JPG'
+        '17874.JPG',
+        '17541.JPG',
+        '23496.JPG',
+        '25697.JPG',
+        '26929.JPG',
+        '27516.JPG',
     ]
     # CurvRank only handles left-view images.  The pipeline uses this to flip
     # right-view images.

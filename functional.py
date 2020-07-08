@@ -25,23 +25,27 @@ def preprocess_image(img, flip, height, width):
 def localize(imgs, masks, height, width, func):
     X = np.empty((len(imgs), 3, height, width), dtype=np.float32)
     for i, img in enumerate(imgs):
-        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.
+        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.0
     L, Z = func(X)
     imgs_out, masks_out, xforms_out = [], [], []
     for i in range(X.shape[0]):
-        M = np.vstack((L[i].reshape((2, 3)), np.array([0., 0., 1.])))
-        A = affine.multiply_matrices((
-            affine.build_upsample_matrix(height, width),
-            M,
-            affine.build_downsample_matrix(height, width),
-        ))
-
-        mask = cv2.warpAffine(
-            masks[i].astype(np.float32), A[:2], (width, height),
-            flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+        M = np.vstack((L[i].reshape((2, 3)), np.array([0.0, 0.0, 1.0])))
+        A = affine.multiply_matrices(
+            (
+                affine.build_upsample_matrix(height, width),
+                M,
+                affine.build_downsample_matrix(height, width),
+            )
         )
 
-        imgs_out.append((Z[i] * 255.).transpose(1, 2, 0).astype(np.uint8))
+        mask = cv2.warpAffine(
+            masks[i].astype(np.float32),
+            A[:2],
+            (width, height),
+            flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR,
+        )
+
+        imgs_out.append((Z[i] * 255.0).transpose(1, 2, 0).astype(np.uint8))
         masks_out.append(mask)
         xforms_out.append(M)
 
@@ -64,7 +68,7 @@ def segment_contour(imgs, masks, scale, height, width, func):
     X = np.empty((len(imgs), 3, height, width), dtype=np.float32)
     for i, img in enumerate(imgs):
         img = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
-        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.
+        X[i] = img.astype(np.float32).transpose(2, 0, 1) / 255.0
     S = func(X)
 
     segms_out, refns_out = [], []
@@ -72,7 +76,7 @@ def segment_contour(imgs, masks, scale, height, width, func):
         segm = S[i].transpose(1, 2, 0)
         refn = imutils.refine_segmentation(segm, scale)
         mask = masks[i]
-        refn[mask < 255] = 0.
+        refn[mask < 255] = 0.0
 
         segms_out.append(segm)
         refns_out.append(refn)
@@ -93,8 +97,7 @@ def find_keypoints(method, segm, mask):
     return start, end
 
 
-def extract_outline(img, mask, segm, scale,
-                    start, end, cost_func, allow_diagonal):
+def extract_outline(img, mask, segm, scale, start, end, cost_func, allow_diagonal):
     Mscale = affine.build_scale_matrix(scale)
     points_orig = np.vstack((start, end))[:, ::-1]  # ij -> xy
     points_refn = affine.transform_points(Mscale, points_orig)
@@ -128,8 +131,9 @@ def compute_curvature(contour, scales, transpose_dims):
     return curv
 
 
-def compute_curvature_descriptors(curv, curv_length, scales,
-                                  num_keypoints, uniform, feat_dim):
+def compute_curvature_descriptors(
+    curv, curv_length, scales, num_keypoints, uniform, feat_dim
+):
     if curv.shape[0] == curv_length:
         resampled = curv
     else:
@@ -139,45 +143,38 @@ def compute_curvature_descriptors(curv, curv_length, scales,
     for sidx, scale in enumerate(scales):
         # keypoints are at uniform intervals along contour
         if uniform:
-            keypts = np.linspace(
-                0, resampled.shape[0], num_keypoints, dtype=np.int32
-            )
+            keypts = np.linspace(0, resampled.shape[0], num_keypoints, dtype=np.int32)
         # keypoints are the local maxima at each scale
         else:
             smoothed = gaussian_filter1d(resampled[:, sidx], 5.0)
             try:
-                maxima_idx, = argrelextrema(
-                    smoothed, np.greater, order=3
-                )
+                (maxima_idx,) = argrelextrema(smoothed, np.greater, order=3)
             except ValueError:
                 maxima_idx = np.array([], dtype=np.int32)
             try:
-                minima_idx, = argrelextrema(
-                    smoothed, np.less, order=3
-                )
+                (minima_idx,) = argrelextrema(smoothed, np.less, order=3)
             except ValueError:
                 minima_idx = np.array([], dtype=np.int32)
 
             extrema_idx = np.sort(np.hstack((minima_idx, maxima_idx)))
             # add a dummy index for comparing against the last idx
-            dummy_idx = np.sort(np.hstack((
-                extrema_idx, np.array([smoothed.shape[0] + 1]))
-            ))
-            valid_idx = (dummy_idx[1:] - dummy_idx[:-1] > 1)
+            dummy_idx = np.sort(
+                np.hstack((extrema_idx, np.array([smoothed.shape[0] + 1])))
+            )
+            valid_idx = dummy_idx[1:] - dummy_idx[:-1] > 1
             extrema_idx = extrema_idx[valid_idx]
             # sort based on distance to curv of 0.5 (straight line)
             extrema = abs(0.5 - smoothed[extrema_idx])
             sorted_idx = np.argsort(extrema)[::-1]
             # leave two spots for the start and endpoints
-            extrema_idx =  extrema_idx[sorted_idx][0:num_keypoints - 2]
+            extrema_idx = extrema_idx[sorted_idx][0 : num_keypoints - 2]
 
             sorted_extrema_idx = np.sort(extrema_idx)
             if sorted_extrema_idx.shape[0] > 0:
                 if sorted_extrema_idx[0] in (0, 1):
                     sorted_extrema_idx = sorted_extrema_idx[1:]
             keypts = np.zeros(
-                min(num_keypoints, 2 + sorted_extrema_idx.shape[0]),
-                dtype=np.int32
+                min(num_keypoints, 2 + sorted_extrema_idx.shape[0]), dtype=np.int32
             )
             keypts[0], keypts[-1] = 0, resampled.shape[0]
             keypts[1:-1] = sorted_extrema_idx
@@ -191,13 +188,14 @@ def compute_curvature_descriptors(curv, curv_length, scales,
             feat = dorsal_utils.resample(subcurv, feat_dim)
 
             # l2-norm across the feature dimension
-            #feat /= np.sqrt(np.sum(feat * feat, axis=0))
+            # feat /= np.sqrt(np.sum(feat * feat, axis=0))
             feat /= np.linalg.norm(feat)
-            assert feat.shape[0] == feat_dim, (
-                'f.shape[0] = %d != feat_dim' % (feat.shape[0], feat_dim))
+            assert feat.shape[0] == feat_dim, 'f.shape[0] = %d != feat_dim' % (
+                feat.shape[0],
+                feat_dim,
+            )
             feat_norm = np.linalg.norm(feat, axis=0)
-            assert np.allclose(feat_norm, 1.), (
-                'norm(feat) = %.6f' % (feat_norm))
+            assert np.allclose(feat_norm, 1.0), 'norm(feat) = %.6f' % (feat_norm)
 
             descriptors[i] = feat
         feat_mats.append(descriptors)
@@ -216,7 +214,7 @@ def build_lnbnn_index(data, fpath, num_trees=10):
     start = time.time()
     index.build(num_trees)
     end = time.time()
-    print('...done (took %r seconds' % (end - start, ))
+    print('...done (took %r seconds' % (end - start,))
     print('Saving indices...')
     index.save(fpath)
     print('...done')
@@ -241,7 +239,7 @@ def lnbnn_identify(index_fpath, k, descriptors, names, search_k=-1):
         # entry at k + 1 is the normalizing distance
         classes = np.array([names[idx] for idx in ind[:-1]])
         for c in np.unique(classes):
-            j, = np.where(classes == c)
+            (j,) = np.where(classes == c)
             # multiple descriptors in the top-k may belong to the
             # same class
             score = dist[j.min()] - dist[-1]

@@ -77,4 +77,4 @@ def hist_intersect(qcurv, dcurv):
     qfeat = qhist.flatten()
     dfeat = dhist.flatten()
 
-    return -1. * np.sum(np.minimum(qfeat, dfeat))
+    return -1.0 * np.sum(np.minimum(qfeat, dfeat))

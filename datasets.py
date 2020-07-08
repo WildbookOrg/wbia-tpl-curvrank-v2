@@ -32,9 +32,9 @@ def load_nz_dataset():
         indiv_dir = join(data_dir, indiv_name)
         # encounters have "done" as suffix
         encounters = [
-            enc for enc in listdir(indiv_dir)
-            if enc.lower().endswith('done') and not
-            enc.startswith('.')
+            enc
+            for enc in listdir(indiv_dir)
+            if enc.lower().endswith('done') and not enc.startswith('.')
         ]
         for enc_name in encounters:
             enc_dir = join(indiv_dir, enc_name)
@@ -43,12 +43,14 @@ def load_nz_dataset():
                 img_fpath = join(enc_dir, img_name)
                 img = cv2.imread(img_fpath)
                 if img is not None:
-                    data_list.append((
-                        img_fpath,
-                        indiv_name,
-                        enc_name,
-                        'Left',  # all images in this dataset are left-views
-                    ))
+                    data_list.append(
+                        (
+                            img_fpath,
+                            indiv_name,
+                            enc_name,
+                            'Left',  # all images in this dataset are left-views
+                        )
+                    )
 
     return data_list
 
@@ -98,16 +100,33 @@ def load_sdrp_dataset(years):
 
     data_dir = '/media/sdrp/SDRP Data/FinBase/Images'
     data_list = []
-    for (fname, survey, sighting, date, alias, image, side,
-            distinct_rating, distinct_text,
-            focus_code, focus_text, contrast_code, contrast_text,
-            angle_code, angle_text, partial_code, partial_text,
-            distance_code, distance_text) in cur.fetchall():
+    for (
+        fname,
+        survey,
+        sighting,
+        date,
+        alias,
+        image,
+        side,
+        distinct_rating,
+        distinct_text,
+        focus_code,
+        focus_text,
+        contrast_code,
+        contrast_text,
+        angle_code,
+        angle_text,
+        partial_code,
+        partial_text,
+        distance_code,
+        distance_text,
+    ) in cur.fetchall():
 
         date = datetime.strptime(date, '%m/%d/%y %H:%M:%S')
-        quality_score = (focus_code + contrast_code + angle_code +
-                         partial_code + distance_code)
-        #if quality_score > 7:
+        quality_score = (
+            focus_code + contrast_code + angle_code + partial_code + distance_code
+        )
+        # if quality_score > 7:
         #    continue
         if quality_score > 11:  # Q1 or Q2 in quality
             continue
@@ -115,12 +134,9 @@ def load_sdrp_dataset(years):
             continue
         # we only use left-view images for now
         if date.year in years:
-            data_list.append((
-                join(data_dir, fname),
-                alias,
-                '%s-%s' % (survey, sighting),
-                side,
-            ))
+            data_list.append(
+                (join(data_dir, fname), alias, '%s-%s' % (survey, sighting), side,)
+            )
 
     return data_list
 
@@ -129,8 +145,9 @@ def load_fb_dataset():
     data_dir = '/media/hdd/hendrik/datasets/fb-humpbacks'
     csv_fpath = join(data_dir, 'filelist.csv')
 
-    df = pd.read_csv(csv_fpath, header='infer',
-                     usecols=['Filepath', 'Individual', 'Encounter', 'Side'])
+    df = pd.read_csv(
+        csv_fpath, header='infer', usecols=['Filepath', 'Individual', 'Encounter', 'Side']
+    )
 
     filepaths = df['Filepath'].values
     individuals = df['Individual'].values
@@ -138,11 +155,8 @@ def load_fb_dataset():
     sides = df['Side'].values
 
     data_list = []
-    for fpath, indiv, enc, side in zip(
-            filepaths, individuals, encounters, sides):
-        data_list.append((
-            fpath, indiv, enc, side
-        ))
+    for fpath, indiv, enc, side in zip(filepaths, individuals, encounters, sides):
+        data_list.append((fpath, indiv, enc, side))
 
     return data_list
 
@@ -153,15 +167,9 @@ def load_fw_dataset():
     df = pd.read_csv(csv_fpath)
     data_list = []
     # no encounter information, assume all separate
-    for enc, (fname, indiv, side) in enumerate(
-            df[['Filename', 'ID', 'Side']].values):
+    for enc, (fname, indiv, side) in enumerate(df[['Filename', 'ID', 'Side']].values):
         img_fpath = join(root, 'images', fname)
-        data_list.append((
-            img_fpath,
-            indiv,
-            enc,
-            side,
-        ))
+        data_list.append((img_fpath, indiv, enc, side,))
 
     return data_list
 
@@ -173,27 +181,22 @@ def load_crc_dataset():
     data_list = []
     for dir_name in dir_names:
         csv_fpath = join(data_dir, 'filelists', '%s.csv' % dir_name)
-        df = pd.read_csv(csv_fpath, header='infer',
-                         usecols=['Filename', 'CRCID'])
+        df = pd.read_csv(csv_fpath, header='infer', usecols=['Filename', 'CRCID'])
         filenames = df['Filename'].values
         names = df['CRCID'].values
         for enc, (fname, name) in enumerate(zip(filenames, names)):
             fpath = join(data_dir, dir_name, 'images', fname)
-            data_list.append((
-                fpath, name, enc, 'Left'
-            ))
+            data_list.append((fpath, name, enc, 'Left'))
 
     return data_list
 
 
-def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict,
-                              **kwargs):
+def separate_database_queries(name, fpath_list, ind_list, enc_list, curv_dict, **kwargs):
     if name == 'nz':
         return separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict)
     # separate the flukebook dataset the same way
     elif name in ('sdrp', 'fb', 'crc', 'coa'):
-        return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
-                                     **kwargs)
+        return separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict, **kwargs)
     else:
         assert False, 'bad dataset name: %s' % (name)
 
@@ -217,9 +220,7 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
         encounters = ind_enc_curv_dict[ind].keys()
         num_encounters = len(encounters)
         if num_encounters > 1:
-            num_curvs = [
-                len(ind_enc_curv_dict[ind][enc]) for enc in encounters
-            ]
+            num_curvs = [len(ind_enc_curv_dict[ind][enc]) for enc in encounters]
             max_idx = np.argmax(num_curvs)
             for idx, enc in enumerate(encounters):
                 if idx == max_idx:
@@ -230,17 +231,18 @@ def separate_nz_dataset(fpath_list, ind_list, enc_list, curv_dict):
                     qr_dict[ind][enc] = ind_enc_curv_dict[ind][enc]
         else:
             db_dict[ind] = ind_enc_curv_dict[ind][encounters[0]]
-            #print('individual %s has only %d encounters' % (
+            # print('individual %s has only %d encounters' % (
             #    ind, num_encounters))
 
     # we only use individuals with at least two encounters
-    #for qind in qr_dict.keys():
+    # for qind in qr_dict.keys():
     #    assert qind in db_dict.keys(), '%s missing from db!' % (qind)
     return db_dict, qr_dict
 
 
-def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
-                          num_db_encounters=10):
+def separate_sdrp_dataset(
+    fpath_list, ind_list, enc_list, curv_dict, num_db_encounters=10
+):
     # {'i1': {'e1': [v1, v2, ..., vn], 'e2': [v1, v2, ..., vm]}}
     ind_enc_curv_dict = {}
     for fpath, ind, enc in zip(fpath_list, ind_list, enc_list):
@@ -286,6 +288,6 @@ def separate_sdrp_dataset(fpath_list, ind_list, enc_list, curv_dict,
                 qr_dict[ind][enc] = q_curv_list
         else:
             db_dict[ind] = ind_enc_curv_dict[ind][encounters[0]]
-            #single_encounter_individuals += 1
+            # single_encounter_individuals += 1
 
     return db_dict, qr_dict

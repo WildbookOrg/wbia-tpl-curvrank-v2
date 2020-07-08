@@ -7,24 +7,22 @@ import numpy as np
 
 def center_pad_with_transform(img, height, width):
     old_height, old_width = img.shape[0:2]
-    hs = 1. * old_height / height
-    ws = 1. * old_width / width
+    hs = 1.0 * old_height / height
+    ws = 1.0 * old_width / width
     if hs > ws:
-        s = 1. / hs
-        tx = int(np.round(abs(width - s * old_width) / 2.))
+        s = 1.0 / hs
+        tx = int(np.round(abs(width - s * old_width) / 2.0))
         ty = 0
     elif hs < ws:
-        s = 1. / ws
+        s = 1.0 / ws
         tx = 0
-        ty = int(np.round(abs(height - s * old_height) / 2.))
+        ty = int(np.round(abs(height - s * old_height) / 2.0))
     else:
         s = ws
         tx = 0
         ty = 0
 
-    M = np.array([[s, 0., tx],
-                  [0., s, ty],
-                  [0., 0., 1.]])
+    M = np.array([[s, 0.0, tx], [0.0, s, ty], [0.0, 0.0, 1.0]])
 
     resz = cv2.warpAffine(img, M[:2], (width, height), flags=cv2.INTER_AREA)
 
@@ -33,15 +31,16 @@ def center_pad_with_transform(img, height, width):
 
 def refine_segmentation(segm, s):
     orig_height, orig_width = segm.shape[0:2]
-    out_height, out_width = (s * np.ceil((
-        orig_height, orig_width))).astype(np.int32)
+    out_height, out_width = (s * np.ceil((orig_height, orig_width))).astype(np.int32)
     T70 = affine.build_scale_matrix(s)
     T70i = cv2.invertAffineTransform(T70[:2])
 
     A = T70i
     segm_refined = cv2.warpAffine(
-        segm.astype(np.float32), A[:2], (out_width, out_height),
-        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+        segm.astype(np.float32),
+        A[:2],
+        (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR,
     )
 
     return segm_refined
@@ -60,13 +59,17 @@ def refine_localization(img, mask, M, L, s, height, width):
     A = affine.multiply_matrices([T43, T32, T21, T10, T70i])
 
     loc_refined = cv2.warpAffine(
-        img.astype(np.float32), A[:2], (out_width, out_height),
-        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+        img.astype(np.float32),
+        A[:2],
+        (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR,
     )
 
     mask_refined = cv2.warpAffine(
-        mask.astype(np.float32), A[:2], (out_width, out_height),
-        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR
+        mask.astype(np.float32),
+        A[:2],
+        (out_width, out_height),
+        flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR,
     )
 
     return loc_refined, mask_refined

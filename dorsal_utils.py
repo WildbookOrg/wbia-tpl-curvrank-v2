@@ -36,17 +36,15 @@ def local_max2d(X):
 
     rows_grid[rows_max_idx], cols_grid[cols_max_idx] = 1, 1
 
-    local_max_idx = (rows_grid & cols_grid)
+    local_max_idx = rows_grid & cols_grid
     i, j = np.where(local_max_idx)
 
     return np.vstack((i, j)).T
 
 
 def find_dorsal_keypoints(X):
-    coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
-    i, j = np.round(
-        np.average(coordinates, weights=X.flatten(), axis=0)
-    ).astype(np.int32)
+    coordinates = np.mgrid[0 : X.shape[0] : 1, 0 : X.shape[1] : 1].reshape(2, -1).T
+    i, j = np.round(np.average(coordinates, weights=X.flatten(), axis=0)).astype(np.int32)
 
     leading, trailing = X[i:, :j], X[i:, j:]
 
@@ -72,10 +70,8 @@ def find_dorsal_keypoints(X):
 
 
 def find_fluke_keypoints(X):
-    coordinates = np.mgrid[0:X.shape[0]:1, 0:X.shape[1]:1].reshape(2, -1).T
-    i, j = np.round(
-        np.average(coordinates, weights=X.flatten(), axis=0)
-    ).astype(np.int32)
+    coordinates = np.mgrid[0 : X.shape[0] : 1, 0 : X.shape[1] : 1].reshape(2, -1).T
+    i, j = np.round(np.average(coordinates, weights=X.flatten(), axis=0)).astype(np.int32)
 
     leading, trailing = X[:, :j], X[:, j:]
 
@@ -104,17 +100,15 @@ def find_fluke_keypoints(X):
 
 
 def dorsal_cost_func(grad, dist):
-    W = 1. / np.clip(grad * dist, 1e-5, 1.)
+    W = 1.0 / np.clip(grad * dist, 1e-5, 1.0)
 
     return W
 
 
 def fluke_cost_func(grad, dist):
-    norm = cv2.normalize(
-        grad * dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
+    norm = cv2.normalize(grad * dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
-    W = np.exp(5. * (1. - norm))
+    W = np.exp(5.0 * (1.0 - norm))
 
     return W
 
@@ -129,9 +123,9 @@ def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # if this is the case, use this workaround that imitates cvtColor
     # (~1.91 ms vs 98.5 us), or rebuild OpenCV with TBB
-    #gray = np.round(
+    # gray = np.round(
     #    np.sum(np.array([0.114, 0.587, 0.299]) * img, axis=2)
-    #).astype(np.uint8)
+    # ).astype(np.uint8)
     ksize = 3
     grad = cv2.magnitude(
         cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=ksize),
@@ -140,30 +134,22 @@ def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
     kernel = np.ones((ksize, ksize), dtype=np.uint8)
     msk = cv2.erode(msk, kernel=kernel, iterations=1) / 255
     # NOTE: Need to update Segmentation to match the dims of msk.
-    grad[msk < 1] = 0.
-    grad_norm = cv2.normalize(
-        grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
+    grad[msk < 1] = 0.0
+    grad_norm = cv2.normalize(grad, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
     segm_norm = segm.astype(np.float32)
-    segm_norm = cv2.normalize(
-        segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
+    segm_norm = cv2.normalize(segm_norm, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
     _, segm_thrs = cv2.threshold(segm_norm, 0.1, 255, cv2.THRESH_BINARY_INV)
     # to ensure sufficient overlap between segmentation and gradient images
-    dist, _ = cv2.distanceTransformWithLabels(
-        segm_thrs.astype(np.uint8), cv2.DIST_L2, 5
-    )
+    dist, _ = cv2.distanceTransformWithLabels(segm_thrs.astype(np.uint8), cv2.DIST_L2, 5)
     dist = np.exp(-0.1 * dist)
-    dist = cv2.normalize(
-        dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
-    )
+    dist = cv2.normalize(dist, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
     W = cost_func(grad_norm, dist)
 
     outline = astar_path(W, start, end, allow_diagonal=allow_diagonal)
-    #outline = astar_path(W, end, start, allow_diagonal=allow_diagonal)
+    # outline = astar_path(W, end, start, allow_diagonal=allow_diagonal)
 
     return outline
 
@@ -171,7 +157,7 @@ def extract_outline(img, msk, segm, cost_func, start, end, allow_diagonal):
 def separate_leading_trailing_edges(contour):
     steps = contour.shape[0] // 2 + 1
     norm = diff_of_gauss_norm(contour, steps, m=2, s=1)
-    maxima_idx, = argrelextrema(norm, np.greater, order=250)
+    (maxima_idx,) = argrelextrema(norm, np.greater, order=250)
 
     if maxima_idx.shape[0] > 0:
         keypt = steps // 2 + maxima_idx[norm[maxima_idx].argmax()]
@@ -198,7 +184,7 @@ def diff_of_gauss_norm(contour, steps, m=1, s=1):
 
 
 def gaussian(u, s):
-    return 1. / np.sqrt(2. * np.pi * s * s) * np.exp(-u * u / (2. * s * s))
+    return 1.0 / np.sqrt(2.0 * np.pi * s * s) * np.exp(-u * u / (2.0 * s * s))
 
 
 # contour: (n, 2) array of (x, y) points
@@ -233,28 +219,26 @@ def oriented_curvature(contour, radii):
     return curvature
 
 
-def diff_of_gauss_descriptor(contour, m, s, num_keypoints,
-                             feat_dim, contour_length, uniform):
+def diff_of_gauss_descriptor(
+    contour, m, s, num_keypoints, feat_dim, contour_length, uniform
+):
     if contour.shape[0] == contour_length:
         resampled = contour
     else:
         resampled = resampleNd(contour, contour_length)
     if uniform:
-        keypoints = np.linspace(
-            0, resampled.shape[0], num_keypoints, dtype=np.int32
-        )
+        keypoints = np.linspace(0, resampled.shape[0], num_keypoints, dtype=np.int32)
     else:
         steps = 1 + 4 * 8 * 2
-        response = diff_of_gauss_norm(resampled, steps,  m=8, s=2)
+        response = diff_of_gauss_norm(resampled, steps, m=8, s=2)
 
-        maxima_idx, = argrelextrema(response, np.greater, order=1)
+        (maxima_idx,) = argrelextrema(response, np.greater, order=1)
 
         sorted_idx = np.argsort(response[maxima_idx])[::-1]
-        maxima_idx =  maxima_idx[sorted_idx][0:num_keypoints - 2]
+        maxima_idx = maxima_idx[sorted_idx][0 : num_keypoints - 2]
         maxima_idx += steps // 2
 
-        keypoints = np.zeros(
-            min(num_keypoints, 2 + maxima_idx.shape[0]), dtype=np.int32)
+        keypoints = np.zeros(min(num_keypoints, 2 + maxima_idx.shape[0]), dtype=np.int32)
         keypoints[0], keypoints[-1] = 0, resampled.shape[0]
         keypoints[1:-1] = np.sort(maxima_idx)
 
@@ -264,10 +248,10 @@ def diff_of_gauss_descriptor(contour, m, s, num_keypoints,
     for (idx0, idx1) in combinations(keypoints, 2):
         x, y = resampled[idx0:idx1].T
 
-        x_interp = np.linspace(0., interp_length, num=x.shape[0])
+        x_interp = np.linspace(0.0, interp_length, num=x.shape[0])
         fx_interp = interp1d(x_interp, x, kind='linear')
 
-        y_interp = np.linspace(0., interp_length, num=y.shape[0])
+        y_interp = np.linspace(0.0, interp_length, num=y.shape[0])
         fy_interp = interp1d(y_interp, y, kind='linear')
 
         x_resamp = fx_interp(np.arange(interp_length))
@@ -299,8 +283,7 @@ def reorient(points, theta, center):
     points_trans = points_trans.transpose()[:, :2]
     points_trans += center
 
-    assert points_trans.ndim == 2, 'points_trans.ndim == %d != 2' % (
-        points_trans.ndim)
+    assert points_trans.ndim == 2, 'points_trans.ndim == %d != 2' % (points_trans.ndim)
 
     return points_trans
 

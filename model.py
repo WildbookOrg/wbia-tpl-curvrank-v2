@@ -5,6 +5,7 @@ from lasagne.layers import get_all_params
 from lasagne.layers import count_params
 from lasagne.layers import get_all_layers
 import six
+
 if six.PY2:
     import cPickle as pickle
 else:
@@ -31,15 +32,15 @@ def load_weights(layer, filename):
 
 def print_info(layer):
     layers = get_all_layers(layer)
-    print('this network has %d learnable parameters' % (
-        (count_params(layer))))
+    print('this network has %d learnable parameters' % ((count_params(layer))))
     for layer in layers:
         num_params = 0
         if hasattr(layer, 'W') and layer.W is not None:
             num_params += np.prod(layer.W.get_value().shape)
         if hasattr(layer, 'b') and layer.b is not None:
             num_params += np.prod(layer.b.get_value().shape)
-        print('%s: %s, %r, %d' % (
-            layer.name, layer.__class__.__name__,
-            layer.output_shape, num_params))
-        #layer.name, layer, layer.output_shape, num_params))
+        print(
+            '%s: %s, %r, %d'
+            % (layer.name, layer.__class__.__name__, layer.output_shape, num_params)
+        )
+        # layer.name, layer, layer.output_shape, num_params))

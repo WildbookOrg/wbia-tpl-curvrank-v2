@@ -4,6 +4,7 @@ from wbia.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
 import wbia_curvrank.functional as F
 from wbia_curvrank import imutils
+
 # import wbia.constants as const
 from scipy import interpolate
 import numpy as np
@@ -14,10 +15,15 @@ import cv2
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
 import wbia_curvrank._plugin_depc  # NOQA
-from wbia_curvrank._plugin_depc import (DEFAULT_SCALES, INDEX_NUM_TREES,
-                                         INDEX_SEARCH_K, INDEX_LNBNN_K,
-                                         INDEX_SEARCH_D, INDEX_NUM_ANNOTS,
-                                         _convert_kwargs_config_to_depc_config)
+from wbia_curvrank._plugin_depc import (
+    DEFAULT_SCALES,
+    INDEX_NUM_TREES,
+    INDEX_SEARCH_K,
+    INDEX_LNBNN_K,
+    INDEX_SEARCH_D,
+    INDEX_NUM_ANNOTS,
+    _convert_kwargs_config_to_depc_config,
+)
 
 (print, rrr, profile) = ut.inject2(__name__)
 
@@ -67,7 +73,9 @@ if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, greyscale=False, **kwargs):
+def wbia_plugin_curvrank_preprocessing(
+    ibs, aid_list, width=256, height=256, greyscale=False, **kwargs
+):
     r"""
     Pre-process images for CurvRank
 
@@ -139,12 +147,11 @@ def wbia_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gre
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
-        None if viewpoint is None else viewpoint.lower()
-        for viewpoint in viewpoint_list
+        None if viewpoint is None else viewpoint.lower() for viewpoint in viewpoint_list
     ]
     flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
     height_list = [height] * len(aid_list)
-    width_list  = [width]  * len(aid_list)
+    width_list = [width] * len(aid_list)
 
     zipped = zip(image_list, flip_list, height_list, width_list)
 
@@ -154,8 +161,7 @@ def wbia_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gre
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(F.preprocess_image, zipped,
-                             nTasks=len(aid_list), **config_)
+    generator = ut.generate2(F.preprocess_image, zipped, nTasks=len(aid_list), **config_)
 
     resized_images, resized_masks, pre_transforms = [], [], []
     for resized_image, resized_mask, pre_transform in generator:
@@ -167,9 +173,16 @@ def wbia_plugin_curvrank_preprocessing(ibs, aid_list, width=256, height=256, gre
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_localization(ibs, resized_images, resized_masks,
-                                       width=256, height=256, model_type='dorsal',
-                                       model_tag='localization', **kwargs):
+def wbia_plugin_curvrank_localization(
+    ibs,
+    resized_images,
+    resized_masks,
+    width=256,
+    height=256,
+    model_type='dorsal',
+    model_tag='localization',
+    **kwargs
+):
     r"""
     Localize images for CurvRank
 
@@ -251,28 +264,34 @@ def wbia_plugin_curvrank_localization(ibs, resized_images, resized_masks,
     else:
         from wbia_curvrank import localization, model, theano_funcs
 
-        weight_filepath = ut.grab_file_url(model_url, appname='wbia_curvrank', check_hash=True)
+        weight_filepath = ut.grab_file_url(
+            model_url, appname='wbia_curvrank', check_hash=True
+        )
 
         # Make sure resized images all have the same shape
         layers = localization.build_model((None, 3, height, width))
-        model.load_weights(
-            [
-                layers['trans'],
-                layers['loc']
-            ],
-            weight_filepath
-        )
+        model.load_weights([layers['trans'], layers['loc']], weight_filepath)
         localization_func = theano_funcs.create_localization_infer_func(layers)
-        values = F.localize(resized_images, resized_masks, height, width, localization_func)
+        values = F.localize(
+            resized_images, resized_masks, height, width, localization_func
+        )
         localized_images, localized_masks, loc_transforms = values
 
     return localized_images, localized_masks, loc_transforms
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
-                                     loc_transforms, width=256, height=256,
-                                     scale=4, greyscale=False, **kwargs):
+def wbia_plugin_curvrank_refinement(
+    ibs,
+    aid_list,
+    pre_transforms,
+    loc_transforms,
+    width=256,
+    height=256,
+    scale=4,
+    greyscale=False,
+    **kwargs
+):
     r"""
     Refine localizations for CurvRank
 
@@ -346,16 +365,22 @@ def wbia_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
-        None if viewpoint is None else viewpoint.lower()
-        for viewpoint in viewpoint_list
+        None if viewpoint is None else viewpoint.lower() for viewpoint in viewpoint_list
     ]
     flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
-    scale_list  = [scale]  * len(aid_list)
+    scale_list = [scale] * len(aid_list)
     height_list = [height] * len(aid_list)
-    width_list  = [width]  * len(aid_list)
+    width_list = [width] * len(aid_list)
 
-    zipped = zip(image_list, flip_list, pre_transforms, loc_transforms,
-                 scale_list, height_list, width_list)
+    zipped = zip(
+        image_list,
+        flip_list,
+        pre_transforms,
+        loc_transforms,
+        scale_list,
+        height_list,
+        width_list,
+    )
 
     config_ = {
         'ordered': True,
@@ -364,7 +389,9 @@ def wbia_plugin_curvrank_refinement(ibs, aid_list, pre_transforms,
         'futures_threaded': True,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(F.refine_localization, zipped, nTasks=len(aid_list), **config_)
+    generator = ut.generate2(
+        F.refine_localization, zipped, nTasks=len(aid_list), **config_
+    )
 
     refined_localizations, refined_masks = [], []
     for refined_localization, refined_mask in generator:
@@ -379,9 +406,12 @@ def wbia_plugin_curvrank_test_setup_groundtruth(ibs):
     part_rowid_list = ibs.get_valid_part_rowids()
     part_type_list = ibs.get_part_types(part_rowid_list)
     part_contour_list = ibs.get_part_contour(part_rowid_list)
-    flag_list = [part_contour.get('contour', None) is not None for part_contour in part_contour_list]
+    flag_list = [
+        part_contour.get('contour', None) is not None
+        for part_contour in part_contour_list
+    ]
 
-    print('Found %d / %d contours' % (sum(flag_list), len(flag_list), ))
+    print('Found %d / %d contours' % (sum(flag_list), len(flag_list),))
 
     part_rowid_list = ut.compress(part_rowid_list, flag_list)
     part_type_list = ut.compress(part_type_list, flag_list)
@@ -404,7 +434,7 @@ def wbia_plugin_curvrank_test_setup_groundtruth(ibs):
     gid_list = ibs.get_annot_gids(aid_list)
     bbox_list = ibs.get_part_bboxes(part_rowid_list)
     species_list = [
-        '%s+%s' % (species, part_type, )
+        '%s+%s' % (species, part_type,)
         for species, part_type in zip(species_list, part_type_list)
     ]
 
@@ -418,16 +448,14 @@ def wbia_plugin_curvrank_test_setup_groundtruth(ibs):
     ibs.delete_parts(ut.flatten(ibs.get_annot_part_rowids(aid_list_)))
 
     part_rowid_list_ = ibs.add_parts(
-        aid_list_,
-        bbox_list=bbox_list,
-        type_list=part_type_list
+        aid_list_, bbox_list=bbox_list, type_list=part_type_list
     )
     ibs.set_part_contour(part_rowid_list_, part_contour_list)
 
     all_part_rowid_list_ = ibs.get_annot_part_rowids(aid_list_)
-    print('aid_list_ = %r' % (aid_list_, ))
-    print('part_rowid_list_ = %r' % (part_rowid_list_, ))
-    print('all part_rowid_list_ = %r' % (all_part_rowid_list_, ))
+    print('aid_list_ = %r' % (aid_list_,))
+    print('part_rowid_list_ = %r' % (part_rowid_list_,))
+    print('all part_rowid_list_ = %r' % (all_part_rowid_list_,))
 
     return aid_list_, part_rowid_list_
 
@@ -442,14 +470,25 @@ def wbia_plugin_curvrank_test_cleanup_groundtruth(ibs, values=None):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refined_masks,
-                                       pre_transforms, loc_transforms,
-                                       width=256, height=256, scale=4, model_type='dorsal',
-                                       model_tag='segmentation',
-                                       groundtruth_radius=25, groundtruth_opacity=0.5,
-                                       groundtruth_smooth=True, groundtruth_smooth_margin=0.001,
-                                       greyscale=False,
-                                       **kwargs):
+def wbia_plugin_curvrank_segmentation(
+    ibs,
+    aid_list,
+    refined_localizations,
+    refined_masks,
+    pre_transforms,
+    loc_transforms,
+    width=256,
+    height=256,
+    scale=4,
+    model_type='dorsal',
+    model_tag='segmentation',
+    groundtruth_radius=25,
+    groundtruth_opacity=0.5,
+    groundtruth_smooth=True,
+    groundtruth_smooth_margin=0.001,
+    greyscale=False,
+    **kwargs
+):
     r"""
     Localize images for CurvRank
 
@@ -582,20 +621,41 @@ def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refi
         segmentations = []
         refined_segmentations = []
 
-        zipped = zip(aid_list, image_list, flip_list, part_rowids_list, part_contours_list, refined_masks, pre_transforms, loc_transforms)
-        for aid, image, flip, part_rowid_list, part_contour_list, refined_mask, pre_transform, loc_transform in zipped:
+        zipped = zip(
+            aid_list,
+            image_list,
+            flip_list,
+            part_rowids_list,
+            part_contours_list,
+            refined_masks,
+            pre_transforms,
+            loc_transforms,
+        )
+        for (
+            aid,
+            image,
+            flip,
+            part_rowid_list,
+            part_contour_list,
+            refined_mask,
+            pre_transform,
+            loc_transform,
+        ) in zipped:
             part_rowid = None
             part_contour = None
 
             for part_rowid_, part_contour_ in zip(part_rowid_list, part_contour_list):
                 part_contour_ = part_contour_.get('contour', None)
                 if part_contour_ is not None:
-                    message = 'Cannot have more than one ground-truth contour for aid %r' % (aid, )
+                    message = (
+                        'Cannot have more than one ground-truth contour for aid %r'
+                        % (aid,)
+                    )
                     assert part_rowid is None and part_contour is None, message
                     part_rowid = part_rowid_
                     part_contour = part_contour_
 
-            message = 'Cannot have zero ground-truth contour for aid %r' % (aid, )
+            message = 'Cannot have zero ground-truth contour for aid %r' % (aid,)
             assert part_rowid is not None and part_contour is not None, message
 
             start = part_contour.get('start', None)
@@ -617,7 +677,9 @@ def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refi
             if groundtruth_smooth:
                 try:
                     length = len(segment) * 3
-                    mytck, _ = interpolate.splprep([segment_x, segment_y], s=groundtruth_smooth_margin)
+                    mytck, _ = interpolate.splprep(
+                        [segment_x, segment_y], s=groundtruth_smooth_margin
+                    )
                     values = interpolate.splev(np.linspace(0, 1, length), mytck)
                     segment_x, segment_y = values
                 except ValueError:
@@ -637,8 +699,7 @@ def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refi
             canvas = cv2.blur(canvas, (5, 5))
 
             refined_segmentation, _ = F.refine_localization(
-                canvas, flip, pre_transform, loc_transform,
-                scale, height, width
+                canvas, flip, pre_transform, loc_transform, scale, height, width
             )
             refined_segmentation[refined_mask < 255] = 0
             refined_segmentation[refined_segmentation < 0] = 0
@@ -653,40 +714,48 @@ def wbia_plugin_curvrank_segmentation(ibs, aid_list, refined_localizations, refi
         model_url = URL_DICT.get(model_type, {}).get(model_tag, None)
         if model_url is None:
             segmentation_ = np.zeros((height, width, 1), dtype=np.float64)
-            refined_segmentation = np.zeros((height * scale, width * scale, 1), dtype=np.float64)
+            refined_segmentation = np.zeros(
+                (height * scale, width * scale, 1), dtype=np.float64
+            )
 
             segmentations = [segmentation_] * len(aid_list)
             refined_segmentations = [refined_segmentation] * len(aid_list)
         else:
             from wbia_curvrank import segmentation, model, theano_funcs
-            weight_filepath = ut.grab_file_url(model_url, appname='wbia_curvrank', check_hash=True)
 
-            segmentation_layers = segmentation.build_model_batchnorm_full((None, 3, height, width))
+            weight_filepath = ut.grab_file_url(
+                model_url, appname='wbia_curvrank', check_hash=True
+            )
+
+            segmentation_layers = segmentation.build_model_batchnorm_full(
+                (None, 3, height, width)
+            )
 
             # I am not sure these are the correct args to load_weights
             model.load_weights(segmentation_layers['seg_out'], weight_filepath)
             segmentation_func = theano_funcs.create_segmentation_func(segmentation_layers)
-            values = F.segment_contour(refined_localizations, refined_masks, scale,
-                                       height, width, segmentation_func)
+            values = F.segment_contour(
+                refined_localizations,
+                refined_masks,
+                scale,
+                height,
+                width,
+                segmentation_func,
+            )
 
             segmentations, refined_segmentations = values
 
     return segmentations, refined_segmentations
 
 
-def wbia_plugin_curvrank_keypoints_worker(model_type, segmentation,
-                                           localized_mask):
+def wbia_plugin_curvrank_keypoints_worker(model_type, segmentation, localized_mask):
     if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
         from wbia_curvrank.dorsal_utils import find_dorsal_keypoints as find_func
     else:
         from wbia_curvrank.dorsal_utils import find_fluke_keypoints as find_func
 
     try:
-        start, end = F.find_keypoints(
-            find_func,
-            segmentation,
-            localized_mask
-        )
+        start, end = F.find_keypoints(find_func, segmentation, localized_mask)
     except ZeroDivisionError:
         start = None
         end = None
@@ -697,8 +766,9 @@ def wbia_plugin_curvrank_keypoints_worker(model_type, segmentation,
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
-                                    model_type='dorsal', **kwargs):
+def wbia_plugin_curvrank_keypoints(
+    ibs, segmentations, localized_masks, model_type='dorsal', **kwargs
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -823,10 +893,13 @@ def wbia_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     """
     num_total = len(segmentations)
 
-    if model_type in ['dorsalfinfindrhybrid'] and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
+    if (
+        model_type in ['dorsalfinfindrhybrid']
+        and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK
+    ):
         success_list = [False] * num_total
-        starts       = [(None, None)] * num_total
-        ends         = [(None, None)] * num_total
+        starts = [(None, None)] * num_total
+        ends = [(None, None)] * num_total
     else:
         model_type_list = [model_type] * num_total
 
@@ -838,8 +911,9 @@ def wbia_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
             'force_serial': ibs.force_serial or FORCE_SERIAL,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(wbia_plugin_curvrank_keypoints_worker, zipped,
-                                 nTasks=num_total, **config_)
+        generator = ut.generate2(
+            wbia_plugin_curvrank_keypoints_worker, zipped, nTasks=num_total, **config_
+        )
 
         starts, ends, success_list = [], [], []
         for success, start, end in generator:
@@ -850,8 +924,17 @@ def wbia_plugin_curvrank_keypoints(ibs, segmentations, localized_masks,
     return success_list, starts, ends
 
 
-def wbia_plugin_curvrank_outline_worker(model_type, success, start, end, refined_loc,
-                                         refined_mask, refined_seg, scale, allow_diagonal):
+def wbia_plugin_curvrank_outline_worker(
+    model_type,
+    success,
+    start,
+    end,
+    refined_loc,
+    refined_mask,
+    refined_seg,
+    scale,
+    allow_diagonal,
+):
     if model_type in ['dorsal', 'dorsalfinfindrhybrid']:
         from wbia_curvrank.dorsal_utils import dorsal_cost_func as cost_func
     else:
@@ -860,10 +943,17 @@ def wbia_plugin_curvrank_outline_worker(model_type, success, start, end, refined
     success_ = success
     if success:
         start = np.array(start, dtype=np.int32)
-        end   = np.array(end,   dtype=np.int32)
+        end = np.array(end, dtype=np.int32)
         outline = F.extract_outline(
-            refined_loc, refined_mask, refined_seg, scale, start, end,
-            cost_func, allow_diagonal)
+            refined_loc,
+            refined_mask,
+            refined_seg,
+            scale,
+            start,
+            end,
+            cost_func,
+            allow_diagonal,
+        )
         if outline is None:
             success_ = False
     else:
@@ -873,11 +963,19 @@ def wbia_plugin_curvrank_outline_worker(model_type, success, start, end, refined
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_outline(ibs, success_list, starts, ends,
-                                  refined_localizations, refined_masks,
-                                  refined_segmentations, scale=4,
-                                  model_type='dorsal', allow_diagonal=False,
-                                  **kwargs):
+def wbia_plugin_curvrank_outline(
+    ibs,
+    success_list,
+    starts,
+    ends,
+    refined_localizations,
+    refined_masks,
+    refined_segmentations,
+    scale=4,
+    model_type='dorsal',
+    allow_diagonal=False,
+    **kwargs
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1005,16 +1103,28 @@ def wbia_plugin_curvrank_outline(ibs, success_list, starts, ends,
     """
     num_total = len(success_list)
 
-    if model_type in ['dorsalfinfindrhybrid'] and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
+    if (
+        model_type in ['dorsalfinfindrhybrid']
+        and not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK
+    ):
         success_list_ = [False] * num_total
-        outlines      = [None] * num_total
+        outlines = [None] * num_total
     else:
-        model_type_list     = [model_type]     * num_total
-        scale_list          = [scale]          * num_total
+        model_type_list = [model_type] * num_total
+        scale_list = [scale] * num_total
         allow_diagonal_list = [allow_diagonal] * num_total
 
-        zipped = zip(model_type_list, success_list, starts, ends, refined_localizations,
-                     refined_masks, refined_segmentations, scale_list, allow_diagonal_list)
+        zipped = zip(
+            model_type_list,
+            success_list,
+            starts,
+            ends,
+            refined_localizations,
+            refined_masks,
+            refined_segmentations,
+            scale_list,
+            allow_diagonal_list,
+        )
 
         config_ = {
             'ordered': True,
@@ -1024,8 +1134,9 @@ def wbia_plugin_curvrank_outline(ibs, success_list, starts, ends,
             'force_serial': True,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(wbia_plugin_curvrank_outline_worker, zipped,
-                                 nTasks=num_total, **config_)
+        generator = ut.generate2(
+            wbia_plugin_curvrank_outline_worker, zipped, nTasks=num_total, **config_
+        )
 
         success_list_, outlines = [], []
         for success_, outline in generator:
@@ -1052,10 +1163,19 @@ def wbia_plugin_curvrank_trailing_edges_worker(success, outline):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
-                                         model_type='dorsal', width=256, height=256,
-                                         scale=4, finfindr_smooth=True,
-                                         finfindr_smooth_margin=0.001, **kwargs):
+def wbia_plugin_curvrank_trailing_edges(
+    ibs,
+    aid_list,
+    success_list,
+    outlines,
+    model_type='dorsal',
+    width=256,
+    height=256,
+    scale=4,
+    finfindr_smooth=True,
+    finfindr_smooth_margin=0.001,
+    **kwargs
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1170,8 +1290,12 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             'force_serial': ibs.force_serial or FORCE_SERIAL,
             'progkw': {'freq': 10},
         }
-        generator = ut.generate2(wbia_plugin_curvrank_trailing_edges_worker, zipped,
-                                 nTasks=len(success_list), **config_)
+        generator = ut.generate2(
+            wbia_plugin_curvrank_trailing_edges_worker,
+            zipped,
+            nTasks=len(success_list),
+            **config_
+        )
 
         success_list_ = []
         trailing_edges = []
@@ -1211,7 +1335,9 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             cv2.imread(finfindr_chip_path)
             for finfindr_chip_path in finfindr_chip_path_list
         ]
-        finfindr_shape_list = [finfindr_chip.shape[:2] for finfindr_chip in finfindr_chips]
+        finfindr_shape_list = [
+            finfindr_chip.shape[:2] for finfindr_chip in finfindr_chips
+        ]
 
         success_list_ = []
         trailing_edges = []
@@ -1227,7 +1353,17 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             backup_trailing_edges,
         )
         for values in zipped:
-            aid, annot_hash_data, shape, finfindr_shape, flip, pre_transform, loc_transform, backup_success, backup_trailing_edge  = values
+            (
+                aid,
+                annot_hash_data,
+                shape,
+                finfindr_shape,
+                flip,
+                pre_transform,
+                loc_transform,
+                backup_success,
+                backup_trailing_edge,
+            ) = values
 
             if annot_hash_data is None:
                 annot_hash_data = {}
@@ -1235,22 +1371,56 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
             coordinates = annot_hash_data.get('coordinates', None)
 
             if coordinates is None:
-                print('[Hybrid] Using CurvRank trailing edge as a backup for AID %r because FinfindR failed to extract' % (aid, ))
+                print(
+                    '[Hybrid] Using CurvRank trailing edge as a backup for AID %r because FinfindR failed to extract'
+                    % (aid,)
+                )
 
                 backup_aid_list = [aid]
                 values = ibs.wbia_plugin_curvrank_preprocessing(backup_aid_list)
-                backup_resized_images_, backup_resized_masks, backup_pre_transforms = values
-                values = ibs.wbia_plugin_curvrank_localization(backup_resized_images_, backup_resized_masks)
-                backup_localized_images, backup_localized_masks, backup_loc_transforms = values
-                values = ibs.wbia_plugin_curvrank_refinement(backup_aid_list, backup_pre_transforms, backup_loc_transforms)
+                (
+                    backup_resized_images_,
+                    backup_resized_masks,
+                    backup_pre_transforms,
+                ) = values
+                values = ibs.wbia_plugin_curvrank_localization(
+                    backup_resized_images_, backup_resized_masks
+                )
+                (
+                    backup_localized_images,
+                    backup_localized_masks,
+                    backup_loc_transforms,
+                ) = values
+                values = ibs.wbia_plugin_curvrank_refinement(
+                    backup_aid_list, backup_pre_transforms, backup_loc_transforms
+                )
                 backup_refined_localizations, backup_refined_masks = values
-                values = ibs.wbia_plugin_curvrank_segmentation(backup_aid_list, backup_refined_localizations, backup_refined_masks, backup_pre_transforms, backup_loc_transforms)
+                values = ibs.wbia_plugin_curvrank_segmentation(
+                    backup_aid_list,
+                    backup_refined_localizations,
+                    backup_refined_masks,
+                    backup_pre_transforms,
+                    backup_loc_transforms,
+                )
                 backup_segmentations, backup_refined_segmentations = values
-                values = ibs.wbia_plugin_curvrank_keypoints(backup_segmentations, backup_localized_masks)
+                values = ibs.wbia_plugin_curvrank_keypoints(
+                    backup_segmentations, backup_localized_masks
+                )
                 backup_success_list, backup_starts, backup_ends = values
-                args = backup_success_list, backup_starts, backup_ends, backup_refined_localizations, backup_refined_masks, backup_refined_segmentations
-                backup_success_list, backup_outlines = ibs.wbia_plugin_curvrank_outline(*args)
-                values = ibs.wbia_plugin_curvrank_trailing_edges(backup_aid_list, backup_success_list, backup_outlines)
+                args = (
+                    backup_success_list,
+                    backup_starts,
+                    backup_ends,
+                    backup_refined_localizations,
+                    backup_refined_masks,
+                    backup_refined_segmentations,
+                )
+                backup_success_list, backup_outlines = ibs.wbia_plugin_curvrank_outline(
+                    *args
+                )
+                values = ibs.wbia_plugin_curvrank_trailing_edges(
+                    backup_aid_list, backup_success_list, backup_outlines
+                )
                 backup_success_list_, backup_trailing_edges_ = values
                 success = backup_success_list_[0]
                 trailing_edge = backup_trailing_edges_[0]
@@ -1298,7 +1468,9 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
                         x_, y_ = interpolate.splev(np.linspace(0, 1, length), mytck)
 
                         trailing_edge_ = np.array(list(zip(x_, y_)))
-                        trailing_edge_ = np.around(trailing_edge_).astype(trailing_edge.dtype)
+                        trailing_edge_ = np.around(trailing_edge_).astype(
+                            trailing_edge.dtype
+                        )
 
                         new_trailing_edge = []
                         last_point = None
@@ -1313,7 +1485,7 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
                 # Make sure the first point of the trailing_edge is the top of the fin
                 first_y = trailing_edge[0][0]
-                last_y  = trailing_edge[-1][0]
+                last_y = trailing_edge[-1][0]
                 if last_y < first_y:
                     trailing_edge = trailing_edge[::-1]
 
@@ -1328,9 +1500,14 @@ def wbia_plugin_curvrank_trailing_edges(ibs, aid_list, success_list, outlines,
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
-                                     scales=DEFAULT_SCALES['dorsal'], transpose_dims=False,
-                                     **kwargs):
+def wbia_plugin_curvrank_curvatures(
+    ibs,
+    success_list,
+    trailing_edges,
+    scales=DEFAULT_SCALES['dorsal'],
+    transpose_dims=False,
+    **kwargs
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1422,8 +1599,12 @@ def wbia_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(wbia_plugin_curvrank_curvatures_worker, zipped,
-                             nTasks=len(success_list), **config_)
+    generator = ut.generate2(
+        wbia_plugin_curvrank_curvatures_worker,
+        zipped,
+        nTasks=len(success_list),
+        **config_
+    )
 
     success_list_ = []
     curvatures = []
@@ -1434,8 +1615,9 @@ def wbia_plugin_curvrank_curvatures(ibs, success_list, trailing_edges,
     return success_list_, curvatures
 
 
-def wbia_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
-                                            transpose_dims):
+def wbia_plugin_curvrank_curvatures_worker(
+    success, trailing_edge, scales, transpose_dims
+):
     success_ = success
     if success:
         curvature = F.compute_curvature(trailing_edge, scales, transpose_dims)
@@ -1449,10 +1631,17 @@ def wbia_plugin_curvrank_curvatures_worker(success, trailing_edge, scales,
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
-                                                curv_length=1024, scales=DEFAULT_SCALES['dorsal'],
-                                                num_keypoints=32, uniform=False,
-                                                feat_dim=32, **kwargs):
+def wbia_plugin_curvrank_curvature_descriptors(
+    ibs,
+    success_list,
+    curvatures,
+    curv_length=1024,
+    scales=DEFAULT_SCALES['dorsal'],
+    num_keypoints=32,
+    uniform=False,
+    feat_dim=32,
+    **kwargs
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1546,14 +1735,21 @@ def wbia_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
     """
-    curv_length_list   = [curv_length]   * len(success_list)
-    scales_list        = [scales]        * len(success_list)
+    curv_length_list = [curv_length] * len(success_list)
+    scales_list = [scales] * len(success_list)
     num_keypoints_list = [num_keypoints] * len(success_list)
-    uniform_list       = [uniform]       * len(success_list)
-    feat_dim_list      = [feat_dim]      * len(success_list)
+    uniform_list = [uniform] * len(success_list)
+    feat_dim_list = [feat_dim] * len(success_list)
 
-    zipped = zip(success_list, curvatures, curv_length_list, scales_list, num_keypoints_list,
-                 uniform_list, feat_dim_list)
+    zipped = zip(
+        success_list,
+        curvatures,
+        curv_length_list,
+        scales_list,
+        num_keypoints_list,
+        uniform_list,
+        feat_dim_list,
+    )
 
     config_ = {
         'ordered': True,
@@ -1561,8 +1757,12 @@ def wbia_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(wbia_plugin_curvrank_curvature_descriptors_worker, zipped,
-                             nTasks=len(success_list), **config_)
+    generator = ut.generate2(
+        wbia_plugin_curvrank_curvature_descriptors_worker,
+        zipped,
+        nTasks=len(success_list),
+        **config_
+    )
 
     success_list_ = []
     curvature_descriptor_dicts = []
@@ -1573,24 +1773,16 @@ def wbia_plugin_curvrank_curvature_descriptors(ibs, success_list, curvatures,
     return success_list_, curvature_descriptor_dicts
 
 
-def wbia_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_length,
-                                                       scales, num_keypoints, uniform,
-                                                       feat_dim):
-    scale_str_list = [
-        '%0.04f' % (scale, )
-        for scale in scales
-    ]
+def wbia_plugin_curvrank_curvature_descriptors_worker(
+    success, curvature, curv_length, scales, num_keypoints, uniform, feat_dim
+):
+    scale_str_list = ['%0.04f' % (scale,) for scale in scales]
 
     success_ = success
     if success:
         try:
             curvature_descriptor_list = F.compute_curvature_descriptors(
-                curvature,
-                curv_length,
-                scales,
-                num_keypoints,
-                uniform,
-                feat_dim
+                curvature, curv_length, scales, num_keypoints, uniform, feat_dim
             )
         except Exception:
             curvature_descriptor_list = None
@@ -1604,7 +1796,9 @@ def wbia_plugin_curvrank_curvature_descriptors_worker(success, curvature, curv_l
     if curvature_descriptor_list is not None:
         curvature_descriptor_dict = {
             scale_str: curvature_descriptor
-            for scale_str, curvature_descriptor in zip(scale_str_list, curvature_descriptor_list)
+            for scale_str, curvature_descriptor in zip(
+                scale_str_list, curvature_descriptor_list
+            )
         }
 
     return success_, curvature_descriptor_dict
@@ -1732,22 +1926,42 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
     resized_images, resized_masks, pre_transforms = values
 
-    values = ibs.wbia_plugin_curvrank_localization(resized_images, resized_masks, **config)
+    values = ibs.wbia_plugin_curvrank_localization(
+        resized_images, resized_masks, **config
+    )
     localized_images, localized_masks, loc_transforms = values
 
-    values = ibs.wbia_plugin_curvrank_refinement(aid_list, pre_transforms, loc_transforms, **config)
+    values = ibs.wbia_plugin_curvrank_refinement(
+        aid_list, pre_transforms, loc_transforms, **config
+    )
     refined_localizations, refined_masks = values
 
-    values = ibs.wbia_plugin_curvrank_segmentation(aid_list, refined_localizations, refined_masks, pre_transforms, loc_transforms, **config)
+    values = ibs.wbia_plugin_curvrank_segmentation(
+        aid_list,
+        refined_localizations,
+        refined_masks,
+        pre_transforms,
+        loc_transforms,
+        **config
+    )
     segmentations, refined_segmentations = values
 
     values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, **config)
     success, starts, ends = values
 
-    args = success, starts, ends, refined_localizations, refined_masks, refined_segmentations
+    args = (
+        success,
+        starts,
+        ends,
+        refined_localizations,
+        refined_masks,
+        refined_segmentations,
+    )
     success, outlines = ibs.wbia_plugin_curvrank_outline(*args, **config)
 
-    values = ibs.wbia_plugin_curvrank_trailing_edges(aid_list, success, outlines, **config)
+    values = ibs.wbia_plugin_curvrank_trailing_edges(
+        aid_list, success, outlines, **config
+    )
     success, trailing_edges = values
 
     values = ibs.wbia_plugin_curvrank_curvatures(success, trailing_edges, **config)
@@ -1760,8 +1974,9 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
-                                             descriptor_dict_list):
+def wbia_plugin_curvrank_pipeline_aggregate(
+    ibs, aid_list, success_list, descriptor_dict_list
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -1832,7 +2047,7 @@ def wbia_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
             if scale not in lnbnn_dict:
                 lnbnn_dict[scale] = {
                     'descriptors': [],
-                    'aids'       : [],
+                    'aids': [],
                 }
 
             descriptors = descriptor_dict[scale]
@@ -1844,21 +2059,28 @@ def wbia_plugin_curvrank_pipeline_aggregate(ibs, aid_list, success_list,
     for scale in lnbnn_dict:
         descriptors = np.vstack(lnbnn_dict[scale]['descriptors'])
         assert np.allclose(
-            np.linalg.norm(descriptors, axis=1),
-            np.ones(descriptors.shape[0])
+            np.linalg.norm(descriptors, axis=1), np.ones(descriptors.shape[0])
         )
 
         aids = np.hstack(lnbnn_dict[scale]['aids'])
-        lnbnn_dict[scale] = (descriptors, aids, )
+        lnbnn_dict[scale] = (
+            descriptors,
+            aids,
+        )
 
     return lnbnn_dict
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
-                                   config={}, use_depc=USE_DEPC,
-                                   use_depc_optimized=USE_DEPC_OPTIMIZED,
-                                   verbose=False):
+def wbia_plugin_curvrank_pipeline(
+    ibs,
+    imageset_rowid=None,
+    aid_list=None,
+    config={},
+    use_depc=USE_DEPC,
+    use_depc_optimized=USE_DEPC_OPTIMIZED,
+    verbose=False,
+):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -2010,9 +2232,15 @@ def wbia_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
 
     if use_depc:
         config_ = _convert_kwargs_config_to_depc_config(config)
-        table_name = 'curvature_descriptor_optimized' if use_depc_optimized else 'curvature_descriptor'
-        success_list         = ibs.depc_annot.get(table_name, aid_list, 'success',    config=config_)
-        descriptor_dict_list = ibs.depc_annot.get(table_name, aid_list, 'descriptor', config=config_)
+        table_name = (
+            'curvature_descriptor_optimized'
+            if use_depc_optimized
+            else 'curvature_descriptor'
+        )
+        success_list = ibs.depc_annot.get(table_name, aid_list, 'success', config=config_)
+        descriptor_dict_list = ibs.depc_annot.get(
+            table_name, aid_list, 'descriptor', config=config_
+        )
     else:
         values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
         success_list, descriptor_dict_list = values
@@ -2021,21 +2249,24 @@ def wbia_plugin_curvrank_pipeline(ibs, imageset_rowid=None, aid_list=None,
         print('\tAggregate Pipeline Results')
 
     lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(
-        aid_list,
-        success_list,
-        descriptor_dict_list
+        aid_list, success_list, descriptor_dict_list
     )
 
     return lnbnn_dict, aid_list
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
-                                 verbose=False,
-                                 use_names=True,
-                                 minimum_score=-1e-5,
-                                 use_depc=USE_DEPC,
-                                 use_depc_optimized=USE_DEPC_OPTIMIZED):
+def wbia_plugin_curvrank_scores(
+    ibs,
+    db_aid_list,
+    qr_aids_list,
+    config={},
+    verbose=False,
+    use_names=True,
+    minimum_score=-1e-5,
+    use_depc=USE_DEPC,
+    use_depc_optimized=USE_DEPC_OPTIMIZED,
+):
     r"""
     CurvRank Example
 
@@ -2215,20 +2446,27 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     TTL_HOUR_DELETE = 7 * 24
     TTL_HOUR_PREVIOUS = 2 * 24
 
-    use_daily_cache       = config.pop('use_daily_cache', False)
-    daily_cache_tag       = config.pop('daily_cache_tag', 'global')
+    use_daily_cache = config.pop('use_daily_cache', False)
+    daily_cache_tag = config.pop('daily_cache_tag', 'global')
     force_cache_recompute = config.pop('force_cache_recompute', False)
 
     num_trees = config.pop('num_trees', INDEX_NUM_TREES)
-    search_k  = config.pop('search_k',  INDEX_SEARCH_K)
-    lnbnn_k   = config.pop('lnbnn_k',   INDEX_LNBNN_K)
+    search_k = config.pop('search_k', INDEX_SEARCH_K)
+    lnbnn_k = config.pop('lnbnn_k', INDEX_LNBNN_K)
 
-    args = (use_daily_cache, daily_cache_tag, force_cache_recompute, )
-    print('CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r\n\tforce_cache_recompute = %r\n\t' % args)
-    print('CurvRank num_trees   : %r' % (num_trees, ))
-    print('CurvRank search_k    : %r' % (search_k, ))
-    print('CurvRank lnbnn_k     : %r' % (lnbnn_k, ))
-    print('CurvRank algo config : %s' % (ut.repr3(config), ))
+    args = (
+        use_daily_cache,
+        daily_cache_tag,
+        force_cache_recompute,
+    )
+    print(
+        'CurvRank cache config:\n\tuse_daily_cache = %r\n\tdaily_cache_tag = %r\n\tforce_cache_recompute = %r\n\t'
+        % args
+    )
+    print('CurvRank num_trees   : %r' % (num_trees,))
+    print('CurvRank search_k    : %r' % (search_k,))
+    print('CurvRank lnbnn_k     : %r' % (lnbnn_k,))
+    print('CurvRank algo config : %s' % (ut.repr3(config),))
 
     config_hash = ut.hash_data(ut.repr3(config))
     now = datetime.datetime.now()
@@ -2247,7 +2485,7 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     else:
         daily_index_hash = 'daily-tag-%s' % (daily_cache_tag)
 
-    with ut.Timer('Clearing old caches (TTL = %d hours)' % (TTL_HOUR_DELETE, )):
+    with ut.Timer('Clearing old caches (TTL = %d hours)' % (TTL_HOUR_DELETE,)):
 
         delete = datetime.timedelta(hours=TTL_HOUR_DELETE)
         past_delete = now - delete
@@ -2261,69 +2499,86 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 directory = split(path)[1]
                 date_str = directory.split('_')[1]
                 then = datetime.datetime.strptime(date_str, timestamp_fmtstr)
-                print('Checking %r (%r)' % (directory, then, ))
+                print('Checking %r (%r)' % (directory, then,))
 
                 if then < past_delete:
-                    print('\ttoo old, deleting %r...' % (path, ))
+                    print('\ttoo old, deleting %r...' % (path,))
                     ut.delete(path)
                 else:
                     if past_previous <= then:
-                        daily_index_search_str = '_hash_%s_config_' % (daily_index_hash, )
+                        daily_index_search_str = '_hash_%s_config_' % (daily_index_hash,)
                         if daily_index_search_str in directory:
                             available_previous_list.append(directory)
                     delta = then - past_delete
                     hours = delta.total_seconds() / 60 / 60
-                    print('\tkeeping cache for %0.2f more hours...' % (hours, ))
+                    print('\tkeeping cache for %0.2f more hours...' % (hours,))
             except Exception:
-                print('\tinvalid (parse error), deleting %r...' % (path, ))
+                print('\tinvalid (parse error), deleting %r...' % (path,))
                 ut.delete(path)
 
         # Check for any FUTURE_PREFIX folders that are too old (due to an error) and need to be deleted
-        for path in ut.glob(join(cache_path, '%sindex_*' % (FUTURE_PREFIX, ))):
+        for path in ut.glob(join(cache_path, '%sindex_*' % (FUTURE_PREFIX,))):
             try:
                 directory = split(path)[1]
                 directory = directory.replace(FUTURE_PREFIX, '')
                 date_str = directory.split('_')[1]
                 then = datetime.datetime.strptime(date_str, timestamp_fmtstr)
-                print('Checking %r (%r)' % (directory, then, ))
+                print('Checking %r (%r)' % (directory, then,))
 
                 if then < past_delete:
-                    print('\ttoo old, deleting %r...' % (path, ))
+                    print('\ttoo old, deleting %r...' % (path,))
                     ut.delete(path)
             except Exception:
-                print('\tinvalid (parse error), deleting %r...' % (path, ))
+                print('\tinvalid (parse error), deleting %r...' % (path,))
                 ut.delete(path)
 
         available_previous_list = sorted(available_previous_list)
-        args = (ut.repr3(available_previous_list), )
+        args = (ut.repr3(available_previous_list),)
         print('\nAvailable previous cached: %s' % args)
 
     all_aid_list = ut.flatten(qr_aids_list) + db_aid_list
 
     if use_daily_cache:
         if force_cache_recompute or len(available_previous_list) == 0:
-            args = (timestamp, daily_index_hash, config_hash, )
+            args = (
+                timestamp,
+                daily_index_hash,
+                config_hash,
+            )
             index_directory = 'index_%s_hash_%s_config_%s' % args
-            print('Using daily index (recompute = %r): %r' % (force_cache_recompute, index_directory, ))
+            print(
+                'Using daily index (recompute = %r): %r'
+                % (force_cache_recompute, index_directory,)
+            )
         else:
             index_directory = available_previous_list[-1]
-            print('Using the most recent available index: %r' % (index_directory, ))
+            print('Using the most recent available index: %r' % (index_directory,))
     else:
         all_annot_uuid_list = ibs.get_annot_uuids(sorted(all_aid_list))
         index_hash = ut.hash_data(all_annot_uuid_list)
 
-        args = (timestamp, index_hash, config_hash, )
+        args = (
+            timestamp,
+            index_hash,
+            config_hash,
+        )
         index_directory = 'index_%s_hash_%s_config_%s' % args
-        print('Using hashed index: %r' % (index_directory, ))
+        print('Using hashed index: %r' % (index_directory,))
 
     if daily_cache_tag in ['global']:
         num_annots = len(all_aid_list)
         num_trees_ = int(np.ceil(num_annots / INDEX_NUM_ANNOTS))
         num_trees_ = max(num_trees, num_trees_)
-        search_k_  = lnbnn_k * num_trees_ * INDEX_SEARCH_D
+        search_k_ = lnbnn_k * num_trees_ * INDEX_SEARCH_D
         if num_trees_ != num_trees:
-            print('[global] WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
-            print('[global] WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
+            print(
+                '[global] WARNING! Using num_trees = %d instead of %d (based on %d annotations)'
+                % (num_trees_, num_trees, num_annots,)
+            )
+            print(
+                '[global] WARNING! Using search_k = %d instead of %d (based on %d annotations)'
+                % (search_k_, search_k, num_annots,)
+            )
             num_trees = num_trees_
             search_k = search_k_
 
@@ -2332,10 +2587,16 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
     with ut.Timer('Loading query'):
         scale_set = set([])
         qr_lnbnn_data_list = []
-        for qr_aid_list in ut.ProgressIter(qr_aids_list, lbl='CurvRank Query LNBNN', freq=1000):
-            values = ibs.wbia_plugin_curvrank_pipeline(aid_list=qr_aid_list, config=config,
-                                                        verbose=verbose, use_depc=use_depc,
-                                                        use_depc_optimized=use_depc_optimized)
+        for qr_aid_list in ut.ProgressIter(
+            qr_aids_list, lbl='CurvRank Query LNBNN', freq=1000
+        ):
+            values = ibs.wbia_plugin_curvrank_pipeline(
+                aid_list=qr_aid_list,
+                config=config,
+                verbose=verbose,
+                use_depc=use_depc,
+                use_depc_optimized=use_depc_optimized,
+            )
             qr_lnbnn_data, _ = values
             for scale in qr_lnbnn_data:
                 scale_set.add(scale)
@@ -2364,82 +2625,113 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
                     try:
                         num_trees_ = int(base_path.strip().strip('/').split('_')[1])
-                        search_k_  = lnbnn_k * num_trees_ * INDEX_SEARCH_D
+                        search_k_ = lnbnn_k * num_trees_ * INDEX_SEARCH_D
                         if num_trees_ != num_trees:
-                            print('[local] WARNING! Using num_trees = %d instead of %d (based on %d annotations)' % (num_trees_, num_trees, num_annots, ))
-                            print('[local] WARNING! Using search_k = %d instead of %d (based on %d annotations)' % (search_k_, search_k, num_annots, ))
+                            print(
+                                '[local] WARNING! Using num_trees = %d instead of %d (based on %d annotations)'
+                                % (num_trees_, num_trees, num_annots,)
+                            )
+                            print(
+                                '[local] WARNING! Using search_k = %d instead of %d (based on %d annotations)'
+                                % (search_k_, search_k, num_annots,)
+                            )
                             num_trees = num_trees_
                             search_k = search_k_
                     except Exception:
                         pass
                 else:
-                    args = (scale, num_trees, )
+                    args = (
+                        scale,
+                        num_trees,
+                    )
                     base_directory = base_directory_fmtstr % args
                     base_path = join(index_path, base_directory)
 
                 if not exists(index_path):
-                    print('Missing: %r' % (index_path, ))
+                    print('Missing: %r' % (index_path,))
                     compute = True
 
                 if not exists(base_path):
-                    print('Missing: %r' % (base_path, ))
+                    print('Missing: %r' % (base_path,))
                     compute = True
 
                 index_filepath = join(base_path, 'index.ann')
-                aids_filepath  = join(base_path, 'aids.pkl')
+                aids_filepath = join(base_path, 'aids.pkl')
 
                 index_filepath_dict[scale] = index_filepath
-                aids_filepath_dict[scale]  = aids_filepath
+                aids_filepath_dict[scale] = aids_filepath
 
                 if not exists(index_filepath):
-                    print('Missing: %r' % (index_filepath, ))
+                    print('Missing: %r' % (index_filepath,))
                     compute = True
 
                 if not exists(aids_filepath):
-                    print('Missing: %r' % (aids_filepath, ))
+                    print('Missing: %r' % (aids_filepath,))
                     compute = True
 
-            print('Compute indices = %r' % (compute, ))
+            print('Compute indices = %r' % (compute,))
 
         if compute:
             # Cache as a future job until it is complete, in case other threads are looking at this cache as well
-            future_index_directory = '%s%s' % (FUTURE_PREFIX, index_directory, )
+            future_index_directory = '%s%s' % (FUTURE_PREFIX, index_directory,)
             future_index_path = join(cache_path, future_index_directory)
             ut.ensuredir(future_index_path)
 
             with ut.Timer('Loading database LNBNN descriptors from depc'):
-                values = ibs.wbia_plugin_curvrank_pipeline(aid_list=db_aid_list, config=config,
-                                                            verbose=verbose, use_depc=use_depc,
-                                                            use_depc_optimized=use_depc_optimized)
+                values = ibs.wbia_plugin_curvrank_pipeline(
+                    aid_list=db_aid_list,
+                    config=config,
+                    verbose=verbose,
+                    use_depc=use_depc,
+                    use_depc_optimized=use_depc_optimized,
+                )
                 db_lnbnn_data, _ = values
 
             with ut.Timer('Creating Annoy indices'):
                 for scale in scale_list:
                     assert scale in db_lnbnn_data
                     index_filepath = index_filepath_dict[scale]
-                    aids_filepath  = aids_filepath_dict[scale]
+                    aids_filepath = aids_filepath_dict[scale]
 
-                    future_index_filepath = index_filepath.replace(index_path, future_index_path)
-                    future_aids_filepath  = aids_filepath.replace(index_path,  future_index_path)
+                    future_index_filepath = index_filepath.replace(
+                        index_path, future_index_path
+                    )
+                    future_aids_filepath = aids_filepath.replace(
+                        index_path, future_index_path
+                    )
 
                     ut.ensuredir(split(future_index_filepath)[0])
                     ut.ensuredir(split(future_aids_filepath)[0])
 
                     if not exists(index_filepath):
-                        print('Writing computed Annoy scale=%r index to %r...' % (scale, future_index_filepath, ))
+                        print(
+                            'Writing computed Annoy scale=%r index to %r...'
+                            % (scale, future_index_filepath,)
+                        )
                         descriptors, aids = db_lnbnn_data[scale]
-                        F.build_lnbnn_index(descriptors, future_index_filepath, num_trees=num_trees)
+                        F.build_lnbnn_index(
+                            descriptors, future_index_filepath, num_trees=num_trees
+                        )
                     else:
                         ut.copy(index_filepath, future_index_filepath)
-                        print('Using existing Annoy scale=%r index in %r...' % (scale, index_filepath, ))
+                        print(
+                            'Using existing Annoy scale=%r index in %r...'
+                            % (scale, index_filepath,)
+                        )
 
                     if not exists(aids_filepath):
-                        print('Writing computed AIDs scale=%r to %r...' % (scale, future_aids_filepath, ))
+                        print(
+                            'Writing computed AIDs scale=%r to %r...'
+                            % (scale, future_aids_filepath,)
+                        )
                         ut.save_cPkl(future_aids_filepath, aids)
                         print('\t...saved')
                     else:
                         ut.copy(aids_filepath, future_aids_filepath)
-                        print('Using existing AIDs scale=%r in %r...' % (scale, aids_filepath, ))
+                        print(
+                            'Using existing AIDs scale=%r in %r...'
+                            % (scale, aids_filepath,)
+                        )
 
             with ut.Timer('Activating index by setting from future to live'):
                 ut.delete(index_path)
@@ -2456,17 +2748,21 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
 
     with ut.Timer('Computing scores'):
         zipped = list(zip(qr_aids_list, qr_lnbnn_data_list))
-        for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(zipped, lbl='CurvRank Vectored Scoring', freq=1000):
+        for qr_aid_list, qr_lnbnn_data in ut.ProgressIter(
+            zipped, lbl='CurvRank Vectored Scoring', freq=1000
+        ):
 
             # Run LNBNN identification for each scale independently and aggregate
             score_dict = {}
-            for scale in ut.ProgressIter(scale_list, lbl='Performing ANN inference', freq=1):
+            for scale in ut.ProgressIter(
+                scale_list, lbl='Performing ANN inference', freq=1
+            ):
                 assert scale in qr_lnbnn_data
                 assert scale in index_filepath_dict
                 assert scale in aids_dict
 
                 qr_descriptors, _ = qr_lnbnn_data[scale]
-                index_filepath    = index_filepath_dict[scale]
+                index_filepath = index_filepath_dict[scale]
 
                 assert exists(index_filepath)
                 db_aids = aids_dict[scale]
@@ -2476,7 +2772,9 @@ def wbia_plugin_curvrank_scores(ibs, db_aid_list, qr_aids_list, config={},
                 else:
                     db_rowids = db_aids
 
-                score_dict_ = F.lnbnn_identify(index_filepath, lnbnn_k, qr_descriptors, db_rowids, search_k=search_k)
+                score_dict_ = F.lnbnn_identify(
+                    index_filepath, lnbnn_k, qr_descriptors, db_rowids, search_k=search_k
+                )
                 for rowid in score_dict_:
                     if rowid not in score_dict:
                         score_dict[rowid] = 0.0
@@ -2523,29 +2821,35 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         >>> print(result)
         [(-0.0,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (-0.0,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (-0.0,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (-0.0,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (-0.0,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (-0.0,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (-0.0,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (-0.0,)]
     """
-    print('Computing %s' % (label, ))
+    print('Computing %s' % (label,))
 
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
 
-    assert len(qaid_list) == len(daid_list), 'Lengths of qaid_list %d != daid_list %d' % (len(qaid_list), len(daid_list))
+    assert len(qaid_list) == len(daid_list), 'Lengths of qaid_list %d != daid_list %d' % (
+        len(qaid_list),
+        len(daid_list),
+    )
 
-    qaid_list_  = sorted(list(set(qaid_list)))
-    daid_list_  = sorted(list(set(daid_list)))
+    qaid_list_ = sorted(list(set(qaid_list)))
+    daid_list_ = sorted(list(set(daid_list)))
 
-    qr_aids_list = [
-        [qaid]
-        for qaid in qaid_list_
-    ]
+    qr_aids_list = [[qaid] for qaid in qaid_list_]
     db_aid_list = daid_list_
 
     args = (label, len(qaid_list), len(qaid_list_), len(daid_list), len(daid_list_))
-    message = 'Computing IBEIS CurvRank (%s) on %d total qaids (%d unique), %d total daids (%d unique)' % args
+    message = (
+        'Computing IBEIS CurvRank (%s) on %d total qaids (%d unique), %d total daids (%d unique)'
+        % args
+    )
     with ut.Timer(message):
-        value_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, qr_aids_list,
-                                                           config=config,
-                                                           use_names=False,
-                                                           use_depc_optimized=USE_DEPC_OPTIMIZED)
+        value_iter = ibs.wbia_plugin_curvrank_scores_depc(
+            db_aid_list,
+            qr_aids_list,
+            config=config,
+            use_names=False,
+            use_depc_optimized=USE_DEPC_OPTIMIZED,
+        )
         score_dict = {}
         for value in value_iter:
             qr_aid_list, score_dict_ = value
@@ -2554,19 +2858,25 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
             score_dict[qaid] = score_dict_
 
     zipped = list(zip(qaid_list, daid_list))
-    for qaid, daid in ut.ProgressIter(zipped, 'CurvRank Pair-wise Final Scores', freq=1000):
+    for qaid, daid in ut.ProgressIter(
+        zipped, 'CurvRank Pair-wise Final Scores', freq=1000
+    ):
         assert qaid in score_dict
         score = score_dict[qaid].get(daid, 0.0)
         score *= -1.0
 
-        yield (score, )
+        yield (score,)
 
 
 @register_ibs_method
 def wbia_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
     import networkx as nx
 
-    assert tablename in ['CurvRankDorsal', 'CurvRankFluke', 'CurvRankFinfindrHybridDorsal']
+    assert tablename in [
+        'CurvRankDorsal',
+        'CurvRankFluke',
+        'CurvRankFinfindrHybridDorsal',
+    ]
 
     tablename_list = [
         'curvature_descriptor_optimized',
@@ -2595,8 +2905,8 @@ def wbia_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
 
             child_rowids = []
             for colname in parent_colnames:
-                indexname = '%s_index' % (colname, )
-                command = '''CREATE INDEX IF NOT EXISTS {indexname} ON {tablename} ({colname}, {rowid_colname});'''.format(
+                indexname = '%s_index' % (colname,)
+                command = """CREATE INDEX IF NOT EXISTS {indexname} ON {tablename} ({colname}, {rowid_colname});""".format(
                     indexname=indexname,
                     tablename=child,
                     colname=colname,
@@ -2605,13 +2915,17 @@ def wbia_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
                 child_table.db.connection.execute(command).fetchall()
 
                 child_rowids_ = child_table.db.get_where_eq_set(
-                    child_table.tablename, (child_table.rowid_colname,),
-                    params_iter, unpack_scalars=False,
-                    where_colnames=[colname])
+                    child_table.tablename,
+                    (child_table.rowid_colname,),
+                    params_iter,
+                    unpack_scalars=False,
+                    where_colnames=[colname],
+                )
                 # child_rowids_ = ut.flatten(child_rowids_)
                 child_rowids += child_rowids_
 
             child_table.delete_rows(child_rowids, delete_extern=True)
+
 
 if __name__ == '__main__':
     r"""
@@ -2619,6 +2933,8 @@ if __name__ == '__main__':
         python -m wbia_curvrank._plugin --allexamples
     """
     import multiprocessing
+
     multiprocessing.freeze_support()  # for win32
     import utool as ut  # NOQA
+
     ut.doctest_funcs()

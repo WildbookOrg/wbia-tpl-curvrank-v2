@@ -4,13 +4,16 @@ from wbia_curvrank import dorsal_utils
 import annoy
 import cv2
 import numpy as np
-#import fluke_utils
+
+# import fluke_utils
 import wbia_curvrank.functional as F
 from tqdm import tqdm
 import matplotlib
+
 matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt
 import six
+
 if six.PY2:
     import cPickle as pickle
 else:
@@ -19,8 +22,7 @@ else:
 
 def preprocess_images_star(fpath_side, height, width, output_targets):
     return preprocess_images(
-        *fpath_side,
-        height=height, width=width, output_targets=output_targets
+        *fpath_side, height=height, width=width, output_targets=output_targets
     )
 
 
@@ -37,16 +39,15 @@ def preprocess_images(fpath, side, height, width, output_targets):
     _, resz_buf = cv2.imencode('.png', resz)
     _, mask_buf = cv2.imencode('.png', mask)
 
-    with resz_target.open('wb') as f1,\
-            trns_target.open('wb') as f2,\
-            mask_target.open('wb') as f3:
+    with resz_target.open('wb') as f1, trns_target.open('wb') as f2, mask_target.open(
+        'wb'
+    ) as f3:
         f1.write(resz_buf)
         pickle.dump(M, f2, pickle.HIGHEST_PROTOCOL)
         f3.write(mask_buf)
 
 
-def localization_identity(fpath, height, width,
-                          input_targets, output_targets):
+def localization_identity(fpath, height, width, input_targets, output_targets):
     img_path = input_targets[fpath]['resized'].path
     msk_path = input_targets[fpath]['mask'].path
     img = cv2.imread(img_path)
@@ -59,23 +60,23 @@ def localization_identity(fpath, height, width,
     _, img_loc_lr_buf = cv2.imencode('.png', img)
     _, msk_loc_lr_buf = cv2.imencode('.png', msk)
 
-    with loc_lr_target.open('wb') as f1,\
-            trns_target.open('wb') as f2,\
-            mask_target.open('wb') as f3:
+    with loc_lr_target.open('wb') as f1, trns_target.open('wb') as f2, mask_target.open(
+        'wb'
+    ) as f3:
         f1.write(img_loc_lr_buf)
         pickle.dump(lclz_trns, f2, pickle.HIGHEST_PROTOCOL)
         f3.write(msk_loc_lr_buf)
 
 
 # to_process: [fpath1, fpath2, ...] (for batching to gpu)
-def localization_stn(to_process, batch_size, height, width, func,
-                     input_targets, output_targets):
+def localization_stn(
+    to_process, batch_size, height, width, func, input_targets, output_targets
+):
     num_batches = (len(to_process) + batch_size - 1) // batch_size
-    #logger.info('%d batches of size %d to process' % (
+    # logger.info('%d batches of size %d to process' % (
     #    num_batches, self.batch_size))
     for i in tqdm(range(num_batches), total=num_batches, leave=False):
-        idx_range = range(i * batch_size,
-                          min((i + 1) * batch_size, len(to_process)))
+        idx_range = range(i * batch_size, min((i + 1) * batch_size, len(to_process)))
         fpaths_batch, imgs_batch, masks_batch = [], [], []
         for i, idx in enumerate(idx_range):
             fpath = to_process[idx]
@@ -105,30 +106,33 @@ def localization_stn(to_process, batch_size, height, width, func,
             _, img_buf = cv2.imencode('.png', img)
             _, msk_buf = cv2.imencode('.png', msk)
 
-            with loc_lr_target.open('wb') as f1,\
-                    trns_target.open('wb') as f2,\
-                    mask_target.open('wb') as f3:
+            with loc_lr_target.open('wb') as f1, trns_target.open(
+                'wb'
+            ) as f2, mask_target.open('wb') as f3:
                 f1.write(img_buf)
                 pickle.dump(trns, f2, pickle.HIGHEST_PROTOCOL)
                 f3.write(msk_buf)
 
 
-def refine_localization_star(fpath_side, scale, height, width,
-                             input1_targets, input2_targets,
-                             output_targets):
+def refine_localization_star(
+    fpath_side, scale, height, width, input1_targets, input2_targets, output_targets
+):
     return refine_localization(
         *fpath_side,
-        scale=scale, height=height, width=width,
-        input1_targets=input1_targets, input2_targets=input2_targets,
+        scale=scale,
+        height=height,
+        width=width,
+        input1_targets=input1_targets,
+        input2_targets=input2_targets,
         output_targets=output_targets
     )
 
 
-#input1_targets: preprocess_images_targets
-#input2_targets: localization_targets
-def refine_localization(fpath, side, scale, height, width,
-                        input1_targets, input2_targets,
-                        output_targets):
+# input1_targets: preprocess_images_targets
+# input2_targets: localization_targets
+def refine_localization(
+    fpath, side, scale, height, width, input1_targets, input2_targets, output_targets
+):
     tpath = input1_targets[fpath]['transform'].path
     with open(tpath, 'rb') as f:
         pre_transform = pickle.load(f, encoding='latin1')
@@ -148,16 +152,14 @@ def refine_localization(fpath, side, scale, height, width,
 
     _, img_loc_hr_buf = cv2.imencode('.png', img_refn)
     _, msk_loc_hr_buf = cv2.imencode('.png', msk_refn)
-    with loc_hr_target.open('wb') as f1,\
-            mask_target.open('wb') as f2:
+    with loc_hr_target.open('wb') as f1, mask_target.open('wb') as f2:
         f1.write(img_loc_hr_buf)
         f2.write(msk_loc_hr_buf)
 
 
 # input1_targets: localization_targets
 # input2_targets: segmentation_targets
-def find_keypoints(fpath, method,
-                   input1_targets, input2_targets, output_targets):
+def find_keypoints(fpath, method, input1_targets, input2_targets, output_targets):
     coords_target = output_targets[fpath]['keypoints-coords']
     visual_target = output_targets[fpath]['keypoints-visual']
 
@@ -170,7 +172,7 @@ def find_keypoints(fpath, method,
     with open(seg_fpath, 'rb') as f:
         seg = pickle.load(f, encoding='latin1')
 
-    #start, end = fluke_utils.find_keypoints(rsp)
+    # start, end = fluke_utils.find_keypoints(rsp)
     start, end = F.find_keypoints(method, seg, msk)
 
     # TODO: what to write for failed extractions?
@@ -179,8 +181,7 @@ def find_keypoints(fpath, method,
     if end is not None:
         cv2.circle(loc, tuple(end[::-1]), 3, (0, 0, 255), -1)
     _, visual_buf = cv2.imencode('.png', loc)
-    with coords_target.open('wb') as f1,\
-            visual_target.open('wb') as f2:
+    with coords_target.open('wb') as f1, visual_target.open('wb') as f2:
         pickle.dump((start, end), f1, pickle.HIGHEST_PROTOCOL)
         f2.write(visual_buf)
 
@@ -188,9 +189,16 @@ def find_keypoints(fpath, method,
 # input1_targets: refinement_targets
 # input2_targets: segmentation_targets
 # input3_targets: keypoints_targets
-def extract_outline(fpath, scale, allow_diagonal, cost_func,
-                    input1_targets, input2_targets, input3_targets,
-                    output_targets):
+def extract_outline(
+    fpath,
+    scale,
+    allow_diagonal,
+    cost_func,
+    input1_targets,
+    input2_targets,
+    input3_targets,
+    output_targets,
+):
     coords_target = output_targets[fpath]['outline-coords']
     visual_target = output_targets[fpath]['outline-visual']
 
@@ -201,8 +209,7 @@ def extract_outline(fpath, scale, allow_diagonal, cost_func,
 
     seg_fpath = input2_targets[fpath]['segmentation-full-data']
     key_fpath = input3_targets[fpath]['keypoints-coords']
-    with seg_fpath.open('rb') as f1,\
-            key_fpath.open('rb') as f2:
+    with seg_fpath.open('rb') as f1, key_fpath.open('rb') as f2:
         segm = pickle.load(f1, encoding='latin1')
         (start, end) = pickle.load(f2, encoding='latin1')
 
@@ -220,16 +227,14 @@ def extract_outline(fpath, scale, allow_diagonal, cost_func,
         rfn[outline[-1, 0], outline[-1, 1]] = (0, 0, 255)
 
     _, visual_buf = cv2.imencode('.png', rfn)
-    with coords_target.open('wb') as f1,\
-            visual_target.open('wb') as f2:
+    with coords_target.open('wb') as f1, visual_target.open('wb') as f2:
         pickle.dump(outline, f1, pickle.HIGHEST_PROTOCOL)
         f2.write(visual_buf)
 
 
-#input1_targets: refinement_targets
-#input2_targets: extract_outline_targets
-def separate_edges(fpath, method,
-                   input1_targets, input2_targets, output_targets):
+# input1_targets: refinement_targets
+# input2_targets: extract_outline_targets
+def separate_edges(fpath, method, input1_targets, input2_targets, output_targets):
     refinement_target = input1_targets[fpath]['refn']
     outline_coords_target = input2_targets[fpath]['outline-coords']
 
@@ -259,24 +264,22 @@ def separate_edges(fpath, method,
 
     leading_target = output_targets[fpath]['leading-coords']
     trailing_target = output_targets[fpath]['trailing-coords']
-    with leading_target.open('wb') as f1,\
-            trailing_target.open('wb') as f2:
+    with leading_target.open('wb') as f1, trailing_target.open('wb') as f2:
         pickle.dump(leading_edge, f1, pickle.HIGHEST_PROTOCOL)
         pickle.dump(trailing_edge, f2, pickle.HIGHEST_PROTOCOL)
 
 
-def compute_curvature_star(fpath_scales, transpose_dims,
-                           input_targets, output_targets):
+def compute_curvature_star(fpath_scales, transpose_dims, input_targets, output_targets):
     return compute_curvature(
         *fpath_scales,
         transpose_dims=transpose_dims,
-        input_targets=input_targets, output_targets=output_targets
+        input_targets=input_targets,
+        output_targets=output_targets
     )
 
 
-#input_targets: extract_high_resolution_outline_targets
-def compute_curvature(fpath, scales, transpose_dims,
-                      input_targets, output_targets):
+# input_targets: extract_high_resolution_outline_targets
+def compute_curvature(fpath, scales, transpose_dims, input_targets, output_targets):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f, encoding='latin1')
@@ -299,9 +302,15 @@ def compute_curvature(fpath, scales, transpose_dims,
                 h5f.create_dataset('%.3f' % scale, data=None, dtype=np.float32)
 
 
-def compute_gauss_descriptors_star(fpath_scales, num_keypoints,
-                                   feat_dim, contour_length, uniform,
-                                   input_targets, output_targets):
+def compute_gauss_descriptors_star(
+    fpath_scales,
+    num_keypoints,
+    feat_dim,
+    contour_length,
+    uniform,
+    input_targets,
+    output_targets,
+):
     return compute_gauss_descriptors(
         *fpath_scales,
         num_keypoints=num_keypoints,
@@ -313,9 +322,16 @@ def compute_gauss_descriptors_star(fpath_scales, num_keypoints,
     )
 
 
-def compute_gauss_descriptors(fpath, scales,
-                              num_keypoints, feat_dim, contour_length, uniform,
-                              input_targets, output_targets):
+def compute_gauss_descriptors(
+    fpath,
+    scales,
+    num_keypoints,
+    feat_dim,
+    contour_length,
+    uniform,
+    input_targets,
+    output_targets,
+):
     trailing_coords_target = input_targets[fpath]['trailing-coords']
     with open(trailing_coords_target.path, 'rb') as f:
         trailing_edge = pickle.load(f, encoding='latin1')
@@ -325,8 +341,7 @@ def compute_gauss_descriptors(fpath, scales,
         trailing_edge = trailing_edge[:, ::-1]
         for (m, s) in scales:
             desc = dorsal_utils.diff_of_gauss_descriptor(
-                trailing_edge, m, s, num_keypoints, feat_dim,
-                contour_length, uniform,
+                trailing_edge, m, s, num_keypoints, feat_dim, contour_length, uniform,
             )
             descriptors.append(desc.astype(np.float32))
     else:
@@ -339,14 +354,18 @@ def compute_gauss_descriptors(fpath, scales,
             if descriptors is not None:
                 h5f.create_dataset('%s' % (s,), data=descriptors[i])
             else:
-                h5f.create_dataset(
-                    '%s' % (s,), data=None, dtype=np.float32
-                )
+                h5f.create_dataset('%s' % (s,), data=None, dtype=np.float32)
 
 
-def compute_curv_descriptors_star(fpath_scales,
-                                  num_keypoints, feat_dim, curv_length,
-                                  uniform, input_targets, output_targets):
+def compute_curv_descriptors_star(
+    fpath_scales,
+    num_keypoints,
+    feat_dim,
+    curv_length,
+    uniform,
+    input_targets,
+    output_targets,
+):
     return compute_curv_descriptors(
         *fpath_scales,
         num_keypoints=num_keypoints,
@@ -358,15 +377,20 @@ def compute_curv_descriptors_star(fpath_scales,
     )
 
 
-def compute_curv_descriptors(fpath, scales,
-                             num_keypoints, fdim, curv_length, uniform,
-                             input_targets, output_targets):
+def compute_curv_descriptors(
+    fpath,
+    scales,
+    num_keypoints,
+    fdim,
+    curv_length,
+    uniform,
+    input_targets,
+    output_targets,
+):
     block_curv_target = input_targets[fpath]['curvature']
     with block_curv_target.open('r') as h5f:
         shapes = [h5f['%.3f' % s].shape for s in scales]
-        curv = None if None in shapes else np.vstack(
-            h5f['%.3f' % s][:] for s in scales
-        ).T
+        curv = None if None in shapes else np.vstack(h5f['%.3f' % s][:] for s in scales).T
 
     desc_target = output_targets[fpath]['descriptors']
     with desc_target.open('a') as h5f:
@@ -391,14 +415,22 @@ def visualize_individuals(fpath, input_targets, output_targets):
         f.write(img_buf)
 
 
-def identify_encounter_descriptors_star(qind_qenc, db_names, scales, k,
-                                        qr_fpath_dict, db_fpath_dict,
-                                        input1_targets, input2_targets,
-                                        output_targets):
+def identify_encounter_descriptors_star(
+    qind_qenc,
+    db_names,
+    scales,
+    k,
+    qr_fpath_dict,
+    db_fpath_dict,
+    input1_targets,
+    input2_targets,
+    output_targets,
+):
     return identify_encounter_descriptors(
         *qind_qenc,
         db_names=db_names,
-        scales=scales, k=k,
+        scales=scales,
+        k=k,
         qr_fpath_dict=qr_fpath_dict,
         db_fpath_dict=db_fpath_dict,
         input1_targets=input1_targets,
@@ -420,17 +452,23 @@ def build_annoy_index(data, fpath):
     index.save(fpath)
 
 
-def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
-                                   qr_fpath_dict, db_fpath_dict,
-                                   input1_targets, input2_targets,
-                                   output_targets):
+def identify_encounter_descriptors(
+    qind,
+    qenc,
+    db_names,
+    scales,
+    k,
+    qr_fpath_dict,
+    db_fpath_dict,
+    input1_targets,
+    input2_targets,
+    output_targets,
+):
     descriptors_dict = {s: [] for s in scales}
     # load the descriptors from all images in this encounter
     for fpath in qr_fpath_dict[qind][qenc]:
         target = input1_targets[fpath]['descriptors']
-        descriptors = dorsal_utils.load_descriptors_from_h5py(
-            target, scales
-        )
+        descriptors = dorsal_utils.load_descriptors_from_h5py(target, scales)
         for s in scales:
             descriptors_dict[s].append(descriptors[s])
 
@@ -447,8 +485,9 @@ def identify_encounter_descriptors(qind, qenc, db_names, scales, k,
         pickle.dump(scores, f, pickle.HIGHEST_PROTOCOL)
 
 
-def identify_encounter_star(qind_qenc, qr_curv_dict, db_curv_dict, simfunc,
-                            output_targets):
+def identify_encounter_star(
+    qind_qenc, qr_curv_dict, db_curv_dict, simfunc, output_targets
+):
     return identify_encounter(
         *qind_qenc,
         qr_curv_dict=qr_curv_dict,
@@ -458,8 +497,7 @@ def identify_encounter_star(qind_qenc, qr_curv_dict, db_curv_dict, simfunc,
     )
 
 
-def identify_encounter(qind, qenc, qr_curv_dict, db_curv_dict, simfunc,
-                       output_targets):
+def identify_encounter(qind, qenc, qr_curv_dict, db_curv_dict, simfunc, output_targets):
     dindivs = db_curv_dict.keys()
     qcurvs = qr_curv_dict[qind][qenc]
     scores = F.dtwsw_identify(qcurvs, db_curv_dict, dindivs, simfunc)
@@ -471,10 +509,19 @@ def identify_encounter(qind, qenc, qr_curv_dict, db_curv_dict, simfunc,
 # input1_targets: evaluation_targets (the result dicts)
 # input2_targets: edges_targets (the separate_edges visualizations)
 # input3_targets: block_curv_targets (the curvature vectors)
-def visualize_misidentifications(qind, qr_dict, db_dict,
-                                 num_db, num_qr, scales, curv_length,
-                                 input1_targets, input2_targets,
-                                 input3_targets, output_targets):
+def visualize_misidentifications(
+    qind,
+    qr_dict,
+    db_dict,
+    num_db,
+    num_qr,
+    scales,
+    curv_length,
+    input1_targets,
+    input2_targets,
+    input3_targets,
+    output_targets,
+):
     dindivs = np.hstack(db_dict.keys())  # TODO: add sorted() everywhere
     qencs = input1_targets[qind].keys()
     for qenc in qencs:
@@ -496,10 +543,9 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
         db_best_idx = qr_best_scores.argsort(axis=1)
 
         db_best_fnames = db_fnames[db_best_idx[:, 0:num_db]]
-        db_best_scores = np.array([
-            qr_best_scores[i, db_best_idx[i]]
-            for i in np.arange(db_best_idx.shape[0])
-        ])
+        db_best_scores = np.array(
+            [qr_best_scores[i, db_best_idx[i]] for i in np.arange(db_best_idx.shape[0])]
+        )
         db_best_indivs = indivs_across_db[db_best_idx]
 
         db_best_qr_idx = np.argmax(db_best_indivs == qind, axis=1)
@@ -517,8 +563,8 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
 
         f, axarr = plt.subplots(
             2 + min(db_best_fnames.shape[1], num_db),  # rows
-            min(qr_best_fnames.shape[0], num_qr),      # cols
-            figsize=(22., 12.)
+            min(qr_best_fnames.shape[0], num_qr),  # cols
+            figsize=(22.0, 12.0),
         )
         if axarr.ndim == 1:
             axarr = np.expand_dims(axarr, axis=1)  # ensure 2d
@@ -530,9 +576,7 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
                 input2_targets[name]['visual'] for name in db_best_fnames[i]
             ]
             db_qr_edge_fname = input2_targets[db_best_qr_fnames[i]]['visual']
-            db_qr_curv_fname = input3_targets[
-                db_best_qr_fnames[i]
-            ]['curvature']
+            db_qr_curv_fname = input3_targets[db_best_qr_fnames[i]]['curvature']
 
             db_curv_fnames = [
                 input3_targets[name]['curvature'] for name in db_best_fnames[i]
@@ -540,9 +584,12 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
 
             qr_img = cv2.resize(cv2.imread(qr_edge_fname.path), (256, 256))
             cv2.putText(
-                qr_img, '%s: %s' % (qind, qenc),
+                qr_img,
+                '%s: %s' % (qind, qenc),
                 (10, qr_img.shape[0] - 10),
-                cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0)
+                cv2.FONT_HERSHEY_PLAIN,
+                1.0,
+                (0, 255, 0),
             )
 
             db_row = []
@@ -551,23 +598,24 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
                 dind = db_best_indivs[i, didx]
                 dscore = db_best_scores[i, didx]
                 cv2.putText(
-                    db_img, '%d) %s: %.6f' % (
-                        1 + didx, db_best_indivs[i, didx], dscore),
+                    db_img,
+                    '%d) %s: %.6f' % (1 + didx, db_best_indivs[i, didx], dscore),
                     (10, db_img.shape[0] - 10),
-                    cv2.FONT_HERSHEY_PLAIN, 1.0,
-                    (0, 255, 0) if dind == qind else (0, 0, 255)
+                    cv2.FONT_HERSHEY_PLAIN,
+                    1.0,
+                    (0, 255, 0) if dind == qind else (0, 0, 255),
                 )
                 db_row.append(db_img)
 
-            db_qr_img = cv2.resize(
-                cv2.imread(db_qr_edge_fname.path), (256, 256),
-            )
+            db_qr_img = cv2.resize(cv2.imread(db_qr_edge_fname.path), (256, 256),)
             cv2.putText(
-                db_qr_img, '%d) %s: %.6f' % (
-                    1 + db_best_qr_idx[i], db_best_qr_indivs[i],
-                    db_best_qr_scores[i]),
+                db_qr_img,
+                '%d) %s: %.6f'
+                % (1 + db_best_qr_idx[i], db_best_qr_indivs[i], db_best_qr_scores[i]),
                 (10, db_qr_img.shape[0] - 10),
-                cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0)
+                cv2.FONT_HERSHEY_PLAIN,
+                1.0,
+                (0, 255, 0),
             )
 
             db_row = np.hstack(db_row)
@@ -587,10 +635,10 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
                 )
                 axarr[didx, i].plot(np.arange(dcurv.shape[0]), dcurv)
                 axarr[didx, i].set_title(
-                    '%d) %s: %.6f' % (
-                        didx, db_best_indivs[i, didx - 1],
-                        db_best_scores[i, didx - 1]),
-                    size='xx-small')
+                    '%d) %s: %.6f'
+                    % (didx, db_best_indivs[i, didx - 1], db_best_scores[i, didx - 1]),
+                    size='xx-small',
+                )
                 axarr[didx, i].set_ylim((0, 1))
                 axarr[didx, i].set_xlim((0, dcurv.shape[0]))
                 axarr[didx, i].xaxis.set_visible(False)
@@ -600,11 +648,10 @@ def visualize_misidentifications(qind, qr_dict, db_dict,
             )
             axarr[-1, i].plot(np.arange(db_qr_curv.shape[0]), db_qr_curv)
             axarr[-1, i].set_title(
-                '%d) %s: %.6f' % (
-                    1 + db_best_qr_idx[i],
-                    db_best_qr_indivs[i],
-                    db_best_qr_scores[i]),
-                size='xx-small')
+                '%d) %s: %.6f'
+                % (1 + db_best_qr_idx[i], db_best_qr_indivs[i], db_best_qr_scores[i]),
+                size='xx-small',
+            )
             axarr[-1, i].set_ylim((0, 1))
             axarr[-1, i].set_xlim((0, db_qr_curv.shape[0]))
             axarr[-1, i].xaxis.set_visible(False)
