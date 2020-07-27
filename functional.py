@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function
+from wbia_curvrank import affine, curv, dorsal_utils, imutils, pyastar, utils
+from wbia_curvrank.costs import exp_cost_func as cost_func
+import annoy
 import cv2
 import numpy as np
-import torch
-import wbia_curvrank.curv as curv
-import wbia_curvrank.utils as utils
-
 from itertools import combinations
-from scipy.ndimage.filters import gaussian_filter1d
 from scipy.signal import argrelextrema
-from wbia_curvrank.costs import exp_cost_func as cost_func
-from wbia_curvrank.pyastar import pyastar
+from scipy.ndimage import gaussian_filter1d
+import tqdm
+import time
 
 
 def preprocess_image(image, bbox):
