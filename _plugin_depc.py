@@ -12,14 +12,31 @@ _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
-
+# Keep dorsal compatibility for now
 DEFAULT_WIDTH = {
     'dorsal': 256,
-    'fluke': 384,
 }
 DEFAULT_HEIGHT = {
     'dorsal': 256,
+}
+
+DEFAULT_WIDTH_COARSE = {
+    'fluke': 384,
+}
+DEFAULT_HEIGHT_COARSE = {
     'fluke': 192,
+}
+DEFAULT_WIDTH_FINE = {
+    'fluke': 1152,
+}
+DEFAULT_HEIGHT_FINE = {
+    'fluke': 576,
+}
+DEFAULT_WIDTH_ANCHOR = {
+    'fluke': 224,
+}
+DEFAULT_HEIGHT_ANCHOR = {
+    'fluke': 224,
 }
 DEFAULT_SCALE = {
     'dorsal': 4,
@@ -81,21 +98,18 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_daily_tag': 'global',
     'curvrank_cache_recompute': False,
     'curvrank_model_type': 'fluke',
-    'curvrank_width': DEFAULT_WIDTH['fluke'],
-    'curvrank_height': DEFAULT_HEIGHT['fluke'],
-    'curvrank_greyscale': True,
+    'curvrank_pad': 0.1,
+    'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['fluke'],
+    'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['fluke'],
+    'curvrank_width_fine': DEFAULT_WIDTH_FINE['fluke'],
+    'curvrank_height_fine': DEFAULT_HEIGHT_FINE['fluke'],
+    'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
+    'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
+    'curvrank_trim': 0,
     'curvrank_scale': DEFAULT_SCALE['fluke'],
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
     'curvatute_transpose_dims': DEFAULT_TRANSPOSE_DIMS['fluke'],
-    'localization_model_tag': 'localization',
-    'segmentation_model_tag': 'segmentation',
-    'segmentation_gt_radius': 25,
-    'segmentation_gt_opacity': 0.5,
-    'segmentation_gt_smooth': True,
-    'segmentation_gt_smooth_margin': 0.001,
-    'trailing_edge_finfindr_smooth': True,
-    'trailing_edge_finfindr_smooth_margin': 0.0,
     'curvature_descriptor_curv_length': 1024,
     'curvature_descriptor_num_keypoints': 32,
     'curvature_descriptor_uniform': False,
@@ -111,19 +125,18 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_daily_tag': 'daily_cache_tag',
     'curvrank_cache_recompute': 'force_cache_recompute',
     'curvrank_model_type': 'model_type',
-    'curvrank_width': 'width',
-    'curvrank_height': 'height',
-    'curvrank_greyscale': 'greyscale',
+    'curvrank_pad': 'pad',
+    'curvrank_height_coarse': 'height_coarse',
+    'curvrank_width_coarse': 'width_coarse',
+    'curvrank_height_fine': 'height_fine',
+    'curvrank_width_fine': 'width_fine',
+    'curvrank_weights_anchor': 'weights_anchor',
+    'curvrank_height_anchor': 'height_anchor',
+    'curvrank_trim': 'trim',
     'curvrank_scale': 'scale',
     'curvature_scales': 'scales',
     'outline_allow_diagonal': 'allow_diagonal',
     'curvatute_transpose_dims': 'transpose_dims',
-    'segmentation_gt_radius': 'groundtruth_radius',
-    'segmentation_gt_opacity': 'groundtruth_opacity',
-    'segmentation_gt_smooth': 'groundtruth_smooth',
-    'segmentation_gt_smooth_margin': 'groundtruth_smooth_margin',
-    'trailing_edge_finfindr_smooth': 'finfindr_smooth',
-    'trailing_edge_finfindr_smooth_margin': 'finfindr_smooth_margin',
     'curvature_descriptor_curv_length': 'curv_length',
     'curvature_descriptor_num_keypoints': 'num_keypoints',
     'curvature_descriptor_uniform': 'uniform',
