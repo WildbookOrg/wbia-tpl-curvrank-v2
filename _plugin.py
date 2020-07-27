@@ -74,7 +74,7 @@ if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
 
 @register_ibs_method
 def wbia_plugin_curvrank_preprocessing(
-    ibs, aid_list, width=256, height=256, greyscale=False, **kwargs
+    ibs, aid_list, pad=0.1, width_coarse=384, height_coarse=192, width_anchor=224, height_anchor=224, **kwargs
 ):
     r"""
     Pre-process images for CurvRank
@@ -140,20 +140,22 @@ def wbia_plugin_curvrank_preprocessing(
          [ 0.          0.          1.        ]]
     """
     ibs._parallel_chips = not FORCE_SERIAL
-    config = {
-        'greyscale': greyscale,
-    }
-    image_list = ibs.get_annot_chips(aid_list, config)
+    gid_list = ibs.get_annot_gids(aid_list)
+    image_list = ibs.get_images(gid_list)
+    bboxes = ibs.get_annot_bboxes(aid_list)
 
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
         None if viewpoint is None else viewpoint.lower() for viewpoint in viewpoint_list
     ]
     flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
-    height_list = [height] * len(aid_list)
-    width_list = [width] * len(aid_list)
+    pad_list = [pad] * len(aid_list)
+    height_coarse_list = [height_coarse] * len(aid_list)
+    width_coarse_list = [width_coarse] * len(aid_list)
+    height_anchor_list = [height_anchor] * len(aid_list)
+    width_anchor_list = [width_anchor] * len(aid_list)
 
-    zipped = zip(image_list, flip_list, height_list, width_list)
+    zipped = zip(image_list, bboxes, flip_list, pad_list, height_coarse_list, width_coarse_list, height_anchor_list, width_anchor_list)
 
     config_ = {
         'ordered': True,
@@ -163,13 +165,13 @@ def wbia_plugin_curvrank_preprocessing(
     }
     generator = ut.generate2(F.preprocess_image, zipped, nTasks=len(aid_list), **config_)
 
-    resized_images, resized_masks, pre_transforms = [], [], []
-    for resized_image, resized_mask, pre_transform in generator:
-        resized_images.append(resized_image)
-        resized_masks.append(resized_mask)
-        pre_transforms.append(pre_transform)
+    coarse_resized_images, anchor_resized_images, original_images = [], [], []
+    for coarse_resized_image, anchor_resized_image, original_image in generator:
+        coarse_resized_images.append(coarse_resized_image)
+        anchor_resized_images.append(anchor_resized_image)
+        original_images.append(original_image)
 
-    return resized_images, resized_masks, pre_transforms
+    return coarse_resized_images, anchor_resized_images, original_images
 
 
 @register_ibs_method
@@ -1924,53 +1926,29 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
     """
     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
-    resized_images, resized_masks, pre_transforms = values
+    coarse_resized_images, anchor_resized_images, original_images = values
 
-    values = ibs.wbia_plugin_curvrank_localization(
-        resized_images, resized_masks, **config
-    )
-    localized_images, localized_masks, loc_transforms = values
+    values = ibs.wbia_plugin_curvrank_coarse_probabilities(coarse_resized_images)
+    coarse_probabilities = values
 
-    values = ibs.wbia_plugin_curvrank_refinement(
-        aid_list, pre_transforms, loc_transforms, **config
-    )
-    refined_localizations, refined_masks = values
+    values = ibs.wbia_plugin_curvrank_fine_gradient(original_images)
+    fine_gradients = values
 
-    values = ibs.wbia_plugin_curvrank_segmentation(
-        aid_list,
-        refined_localizations,
-        refined_masks,
-        pre_transforms,
-        loc_transforms,
-        **config
-    )
-    segmentations, refined_segmentations = values
+    values = ibs.wbia_plugin_curvrank_anchor_points(original_images, anchor_resized_images)
+    endpoints = values
 
-    values = ibs.wbia_plugin_curvrank_keypoints(segmentations, localized_masks, **config)
-    success, starts, ends = values
+    values = ibs.wbia_plugin_curvrank_contour(original_images, coarse_probabilities, fine_gradients, endpoints)
+    contours = values
 
-    args = (
-        success,
-        starts,
-        ends,
-        refined_localizations,
-        refined_masks,
-        refined_segmentations,
-    )
-    success, outlines = ibs.wbia_plugin_curvrank_outline(*args, **config)
+    values = ibs.wbia_plugin_curvrank_curvature(contours)
+    curvatures = values
 
-    values = ibs.wbia_plugin_curvrank_trailing_edges(
-        aid_list, success, outlines, **config
-    )
-    success, trailing_edges = values
+    values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures)
+    descriptors = values
 
-    values = ibs.wbia_plugin_curvrank_curvatures(success, trailing_edges, **config)
-    success, curvatures = values
+    success = [True for d in descriptors]
 
-    values = ibs.wbia_plugin_curvrank_curvature_descriptors(success, curvatures, **config)
-    success, curvature_descriptors = values
-
-    return success, curvature_descriptors
+    return success, descriptors
 
 
 @register_ibs_method

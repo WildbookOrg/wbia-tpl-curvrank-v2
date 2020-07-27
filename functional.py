@@ -10,25 +10,24 @@ from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
 import tqdm
 import time
+import torch
 
 
-def preprocess_image(image, bbox):
-    pad = 0.1
+def preprocess_image(image, bbox, flip, pad, height_coarse, width_coarse, height_anchor, width_anchor):
+    if flip:
+        image = image[:, ::-1]
+
     x, y, w, h = bbox
     crop, _ = utils.crop_with_padding(
             image, x, y, w, h, pad
     )
 
-    coarse_height = 192
-    coarse_width = 384
-    coarse_image = cv2.resize(crop, (coarse_width, coarse_height),
+    coarse_image = cv2.resize(crop, (width_coarse, height_coarse),
                               interpolation=cv2.INTER_AREA)
     coarse_image = coarse_image.transpose(2, 0, 1) / 255.
     coarse_image = torch.FloatTensor(coarse_image)
 
-    anchor_height = 224
-    anchor_width = 224
-    anchor_image = cv2.resize(crop, (anchor_width, anchor_height),
+    anchor_image = cv2.resize(crop, (width_anchor, height_anchor),
                               interpolation=cv2.INTER_AREA)
     anchor_image = anchor_image[:, :, ::-1] / 255.
     anchor_image -= np.array([0.485, 0.456, 0.406])
