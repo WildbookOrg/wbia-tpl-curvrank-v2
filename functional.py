@@ -13,7 +13,7 @@ import time
 import torch
 
 
-def preprocess_image(image, bbox, flip, pad, height_coarse, width_coarse, height_anchor, width_anchor):
+def preprocess_image(image, bbox, flip, pad, width_coarse, height_coarse, width_anchor, height_anchor):
     if flip:
         image = image[:, ::-1]
 
@@ -55,10 +55,7 @@ def refine_by_gradient(image):
     return refined
 
 
-def contour_from_anchorpoints(part_img, coarse, fine, anchor_points):
-    width_fine = 1152
-    trim = 0
-
+def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width_fine):
     fine = cv2.cvtColor(fine, cv2.COLOR_BGR2GRAY)
 
     ratio = width_fine / part_img.shape[1]
@@ -96,12 +93,7 @@ def contour_from_anchorpoints(part_img, coarse, fine, anchor_points):
     return contour
 
 
-def curvature(contour):
-    scales = [0.02, 0.04, 0.06, 0.08]
-    height_fine = 576
-    width_fine = 1152
-    transpose_dims = True
-
+def curvature(contour, width_fine, height_fine, scales, transpose_dims):
     radii = np.array(scales) * max(height_fine, width_fine)
     if contour:
         if transpose_dims:
@@ -118,12 +110,7 @@ def curvature(contour):
     return curvature
 
 
-def curvature_descriptors(contour, curvature):
-    scales = [0.02, 0.04, 0.06, 0.08]
-    curv_length = 1024
-    feat_dim = 32
-    num_keypoints = 32
-
+def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num_keypoints):
     if contour and curvature:
         contour, curvature = utils.pad_curvature_gaps(contour,
                                                       curvature)
