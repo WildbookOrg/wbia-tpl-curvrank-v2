@@ -177,7 +177,6 @@ def wbia_plugin_curvrank_preprocessing(
     return coarse_resized_images, anchor_resized_images, original_images
 
 
-# TODO: Currently only works with lists of a single image
 @register_ibs_method
 def wbia_plugin_curvrank_coarse_probabilities(ibs, resized_images, width_coarse=384, height_coarse=192, **kwargs):
     coarse_params = '/home/mankow/Research/CurvRankv2/data/cascadia/Training/weights/Jul01_16-57-40_rad-8.params'
@@ -529,6 +528,7 @@ def wbia_plugin_curvrank_pipeline_aggregate(
         if not success:
             continue
 
+        descriptor_dict = descriptor_dict['descriptors'] #TODO: Maybe change this?
         for scale in descriptor_dict:
             if scale not in lnbnn_dict:
                 lnbnn_dict[scale] = {
