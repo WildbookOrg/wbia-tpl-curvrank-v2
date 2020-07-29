@@ -186,6 +186,7 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, resized_images, width_coarse=
     unet.eval()
     coarse_probabilities = []
     for index, x in enumerate(resized_images):
+        x = torch.FloatTensor(x)
         x = x.cuda(None)
         x = x.view(1, 3, height_coarse, width_coarse)
         with torch.no_grad():
@@ -224,6 +225,7 @@ def wbia_plugin_curvrank_anchor_points(ibs, original_images, anchor_images, widt
     for index, x in enumerate(anchor_images):
         part_img = original_images[index]
 
+        x = torch.FloatTensor(x)
         x = x.cuda(None)
         x = x.view(1, 3, height_anchor, width_anchor)
         with torch.no_grad():

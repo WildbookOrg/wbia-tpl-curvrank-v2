@@ -25,7 +25,6 @@ def preprocess_image(img, bbox, flip, pad, width_coarse, height_coarse, width_an
     coarse_img = cv2.resize(crop, (width_coarse, height_coarse),
                               interpolation=cv2.INTER_AREA)
     coarse_img = coarse_img.transpose(2, 0, 1) / 255.
-    coarse_img = torch.FloatTensor(coarse_img)
 
     anchor_img = cv2.resize(crop, (width_anchor, height_anchor),
                               interpolation=cv2.INTER_AREA)
@@ -33,7 +32,6 @@ def preprocess_image(img, bbox, flip, pad, width_coarse, height_coarse, width_an
     anchor_img -= np.array([0.485, 0.456, 0.406])
     anchor_img /= np.array([0.229, 0.224, 0.225])
     anchor_img = anchor_img.transpose(2, 0, 1)
-    anchor_img = torch.FloatTensor(anchor_img)
 
     return coarse_img, anchor_img, crop
 
