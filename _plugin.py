@@ -169,7 +169,7 @@ def wbia_plugin_curvrank_preprocessing(
     generator = ut.generate2(F.preprocess_image, zipped, nTasks=len(aid_list), **config_)
 
     resized_images_coarse, resized_images_anchor, cropped_images = [], [], []
-    for coarse_resized_image, anchor_resized_image, cropped_image in generator:
+    for resized_image_coarse, resized_image_anchor, cropped_image in generator:
         resized_images_coarse.append(resized_image_coarse)
         resized_images_anchor.append(resized_image_anchor)
         cropped_images.append(cropped_image)
