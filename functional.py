@@ -171,10 +171,12 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
                 data['keypoints'][scales[j]] = np.empty(
                     (0, 2), dtype=np.int32
                 )
+        success_ = True
     else:
         data = {'keypoints': {}, 'descriptors': {}, 'contour': []}
+        success_ = False
 
-    return data
+    return success_, data
 
 
 def build_lnbnn_index(data, fpath, num_trees=10):

@@ -308,11 +308,12 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
     }
     generator = ut.generate2(F.curvature_descriptors, zipped)
 
-    descriptors = []
-    for descriptor in generator:
+    descriptors, success_list = [], []
+    for success, descriptor in generator:
         descriptors.append(descriptor)
+        success_list.append(success)
 
-    return descriptors
+    return success_list, descriptors
 
 
 @register_ibs_method
@@ -437,25 +438,18 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
     coarse_resized_images, anchor_resized_images, original_images = values
 
-    values = ibs.wbia_plugin_curvrank_coarse_probabilities(coarse_resized_images, **config)
-    coarse_probabilities = values
+    coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(coarse_resized_images, **config)
 
-    values = ibs.wbia_plugin_curvrank_fine_gradients(original_images)
-    fine_gradients = values
+    fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(original_images)
 
-    values = ibs.wbia_plugin_curvrank_anchor_points(original_images, anchor_resized_images, **config)
-    endpoints = values
+    endpoints = ibs.wbia_plugin_curvrank_anchor_points(original_images, anchor_resized_images, **config)
 
-    values = ibs.wbia_plugin_curvrank_contours(original_images, coarse_probabilities, fine_gradients, endpoints, **config)
-    contours = values
+    contours = ibs.wbia_plugin_curvrank_contours(original_images, coarse_probabilities, fine_gradients, endpoints, **config)
 
-    values = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
-    curvatures = values
+    curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
 
     values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures, **config)
-    descriptors = values
-
-    success = [True for d in descriptors]
+    success, descriptors = values
 
     return success, descriptors
 
