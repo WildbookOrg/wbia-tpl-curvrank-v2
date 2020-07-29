@@ -13,40 +13,40 @@ import time
 import torch
 
 
-def preprocess_image(image, bbox, flip, pad, width_coarse, height_coarse, width_anchor, height_anchor):
+def preprocess_image(img, bbox, flip, pad, width_coarse, height_coarse, width_anchor, height_anchor):
     if flip:
-        image = image[:, ::-1]
+        img = img[:, ::-1]
 
     x, y, w, h = bbox
     crop, _ = utils.crop_with_padding(
-            image, x, y, w, h, pad
+            img, x, y, w, h, pad
     )
 
-    coarse_image = cv2.resize(crop, (width_coarse, height_coarse),
+    coarse_img = cv2.resize(crop, (width_coarse, height_coarse),
                               interpolation=cv2.INTER_AREA)
-    coarse_image = coarse_image.transpose(2, 0, 1) / 255.
-    coarse_image = torch.FloatTensor(coarse_image)
+    coarse_img = coarse_img.transpose(2, 0, 1) / 255.
+    coarse_img = torch.FloatTensor(coarse_img)
 
-    anchor_image = cv2.resize(crop, (width_anchor, height_anchor),
+    anchor_img = cv2.resize(crop, (width_anchor, height_anchor),
                               interpolation=cv2.INTER_AREA)
-    anchor_image = anchor_image[:, :, ::-1] / 255.
-    anchor_image -= np.array([0.485, 0.456, 0.406])
-    anchor_image /= np.array([0.229, 0.224, 0.225])
-    anchor_image = anchor_image.transpose(2, 0, 1)
-    anchor_image = torch.FloatTensor(anchor_image)
+    anchor_img = anchor_img[:, :, ::-1] / 255.
+    anchor_img -= np.array([0.485, 0.456, 0.406])
+    anchor_img /= np.array([0.229, 0.224, 0.225])
+    anchor_img = anchor_img.transpose(2, 0, 1)
+    anchor_img = torch.FloatTensor(anchor_img)
 
-    return coarse_image, anchor_image, crop
+    return coarse_img, anchor_img, crop
 
 
-def refine_by_gradient(image):
+def refine_by_gradient(img):
     Sx = np.array([[ 0.,  0., 0.],
                    [-0.5, 0,  0.5],
                    [ 0.,  0., 0.]], dtype=np.float32)
     Sy = np.array([[0., -0.5, 0.],
                    [0.,  0,   0.],
                    [0.,  0.5, 0.]], dtype=np.float32)
-    dx = cv2.filter2D(image, cv2.CV_32F, Sx)
-    dy = cv2.filter2D(image, cv2.CV_32F, Sy)
+    dx = cv2.filter2D(img, cv2.CV_32F, Sx)
+    dy = cv2.filter2D(img, cv2.CV_32F, Sy)
 
     refined = cv2.magnitude(dx, dy)
     refined = cv2.normalize(refined, None, alpha=0, beta=255,
