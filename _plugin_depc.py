@@ -183,9 +183,11 @@ def _convert_kwargs_config_to_depc_config(config):
 class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_width', DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
+            ut.ParamInfo('curvrank_pad', 0.1),
+            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -194,12 +196,12 @@ class PreprocessConfig(dtool.Config):
     tablename='preprocess',
     parents=[ROOT],
     colnames=[
-        'resized_img',
-        'resized_width',
-        'resized_height',
-        'mask_img',
-        'mask_width',
-        'mask_height',
+        'resized_img_coarse',
+        'resized_width_coarse',
+        'resized_height_coarse',
+        'resized_img_anchor',
+        'resized_width_anchor',
+        'resized_height_anchor',
         'pretransform',
     ],
     coltypes=[
@@ -276,28 +278,30 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     """
     ibs = depc.controller
 
-    width = config['curvrank_width']
-    height = config['curvrank_height']
-    greyscale = config['curvrank_greyscale']
+    pad = config['curvrank_pad']
+    width_coarse = config['curvrank_width_coarse']
+    height_coarse = config['curvrank_height_coarse']
+    width_anchor = config['curvrank_width_anchor']
+    height_anchor = config['curvrank_height_anchor']
 
     values = ibs.wbia_plugin_curvrank_preprocessing(
-        aid_list, width=width, height=height, greyscale=greyscale
+        aid_list, pad, width_coarse, height_coarse, width_anchor, height_anchor
     )
-    resized_images, resized_masks, pre_transforms = values
+    resized_images_coarse, resized_images_anchor, cropped_images = values
 
-    zipped = zip(resized_images, resized_masks, pre_transforms)
-    for resized_image, resized_mask, pre_transform in zipped:
-        resized_width, resized_height = vt.get_size(resized_image)
-        mask_width, mask_height = vt.get_size(resized_mask)
+    zipped = zip(resized_images_coarse, resized_images_anchor, cropped_images)
+    for resized_image_coarse, resized_image_anchor, cropped_image in zipped:
+        resized_width_coarse, resized_height_coarse = vt.get_size(resized_image_coarse)
+        resized_width_anchor, resized_height_anchor = vt.get_size(resized_image_anchor)
 
         yield (
-            resized_image,
-            resized_width,
-            resized_height,
-            resized_mask,
-            mask_width,
-            mask_height,
-            pre_transform,
+            resized_image_coarse,
+            resized_width_coarse,
+            resized_height_coarse,
+            resized_image_anchor,
+            resized_width_anchor,
+            resized_height_anchor,
+            cropped_image,
         )
 
 
