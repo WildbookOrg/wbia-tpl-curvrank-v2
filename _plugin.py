@@ -5,7 +5,6 @@ from os.path import abspath, join, exists, split
 import wbia_curvrank.fcnn as fcnn
 import wbia_curvrank.functional as F
 import wbia_curvrank.regression as regression
-from wbia_curvrank import imutils
 
 # import wbia.constants as const
 from scipy import interpolate

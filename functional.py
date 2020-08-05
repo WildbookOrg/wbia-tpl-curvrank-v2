@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank import affine, curv, dorsal_utils, imutils, pyastar, utils
+from wbia_curvrank import curv, dorsal_utils, pyastar, utils
 from wbia_curvrank.costs2 import exp_cost_func as cost_func
 import annoy
 import cv2
