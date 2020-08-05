@@ -179,7 +179,7 @@ def wbia_plugin_curvrank_preprocessing(
 
 @register_ibs_method
 def wbia_plugin_curvrank_coarse_probabilities(ibs, resized_images, width_coarse=384, height_coarse=192, **kwargs):
-    coarse_params = '/home/mankow/Research/CurvRankv2/data/cascadia/Training/weights/Jul01_16-57-40_rad-8.params'
+    coarse_params = '_weights/Jul15_19-53-26_remote.params'
     unet = fcnn.UNet()
     unet.load_state_dict(torch.load(coarse_params, map_location='cuda:0'))
     unet.cuda(None)
@@ -216,7 +216,7 @@ def wbia_plugin_curvrank_fine_gradients(ibs, images):
 
 @register_ibs_method
 def wbia_plugin_curvrank_anchor_points(ibs, original_images, anchor_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
-    anchor_params = '/home/mankow/Research/CurvRankv2/data/cascadia/Training/weights/Jun18_20-05-58_using-20th-pt.params'
+    anchor_params = '_weights/Jun18_20-05-58_using-20th-pt.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
     anchor_nn.cuda(None)
