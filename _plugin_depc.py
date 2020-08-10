@@ -184,8 +184,8 @@ class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
             ut.ParamInfo('curvrank_pad', 0.1),
-            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_ANCHOR['fluke']),
-            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
+            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
             ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
             ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
@@ -202,7 +202,7 @@ class PreprocessConfig(dtool.Config):
         'resized_img_anchor',
         'resized_width_anchor',
         'resized_height_anchor',
-        'pretransform',
+        'cropped_img',
     ],
     coltypes=[
         ('extern', np.load, np.save),
@@ -211,7 +211,7 @@ class PreprocessConfig(dtool.Config):
         ('extern', np.load, np.save),
         int,
         int,
-        np.ndarray,
+        ('extern', np.load, np.save),
     ],
     configclass=PreprocessConfig,
     fname='curvrank_unoptimized',
@@ -240,19 +240,14 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> resized_images = ibs.depc_annot.get('preprocess', aid_list, 'resized_img',  config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> resized_masks  = ibs.depc_annot.get('preprocess', aid_list, 'mask_img',     config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> pre_transforms = ibs.depc_annot.get('preprocess', aid_list, 'pretransform', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> resized_image = resized_images[0]
-        >>> resized_mask  = resized_masks[0]
-        >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) in ['inxtvdeyxibloygwuyhxzpnevpkoenec']
-        >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
-        >>> result = pre_transform
+        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> resized_image_coarse = resized_images_coarse[0]
+        >>> resized_image_anchor  = resized_images_anchor[0]
+        >>> cropped_image = cropped_images[0]
+        >>> result = cropped_image
         >>> print(result)
-        [[ 0.36571429  0.          0.        ]
-         [ 0.          0.36571429 38.        ]
-         [ 0.          0.          1.        ]]
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -262,19 +257,14 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> resized_images = ibs.depc_annot.get('preprocess', aid_list, 'resized_img',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_masks  = ibs.depc_annot.get('preprocess', aid_list, 'mask_img',     config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> pre_transforms = ibs.depc_annot.get('preprocess', aid_list, 'pretransform', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_image = resized_images[0]
-        >>> resized_mask  = resized_masks[0]
-        >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) in ['rygggbfijzssfanhlvbchlyxdvaltuvy']
-        >>> assert ut.hash_data(resized_mask)  in ['xrecwbobdxovkrzojngixulmmegimxwv']
-        >>> result = pre_transform
+        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> resized_image_coarse = resized_images_coarse[0]
+        >>> resized_image_anchor  = resized_images_anchor[0]
+        >>> cropped_image = cropped_images[0]
+        >>> result = cropped_image
         >>> print(result)
-        [[ 0.54857143  0.          0.        ]
-         [ 0.          0.54857143 52.        ]
-         [ 0.          0.          1.        ]]
     """
     ibs = depc.controller
 
@@ -291,67 +281,54 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
 
     zipped = zip(resized_images_coarse, resized_images_anchor, cropped_images)
     for resized_image_coarse, resized_image_anchor, cropped_image in zipped:
-        resized_width_coarse, resized_height_coarse = vt.get_size(resized_image_coarse)
-        resized_width_anchor, resized_height_anchor = vt.get_size(resized_image_anchor)
-
         yield (
             resized_image_coarse,
-            resized_width_coarse,
-            resized_height_coarse,
+            width_coarse,
+            height_coarse,
             resized_image_anchor,
-            resized_width_anchor,
-            resized_height_anchor,
+            width_anchor,
+            height_anchor,
             cropped_image,
         )
 
 
-class LocalizationConfig(dtool.Config):
+class CoarseProbabilitiesConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type', 'dorsal'),
-            ut.ParamInfo('curvrank_height', DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_width', DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('localization_model_tag', 'localization'),
+            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
+            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='localization',
+    tablename='coarse',
     parents=['preprocess'],
     colnames=[
-        'localized_img',
-        'localized_width',
-        'localized_height',
-        'mask_img',
-        'mask_width',
-        'mask_height',
-        'transform',
+        'coarse_probabilities',
+        'width_coarse',
+        'height_coarse',
     ],
     coltypes=[
         ('extern', np.load, np.save),
         int,
         int,
-        ('extern', np.load, np.save),
-        int,
-        int,
-        np.ndarray,
     ],
-    configclass=LocalizationConfig,
+    configclass=CoarseProbabilitiesConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=None):
+def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, config=None):
     r"""
     Localize images for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_localization_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -361,21 +338,8 @@ def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=N
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> localized_images = ibs.depc_annot.get('localization', aid_list, 'localized_img',  config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> localized_masks  = ibs.depc_annot.get('localization', aid_list, 'mask_img',     config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> loc_transforms = ibs.depc_annot.get('localization', aid_list, 'transform', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> localized_image = localized_images[0]
-        >>> localized_mask  = localized_masks[0]
-        >>> loc_transform = loc_transforms[0]
-        >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
-        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(localized_image) in ['igxwfzwvpbqpfriihmdsyaoksqbzviey']
-        >>> assert ut.hash_data(localized_mask)  in ['whrbbdtqbmpyjskvvpvblehfiofdgsli']
-        >>> # for above reasons, some voodoo to compare loc_transform
-        >>> loc_transform_ubuntu = np.array([[ 6.42954651e-01,  1.20030158e-01, -1.06427952e-01],
-                                             [-1.19038359e-01,  6.43158788e-01, -1.27811638e-04],
-                                             [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
-        >>> assert np.all(np.abs(loc_transform - loc_transform_ubuntu) < 1e-6)
+        >>> coarse_probabilities = ibs.depc_annot.get('coarse', aid_list, 'coarse_probabilities',  config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> coarse_probability = coarse_probabilities[0]
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -385,104 +349,70 @@ def wbia_plugin_curvrank_localization_depc(depc, preprocess_rowid_list, config=N
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> resized_images = ibs.depc_annot.get('preprocess', aid_list, 'resized_img',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_masks  = ibs.depc_annot.get('preprocess', aid_list, 'mask_img',     config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> pre_transforms = ibs.depc_annot.get('preprocess', aid_list, 'pretransform', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> localized_images = ibs.depc_annot.get('localization', aid_list, 'localized_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> localized_masks  = ibs.depc_annot.get('localization', aid_list, 'mask_img',      config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> loc_transforms   = ibs.depc_annot.get('localization', aid_list, 'transform',     config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> localized_image = localized_images[0]
-        >>> localized_mask  = localized_masks[0]
-        >>> loc_transform = loc_transforms[0]
-        >>> # localized_image appears to differ very slightly in ubuntu vs. mac. Hashes below for each respectively.
-        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> assert ut.hash_data(resized_images) == ut.hash_data(localized_images)
-        >>> assert ut.hash_data(resized_masks)  == ut.hash_data(localized_masks)
-        >>> assert np.sum(loc_transform) == 3.0
+        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> coarse_probabilities = ibs.depc_annot.get('coarse', aid_list, 'coarse_probabilities',  config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> coarse_probability = coarse_probabilities[0]
     """
     ibs = depc.controller
 
-    model_type = config['curvrank_model_type']
-    width = config['curvrank_width']
-    height = config['curvrank_height']
-    model_tag = config['localization_model_tag']
+    width = config['curvrank_width_coarse']
+    height = config['curvrank_height_coarse']
 
-    resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img')
-    resized_masks = depc.get_native('preprocess', preprocess_rowid_list, 'mask_img')
+    resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img_coarse')
 
-    values = ibs.wbia_plugin_curvrank_localization(
+    coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(
         resized_images,
-        resized_masks,
         width=width,
         height=height,
-        model_type=model_type,
-        model_tag=model_tag,
     )
-    localized_images, localized_masks, loc_transforms = values
 
-    # yield each column defined in register_preproc_annot
-    zipped = zip(localized_images, localized_masks, loc_transforms)
-    for localized_image, localized_mask, loc_transform in zipped:
-        localized_width, localized_height = vt.get_size(localized_image)
-        mask_width, mask_height = vt.get_size(localized_mask)
+    for coarse_prob in coarse_probabilities:
         yield (
-            localized_image,
-            localized_width,
-            localized_height,
-            localized_mask,
-            mask_width,
-            mask_height,
-            loc_transform,
+            coarse_prob,
+            width,
+            height,
         )
 
 
-class RefinementConfig(dtool.Config):
+class FineGradientsConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_width', DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='refinement',
-    parents=['localization', 'preprocess'],
+    tablename='fine',
+    parents=['preprocess'],
     colnames=[
-        'refined_img',
-        'refined_width',
-        'refined_height',
-        'mask_img',
-        'mask_width',
-        'mask_height',
+        'fine_img',
+        'width',
+        'height',
     ],
     coltypes=[
         ('extern', np.load, np.save),
         int,
         int,
-        ('extern', np.load, np.save),
-        int,
-        int,
     ],
-    configclass=RefinementConfig,
+    configclass=FineGradientsConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_refinement_depc(
-    depc, localization_rowid_list, preprocess_rowid_list, config=None
+def wbia_plugin_curvrank_fine_gradients_depc(
+    depc, preprocess_rowid_list, config=None
 ):
     r"""
     Refine localizations for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_refinement_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -492,14 +422,7 @@ def wbia_plugin_curvrank_refinement_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> refined_localizations = ibs.depc_annot.get('refinement', aid_list, 'refined_img', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> refined_masks         = ibs.depc_annot.get('refinement', aid_list, 'mask_img', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> refined_localization  = refined_localizations[0]
-        >>> refined_mask          = refined_masks[0]
-        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> # why are these values different than in above? have we cached bad stuff? I'm guessing yes.
-        >>> assert ut.hash_data(refined_localization) in ['nxhumkmybgbjdjcffuneozzmptvivvlh']
-        >>> assert ut.hash_data(refined_mask)         in ['bwuzcdgbfyqhzgdthazfgegbzeykvbnt']
+        >>> fine_gradients = ibs.depc_annot.get('fine', aid_list, 'fine_img', config=DEFAULT_FLUKE_TEST_CONFIG)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -509,112 +432,73 @@ def wbia_plugin_curvrank_refinement_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> refined_localizations = ibs.depc_annot.get('refinement', aid_list, 'refined_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> refined_masks         = ibs.depc_annot.get('refinement', aid_list, 'mask_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> refined_localization  = refined_localizations[0]
-        >>> refined_mask          = refined_masks[0]
-        >>> #TODO verify that mac/ubuntu values are consistent on those OSes
-        >>> # why are these values different than in above? have we cached bad stuff? I'm guessing yes.
-        >>> assert ut.hash_data(refined_localization) in ['cwmqsvpabxdaftsnupgerivjufsavfhl']
-        >>> assert ut.hash_data(refined_mask)         in ['zwfgmumqblkfzejnseauggiedzpbbjoa']
+        >>> fine_gradients = ibs.depc_annot.get('fine', aid_list, 'fine_img', config=DEFAULT_FLUKE_TEST_CONFIG)
     """
     ibs = depc.controller
 
-    width = config['curvrank_width']
-    height = config['curvrank_height']
-    scale = config['curvrank_scale']
-    greyscale = config['curvrank_greyscale']
-
     aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
-    loc_transforms = depc.get_native('localization', localization_rowid_list, 'transform')
-    pre_transforms = depc.get_native('preprocess', preprocess_rowid_list, 'pretransform')
+    cropped_imgs = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
-    values = ibs.wbia_plugin_curvrank_refinement(
-        aid_list,
-        pre_transforms,
-        loc_transforms,
-        width=width,
-        height=height,
-        scale=scale,
-        greyscale=greyscale,
-    )
-    refined_localizations, refined_masks = values
+    fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_imgs)
 
-    for refined_localization, refined_mask in zip(refined_localizations, refined_masks):
+    for fine_grad in fine_gradients:
         (
-            refined_localization_height,
-            refined_localization_width,
-        ) = refined_localization.shape[:2]
-        refined_mask_height, refined_mask_width = refined_mask.shape[:2]
+            width,
+            height,
+        ) = fine_grad.shape[:2]
         yield (
-            refined_localization,
-            refined_localization_width,
-            refined_localization_height,
-            refined_mask,
-            refined_mask_width,
-            refined_mask_height,
+            fine_grad,
+            width,
+            height,
         )
 
 
-class SegmentationConfig(dtool.Config):
+class AnchorPointsConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type', 'dorsal'),
-            ut.ParamInfo('curvrank_width', DEFAULT_HEIGHT['dorsal']),
-            ut.ParamInfo('curvrank_height', DEFAULT_WIDTH['dorsal']),
-            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('segmentation_model_tag', 'segmentation'),
-            ut.ParamInfo('segmentation_gt_radius', 25),
-            ut.ParamInfo('segmentation_gt_opacity', 0.5),
-            ut.ParamInfo('segmentation_gt_smooth', True),
-            ut.ParamInfo('segmentation_gt_smooth_margin', 0.001),
-            ut.ParamInfo('curvrank_greyscale', False, hideif=False),
+            ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
-    tablename='segmentation',
-    parents=['refinement', 'preprocess', 'localization'],
+    tablename='anchor',
+    parents=['preprocess'],
     colnames=[
-        'segmentations_img',
-        'refined_width',
-        'refined_height',
-        'refined_segmentations_img',
-        'refined_segmentations_width',
-        'refined_segmentations_height',
+        'start',
+        'end',
+        'width_anchor',
+        'height_anchor',
     ],
     coltypes=[
         ('extern', np.load, np.save),
-        int,
-        int,
         ('extern', np.load, np.save),
         int,
         int,
     ],
-    configclass=SegmentationConfig,
+    configclass=AnchorPointsConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_segmentation_depc(
+def wbia_plugin_curvrank_anchor_points_depc(
     depc,
-    refinement_rowid_list,
     preprocess_rowid_list,
-    localization_rowid_list,
     config=None,
 ):
     r"""
-    Refine localizations for CurvRank with Dependency Cache (depc)
+    Anchor Points for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:1
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:2
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_segmentation_depc:3
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -624,12 +508,8 @@ def wbia_plugin_curvrank_segmentation_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> segmentation           = segmentations[0]
-        >>> refined_segmentation   = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation)         in ['tcfybjuqszadvmfetzxivcvihfkudvqh']
-        >>> assert ut.hash_data(refined_segmentation) in ['snjswkyqprmhmpefiiiapdsytubfvcwo']
+        >>> start = ibs.depc_annot.get('anchor', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> end = ibs.depc_annot.get('anchor', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -639,12 +519,8 @@ def wbia_plugin_curvrank_segmentation_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> segmentation           = segmentations[0]
-        >>> refined_segmentation   = refined_segmentations[0]
-        >>> assert ut.hash_data(segmentation)         in ['htbsspdnjfchswtcboifeybpkhmbdmms']
-        >>> assert ut.hash_data(refined_segmentation) in ['hqngsbdctbjsruuwjhhbuamcbukbyaea']
+        >>> start = ibs.depc_annot.get('anchor', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> end = ibs.depc_annot.get('anchor', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)
 
     Example2:
         >>> # ENABLE_DOCTEST
@@ -685,97 +561,65 @@ def wbia_plugin_curvrank_segmentation_depc(
     """
     ibs = depc.controller
 
-    model_type = config['curvrank_model_type']
-    width = config['curvrank_width']
-    height = config['curvrank_height']
-    scale = config['curvrank_scale']
-    model_tag = config['segmentation_model_tag']
-    gt_radius = config['segmentation_gt_radius']
-    gt_opacity = config['segmentation_gt_opacity']
-    gt_smooth = config['segmentation_gt_smooth']
-    gt_smooth_margin = config['segmentation_gt_smooth_margin']
-    greyscale = config['curvrank_greyscale']
+    width_fine = config['curvrank_width_fine']
+    width_anchor = config['curvrank_width_anchor']
+    height_anchor = config['curvrank_height_anchor']
 
-    aid_list = depc.get_ancestor_rowids('refinement', refinement_rowid_list)
-    refined_localizations = depc.get_native(
-        'refinement', refinement_rowid_list, 'refined_img'
+    aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
+    anchor_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img_anchor')
+    cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
+
+    anchor_points = ibs.wbia_plugin_curvrank_anchor_points(
+        cropped_images,
+        anchor_images,
+        width_fine,
+        width_anchor,
+        height_anchor,
     )
-    refined_masks = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
-    pre_transforms = depc.get_native('preprocess', preprocess_rowid_list, 'pretransform')
-    loc_transforms = depc.get_native('localization', localization_rowid_list, 'transform')
 
-    values = ibs.wbia_plugin_curvrank_segmentation(
-        aid_list,
-        refined_localizations,
-        refined_masks,
-        pre_transforms,
-        loc_transforms,
-        width=width,
-        height=height,
-        scale=scale,
-        model_type=model_type,
-        model_tag=model_tag,
-        groundtruth_radius=gt_radius,
-        groundtruth_opacity=gt_opacity,
-        groundtruth_smooth=gt_smooth,
-        groundtruth_smooth_margin=gt_smooth_margin,
-        greyscale=greyscale,
-    )
-    segmentations, refined_segmentations = values
-
-    for segmentation, refined_segmentation in zip(segmentations, refined_segmentations):
-        if segmentation is None:
-            segmentation_height, segmentation_width = 0, 0
-        else:
-            segmentation_height, segmentation_width = segmentation.shape[:2]
-        if refined_segmentation is None:
-            refined_segmentation_height, refined_segmentation_width = 0, 0
-        else:
-            (
-                refined_segmentation_height,
-                refined_segmentation_width,
-            ) = refined_segmentation.shape[:2]
-
+    for pt in anchor_points:
+        start = pt['start']
+        end = pt['end']
         yield (
-            segmentation,
-            segmentation_width,
-            segmentation_height,
-            refined_segmentation,
-            refined_segmentation_width,
-            refined_segmentation_height,
+            start,
+            end,
+            width_anchor,
+            height_anchor,
         )
 
 
-class KeypointsConfig(dtool.Config):
+class ContoursConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type', 'dorsal'),
+            ut.ParamInfo('curvrank_trim', 0.1),
+            ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('ext', '.npy', hideif='.npy')
         ]
 
 
 @register_preproc_annot(
-    tablename='keypoints',
-    parents=['segmentation', 'localization'],
-    colnames=['success', 'start_y', 'start_x', 'end_y', 'end_x'],
-    coltypes=[bool, int, int, int, int],
-    configclass=KeypointsConfig,
+    tablename='contours',
+    parents=['coarse', 'fine', 'anchor', 'preprocess'],
+    colnames=['contour'],
+    coltypes=[('extern', np.load, np.save)],
+    configclass=ContoursConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_keypoints_depc(
-    depc, segmentation_rowid_list, localization_rowid_list, config=None
+def wbia_plugin_curvrank_contours_depc(
+    depc, anchor_rowid_list, fine_rowid_list, coarse_rowid_list, preprocess_rowid_list, config=None
 ):
     r"""
-    Refine localizations for CurvRank with Dependency Cache (depc)
+    Contours for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:1
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_keypoints_depc:2
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:0
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:1
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -785,11 +629,7 @@ def wbia_plugin_curvrank_keypoints_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.depc_annot.get('keypoints', aid_list, None, config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> success, start_y, start_x, end_y, end_x = values[0]
-        >>> assert success
-        >>> assert (start_y, start_x) == (203, 3)
-        >>> assert (end_y,   end_x)   == (198, 252)
+        >>> values = ibs.depc_annot.get('contours', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -823,25 +663,26 @@ def wbia_plugin_curvrank_keypoints_depc(
     """
     ibs = depc.controller
 
-    model_type = config['curvrank_model_type']
+    trim = config['curvrank_trim']
+    width_fine = config['curvrank_width_fine']
 
-    segmentations = depc.get_native(
-        'segmentation', segmentation_rowid_list, 'segmentations_img'
+    start = depc.get_native('anchor', anchor_rowid_list, 'start')
+    end = depc.get_native('anchor', anchor_rowid_list, 'end')
+    anchor_points = []
+    for s, e in zip(start, end):
+        anchor_points.append({'start': s, 'end': e})
+
+    fine_gradients = depc.get_native('fine', fine_rowid_list, 'fine_img')
+    coarse_probabilities = depc.get_native('coarse', fine_rowid_list, 'coarse_probabilities')
+    cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
+
+    contours = ibs.wbia_plugin_curvrank_contours(
+        cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim, width_fine
     )
-    localized_masks = depc.get_native('localization', localization_rowid_list, 'mask_img')
 
-    values = ibs.wbia_plugin_curvrank_keypoints(
-        segmentations, localized_masks, model_type=model_type
-    )
-    success_list, starts, ends = values
-
-    for success, start, end in zip(success_list, starts, ends):
+    for contour in contours:
         yield (
-            success,
-            None if start is None else start[0],
-            None if start is None else start[1],
-            None if end is None else end[0],
-            None if end is None else end[1],
+            contour
         )
 
 
