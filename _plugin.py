@@ -214,7 +214,7 @@ def wbia_plugin_curvrank_fine_gradients(ibs, images):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_anchor_points(ibs, original_images, anchor_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
+def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, anchor_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
     anchor_params = '_weights/Jun18_20-05-58_using-20th-pt.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
@@ -222,7 +222,7 @@ def wbia_plugin_curvrank_anchor_points(ibs, original_images, anchor_images, widt
     anchor_nn.eval()
     anchor_points = []
     for index, x in enumerate(anchor_images):
-        part_img = original_images[index]
+        part_img = cropped_images[index]
 
         x = torch.FloatTensor(x)
         x = x.cuda(None)
@@ -245,11 +245,11 @@ def wbia_plugin_curvrank_anchor_points(ibs, original_images, anchor_images, widt
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_contours(ibs, original_images, coarse_probabilities, fine_gradients, endpoints, trim=0, width_fine=1152, **kwargs):
-    trim_list = [trim] * len(original_images)
-    width_fine_list = [width_fine] * len(original_images)
+def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fine_gradients, endpoints, trim=0, width_fine=1152, **kwargs):
+    trim_list = [trim] * len(cropped_images)
+    width_fine_list = [width_fine] * len(cropped_images)
 
-    zipped = zip(original_images, coarse_probabilities, fine_gradients, endpoints, trim_list, width_fine_list)
+    zipped = zip(cropped_images, coarse_probabilities, fine_gradients, endpoints, trim_list, width_fine_list)
 
     config_ = {
         'ordered': True,
@@ -257,7 +257,7 @@ def wbia_plugin_curvrank_contours(ibs, original_images, coarse_probabilities, fi
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(F.contour_from_anchorpoints, zipped, nTasks=len(original_images), **config_)
+    generator = ut.generate2(F.contour_from_anchorpoints, zipped, nTasks=len(cropped_images), **config_)
 
     contours = []
     for contour in generator:
@@ -286,7 +286,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
     curvatures = []
     for curvature in generator:
         curvatures.append(curvature)
-
+    
     return curvatures
 
 
