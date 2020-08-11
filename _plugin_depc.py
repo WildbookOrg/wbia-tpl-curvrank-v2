@@ -598,7 +598,7 @@ class ContoursConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='contours',
+    tablename='contour',
     parents=['coarse', 'fine', 'anchor', 'preprocess'],
     colnames=['contour'],
     coltypes=[('extern', np.load, np.save)],
@@ -629,7 +629,7 @@ def wbia_plugin_curvrank_contours_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.depc_annot.get('contours', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> values = ibs.depc_annot.get('contour', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -686,43 +686,40 @@ def wbia_plugin_curvrank_contours_depc(
         )
 
 
-class OutlineConfig(dtool.Config):
+class CurvaturesConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('curvrank_model_type', 'dorsal'),
-            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['dorsal']),
-            ut.ParamInfo('outline_allow_diagonal', False),
+            ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
+            ut.ParamInfo('curvrank_scales', DEFAULT_SCALES['fluke']),
+            ut.ParamInfo('curvrank_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
+            ut.ParamInfo('ext', '.npy', hideif='.npy')
         ]
 
 
 @register_preproc_annot(
-    tablename='outline',
-    parents=['segmentation', 'refinement', 'keypoints'],
-    colnames=['success', 'outline'],
-    coltypes=[bool, np.ndarray],
-    configclass=OutlineConfig,
+    tablename='curvature',
+    parents=['contour'],
+    colnames=['curvature'],
+    coltypes=[('extern', np.load, np.save)],
+    configclass=CurvaturesConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_outline_depc(
+def wbia_plugin_curvrank_curvatures_depc(
     depc,
-    segmentation_rowid_list,
-    refinement_rowid_list,
-    keypoints_rowid_list,
+    contour_rowid_list,
     config=None,
 ):
     r"""
-    Refine localizations for CurvRank with Dependency Cache (depc)
+    Curvatures for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:1
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:2
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_outline_depc:3
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc
+        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:0
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -732,90 +729,20 @@ def wbia_plugin_curvrank_outline_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> outline = outlines[0]
-        >>> assert success_list == [True]
-        >>> assert ut.hash_data(outline) in ['lyrkwgzncvjpjvovikkvspdkecardwyz']
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> outline = outlines[0]
-        >>> assert success_list == [True]
-        >>> assert ut.hash_data(outline) in ['qqvetxfhhipfuqneuinwrvcztkjlfoak']
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
-        >>> try:
-        >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>>     config['localization_model_tag'] = 'groundtruth'
-        >>>     config['segmentation_model_tag'] = 'groundtruth'
-        >>>     success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=config)
-        >>>     outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=config)
-        >>>     outline = outlines[0]
-        >>>     assert success_list == [True]
-        >>>     assert ut.hash_data(outline) in ['ykbndjqawiersnktufkmdtbwsfuexyeg']
-        >>> finally:
-        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
-
-    Example3:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
-        >>> success_list = ibs.depc_annot.get('outline', aid_list, 'success', config=config)
-        >>> outlines = ibs.depc_annot.get('outline', aid_list, 'outline', config=config)
-        >>> outline = outlines[0]
-        >>> assert success_list == [True]
-        >>> assert outline is None
+        >>> curvatures = ibs.depc_annot.get('curvature', aid_list, 'curvature', config=DEFAULT_FLUKE_TEST_CONFIG)
     """
     ibs = depc.controller
 
-    success_list = depc.get_native('keypoints', keypoints_rowid_list, 'success')
-    starts = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'start_y', 'start_x')
-    ends = get_zipped(depc, 'keypoints', keypoints_rowid_list, 'end_y', 'end_x')
-    refined_localizations = depc.get_native(
-        'refinement', refinement_rowid_list, 'refined_img'
-    )
-    refined_masks = depc.get_native('refinement', refinement_rowid_list, 'mask_img')
-    refined_segmentations = depc.get_native(
-        'segmentation', segmentation_rowid_list, 'refined_segmentations_img'
-    )
+    width_fine = config['curvrank_width_fine']
+    height_fine = config['curvrank_height_fine']
+    scales = config['curvrank_scales']
+    transpose_dims = config['curvrank_transpose_dims']
 
-    args = (
-        success_list,
-        starts,
-        ends,
-        refined_localizations,
-        refined_masks,
-        refined_segmentations,
-    )
-    kwargs = {
-        'model_type': config['curvrank_model_type'],
-        'scale': config['curvrank_scale'],
-        'allow_diagonal': config['outline_allow_diagonal'],
-    }
-    success_list, outlines = ibs.wbia_plugin_curvrank_outline(*args, **kwargs)
-    for success, outline in zip(success_list, outlines):
-        yield (success, outline)
+    contours = [depc.get_native('contour', contour_rowid_list, 'contour')]
+    #import ipdb; ipdb.set_trace()
+    curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, width_fine, height_fine, scales, transpose_dims)
+    for curv in curvatures:
+        yield curv
 
 
 class TrailingEdgeConfig(dtool.Config):
@@ -928,86 +855,6 @@ def wbia_plugin_curvrank_trailing_edges_depc(depc, outline_rowid_list, config=No
         yield (
             success,
             trailing_edge,
-        )
-
-
-class CurvatuveConfig(dtool.Config):
-    def get_param_info_list(self):
-        return [
-            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['dorsal']),
-            ut.ParamInfo('curvatute_transpose_dims', False),
-        ]
-
-
-@register_preproc_annot(
-    tablename='curvature',
-    parents=['trailing_edge'],
-    colnames=['success', 'curvature'],
-    coltypes=[bool, np.ndarray],
-    configclass=CurvatuveConfig,
-    fname='curvrank_unoptimized',
-    rm_extern_on_delete=True,
-    chunksize=256,
-)
-# chunksize defines the max number of 'yield' below that will be called in a chunk
-# so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_curvatures_depc(depc, trailing_edge_rowid_list, config=None):
-    r"""
-    Refine localizations for CurvRank with Dependency Cache (depc)
-
-    CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:1
-
-    Example0:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
-        >>> success_list = ibs.depc_annot.get('curvature', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> curvatures = ibs.depc_annot.get('curvature', aid_list, 'curvature', config=DEFAULT_DORSAL_TEST_CONFIG)
-        >>> curvature = curvatures[0]
-        >>> assert success_list == [True]
-        >>> assert ut.hash_data(curvature) in ['yeyykrdbfxqyrbdumvpkvatjoddavdgn']
-        >>> assert curvature.shape == (918, 4)
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('curvature', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> curvatures = ibs.depc_annot.get('curvature', aid_list, 'curvature', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> curvature = curvatures[0]
-        >>> assert success_list == [True]
-        >>> assert ut.hash_data(curvature) in ['dpbusvatdgcdblmtwvodvlsnjuffdylp']
-    """
-    ibs = depc.controller
-
-    scales = config['curvature_scales']
-    transpose_dims = config['curvatute_transpose_dims']
-
-    success_list = depc.get_native('trailing_edge', trailing_edge_rowid_list, 'success')
-    trailing_edges = depc.get_native(
-        'trailing_edge', trailing_edge_rowid_list, 'trailing_edge'
-    )
-
-    values = ibs.wbia_plugin_curvrank_curvatures(
-        success_list, trailing_edges, scales=scales, transpose_dims=transpose_dims
-    )
-    success_list, curvatures = values
-
-    for success, curvature in zip(success_list, curvatures):
-        yield (
-            success,
-            curvature,
         )
 
 
