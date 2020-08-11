@@ -230,7 +230,6 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -240,23 +239,6 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_image_coarse = resized_images_coarse[0]
-        >>> resized_image_anchor  = resized_images_anchor[0]
-        >>> cropped_image = cropped_images[0]
-        >>> result = cropped_image
-        >>> print(result)
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
         >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
@@ -328,7 +310,6 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -338,20 +319,6 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> coarse_probabilities = ibs.depc_annot.get('coarse', aid_list, 'coarse_probabilities',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> coarse_probability = coarse_probabilities[0]
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> coarse_probabilities = ibs.depc_annot.get('coarse', aid_list, 'coarse_probabilities',  config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> coarse_probability = coarse_probabilities[0]
     """
@@ -412,7 +379,6 @@ def wbia_plugin_curvrank_fine_gradients_depc(
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_gradients_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -422,16 +388,6 @@ def wbia_plugin_curvrank_fine_gradients_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> fine_gradients = ibs.depc_annot.get('fine', aid_list, 'fine_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
         >>> fine_gradients = ibs.depc_annot.get('fine', aid_list, 'fine_img', config=DEFAULT_FLUKE_TEST_CONFIG)
     """
     ibs = depc.controller
@@ -496,9 +452,6 @@ def wbia_plugin_curvrank_anchor_points_depc(
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:1
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:2
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -510,54 +463,6 @@ def wbia_plugin_curvrank_anchor_points_depc(
         >>> aid_list = ibs.get_image_aids(1)
         >>> start = ibs.depc_annot.get('anchor', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> end = ibs.depc_annot.get('anchor', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> start = ibs.depc_annot.get('anchor', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> end = ibs.depc_annot.get('anchor', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list, part_rowid_list = ibs.wbia_plugin_curvrank_test_setup_groundtruth()
-        >>> try:
-        >>>     config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>>     config['localization_model_tag'] = 'groundtruth'
-        >>>     config['segmentation_model_tag'] = 'groundtruth'
-        >>>     segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
-        >>>     refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
-        >>>     segmentation           = segmentations[0]
-        >>>     refined_segmentation   = refined_segmentations[0]
-        >>>     assert ut.hash_data(segmentation)         in ['owryieckgcmjqptjflybacfcmzgllhiw']
-        >>>     assert ut.hash_data(refined_segmentation) in ['ddtxnvyvsskeazpftzlzbobfwxsfrvns']
-        >>> finally:
-        >>>     ibs.wbia_plugin_curvrank_test_cleanup_groundtruth()
-
-    Example3:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
-        >>> segmentations          = ibs.depc_annot.get('segmentation', aid_list, 'segmentations_img', config=config)
-        >>> refined_segmentations  = ibs.depc_annot.get('segmentation', aid_list, 'refined_segmentations_img', config=config)
-        >>> segmentation           = segmentations[0].tolist()
-        >>> refined_segmentation   = refined_segmentations[0].tolist()
-        >>> assert segmentation is None
-        >>> assert refined_segmentation is None
     """
     ibs = depc.controller
 
@@ -618,8 +523,6 @@ def wbia_plugin_curvrank_contours_depc(
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:1
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -630,36 +533,6 @@ def wbia_plugin_curvrank_contours_depc(
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.depc_annot.get('contour', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> values = ibs.depc_annot.get('keypoints', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> success, start_y, start_x, end_y, end_x = values[0]
-        >>> assert success
-        >>> assert (start_y, start_x) == (56, 8)
-        >>> assert (end_y,   end_x)   == (59, 358)
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
-        >>> config = DEFAULT_DORSAL_TEST_CONFIG.copy()
-        >>> config['curvrank_model_type'] = 'dorsalfinfindrhybrid'
-        >>> values = ibs.depc_annot.get('keypoints', aid_list, None, config=config)
-        >>> success, start_y, start_x, end_y, end_x = values[0]
-        >>> assert success
-        >>> assert (start_y, start_x) == (None, None)
-        >>> assert (end_y,   end_x)   == (None, None)
     """
     ibs = depc.controller
 
