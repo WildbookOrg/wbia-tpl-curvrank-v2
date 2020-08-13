@@ -76,7 +76,7 @@ if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
 
 @register_ibs_method
 def wbia_plugin_curvrank_preprocessing(
-    ibs, aid_list, pad=0.1, width_coarse=384, height_coarse=192, width_anchor=224, height_anchor=224, **kwargs
+    ibs, aid_list, pad=0.1, **kwargs
 ):
     r"""
     Pre-process images for CurvRank
@@ -152,12 +152,8 @@ def wbia_plugin_curvrank_preprocessing(
     ]
     flip_list = [viewpoint in RIGHT_FLIP_LIST for viewpoint in viewpoint_list]
     pad_list = [pad] * len(aid_list)
-    height_coarse_list = [height_coarse] * len(aid_list)
-    width_coarse_list = [width_coarse] * len(aid_list)
-    height_anchor_list = [height_anchor] * len(aid_list)
-    width_anchor_list = [width_anchor] * len(aid_list)
 
-    zipped = zip(image_list, bboxes, flip_list, pad_list, width_coarse_list, height_coarse_list, width_anchor_list, height_anchor_list)
+    zipped = zip(image_list, bboxes, flip_list, pad_list)
 
     config_ = {
         'ordered': True,
@@ -167,27 +163,27 @@ def wbia_plugin_curvrank_preprocessing(
     }
     generator = ut.generate2(F.preprocess_image, zipped, nTasks=len(aid_list), **config_)
 
-    resized_images_coarse, resized_images_anchor, cropped_images = [], [], []
-    for resized_image_coarse, resized_image_anchor, cropped_image in generator:
-        resized_images_coarse.append(resized_image_coarse)
-        resized_images_anchor.append(resized_image_anchor)
+    cropped_images = []
+    for cropped_image in generator:
         cropped_images.append(cropped_image)
 
-    return resized_images_coarse, resized_images_anchor, cropped_images
+    return cropped_images
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_coarse_probabilities(ibs, resized_images, width_coarse=384, height_coarse=192, **kwargs):
+def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=384, height_coarse=192, **kwargs):
     coarse_params = '_weights/Jul15_19-53-26_remote.params'
     unet = fcnn.UNet()
     unet.load_state_dict(torch.load(coarse_params, map_location='cuda:0'))
     unet.cuda(None)
     unet.eval()
     coarse_probabilities = []
-    for index, x in enumerate(resized_images):
+    for index, x in enumerate(cropped_images):
+        x = cv2.resize(x, (width_coarse, height_coarse), interpolation=cv2.INTER_AREA)
+        x = x.transpose(2, 0, 1) / 255.
+        x = x[np.newaxis, ...]
         x = torch.FloatTensor(x)
         x = x.cuda(None)
-        x = x.view(1, 3, height_coarse, width_coarse)
         with torch.no_grad():
             _, y_hat = unet(x)
         y_hat = y_hat.data.cpu().numpy().transpose(0, 2, 3, 1)
@@ -214,19 +210,25 @@ def wbia_plugin_curvrank_fine_gradients(ibs, images):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, anchor_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
+def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
     anchor_params = '_weights/Jun18_20-05-58_using-20th-pt.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
     anchor_nn.cuda(None)
     anchor_nn.eval()
     anchor_points = []
-    for index, x in enumerate(anchor_images):
-        part_img = cropped_images[index]
+    for index, x in enumerate(cropped_images):
+        part_img = x
 
+        x = cv2.resize(x, (width_anchor, height_anchor),
+                              interpolation=cv2.INTER_AREA)
+        x = x[:, :, ::-1] / 255.
+        x -= np.array([0.485, 0.456, 0.406])
+        x /= np.array([0.229, 0.224, 0.225])
+        x = x.transpose(2, 0, 1)
+        x = x[np.newaxis, ...]
         x = torch.FloatTensor(x)
         x = x.cuda(None)
-        x = x.view(1, 3, height_anchor, width_anchor)
         with torch.no_grad():
             y0_hat, y1_hat = anchor_nn(x)
         y0_hat = y0_hat.data.cpu().numpy()
@@ -434,16 +436,15 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
     """
-    values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
-    coarse_resized_images, anchor_resized_images, original_images = values
+    cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
 
-    coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(coarse_resized_images, **config)
+    coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
 
-    fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(original_images)
+    fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
 
-    endpoints = ibs.wbia_plugin_curvrank_anchor_points(original_images, anchor_resized_images, **config)
+    endpoints = ibs.wbia_plugin_curvrank_anchor_points(cropped_images, **config)
 
-    contours = ibs.wbia_plugin_curvrank_contours(original_images, coarse_probabilities, fine_gradients, endpoints, **config)
+    contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, endpoints, **config)
 
     curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
 
@@ -713,14 +714,9 @@ def wbia_plugin_curvrank_pipeline(
 
     if use_depc:
         config_ = _convert_kwargs_config_to_depc_config(config)
-        table_name = (
-            'curvature_descriptor_optimized'
-            if use_depc_optimized
-            else 'curvature_descriptor'
-        )
-        success_list = ibs.depc_annot.get(table_name, aid_list, 'success', config=config_)
+        success_list = ibs.depc_annot.get('descriptor', aid_list, 'success', config=config_)
         descriptor_dict_list = ibs.depc_annot.get(
-            table_name, aid_list, 'descriptor', config=config_
+            'descriptor', aid_list, 'descriptor', config=config_
         )
     else:
         values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)

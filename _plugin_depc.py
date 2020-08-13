@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 from wbia.control import controller_inject  # NOQA
+import cv2
 import numpy as np
 import utool as ut
 import vtool as vt
@@ -105,7 +106,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['fluke'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
-    'curvrank_trim': 0,
+    'curvrank_trim': 50,
     'curvrank_scale': DEFAULT_SCALE['fluke'],
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
@@ -184,11 +185,7 @@ class PreprocessConfig(dtool.Config):
     def get_param_info_list(self):
         return [
             ut.ParamInfo('curvrank_pad', 0.1),
-            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
-            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
-            ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
-            ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
-            ut.ParamInfo('ext', '.npy', hideif='.npy'),
+            ut.ParamInfo('ext', '.jpg', hideif='.jpg'),
         ]
 
 
@@ -196,22 +193,10 @@ class PreprocessConfig(dtool.Config):
     tablename='preprocess',
     parents=[ROOT],
     colnames=[
-        'resized_img_coarse',
-        'resized_width_coarse',
-        'resized_height_coarse',
-        'resized_img_anchor',
-        'resized_width_anchor',
-        'resized_height_anchor',
         'cropped_img',
     ],
     coltypes=[
-        ('extern', np.load, np.save),
-        int,
-        int,
-        ('extern', np.load, np.save),
-        int,
-        int,
-        ('extern', np.load, np.save),
+        ('extern', cv2.imread, cv2.imwrite),
     ],
     configclass=PreprocessConfig,
     fname='curvrank_unoptimized',
@@ -239,38 +224,19 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> resized_images_coarse = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_coarse',  config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_images_anchor  = ibs.depc_annot.get('preprocess', aid_list, 'resized_img_anchor',     config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> resized_image_coarse = resized_images_coarse[0]
-        >>> resized_image_anchor  = resized_images_anchor[0]
-        >>> cropped_image = cropped_images[0]
-        >>> result = cropped_image
-        >>> print(result)
     """
     ibs = depc.controller
 
     pad = config['curvrank_pad']
-    width_coarse = config['curvrank_width_coarse']
-    height_coarse = config['curvrank_height_coarse']
-    width_anchor = config['curvrank_width_anchor']
-    height_anchor = config['curvrank_height_anchor']
 
-    values = ibs.wbia_plugin_curvrank_preprocessing(
-        aid_list, pad, width_coarse, height_coarse, width_anchor, height_anchor
+    cropped_images = ibs.wbia_plugin_curvrank_preprocessing(
+        aid_list, pad
     )
-    resized_images_coarse, resized_images_anchor, cropped_images = values
 
-    zipped = zip(resized_images_coarse, resized_images_anchor, cropped_images)
-    for resized_image_coarse, resized_image_anchor, cropped_image in zipped:
+    for cropped_image in zip(cropped_images):
         yield (
-            resized_image_coarse,
-            width_coarse,
-            height_coarse,
-            resized_image_anchor,
-            width_anchor,
-            height_anchor,
-            cropped_image,
+            cropped_image
         )
 
 
@@ -279,7 +245,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
             ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
-            ut.ParamInfo('ext', '.npy', hideif='.npy'),
+            ut.ParamInfo('ext', '.jpg', hideif='.jpg'),
         ]
 
 
@@ -292,7 +258,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         'height_coarse',
     ],
     coltypes=[
-        ('extern', np.load, np.save),
+        ('extern', cv2.imread, cv2.imwrite),
         int,
         int,
     ],
@@ -327,10 +293,10 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
     width = config['curvrank_width_coarse']
     height = config['curvrank_height_coarse']
 
-    resized_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img_coarse')
+    cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
     coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(
-        resized_images,
+        cropped_images,
         width=width,
         height=height,
     )
@@ -346,7 +312,7 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
 class FineGradientsConfig(dtool.Config):
     def get_param_info_list(self):
         return [
-            ut.ParamInfo('ext', '.npy', hideif='.npy'),
+            ut.ParamInfo('ext', '.jpg', hideif='.jpg'),
         ]
 
 
@@ -359,7 +325,7 @@ class FineGradientsConfig(dtool.Config):
         'height',
     ],
     coltypes=[
-        ('extern', np.load, np.save),
+        ('extern', cv2.imread, cv2.imwrite),
         int,
         int,
     ],
@@ -471,12 +437,10 @@ def wbia_plugin_curvrank_anchor_points_depc(
     height_anchor = config['curvrank_height_anchor']
 
     aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
-    anchor_images = depc.get_native('preprocess', preprocess_rowid_list, 'resized_img_anchor')
     cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
     anchor_points = ibs.wbia_plugin_curvrank_anchor_points(
         cropped_images,
-        anchor_images,
         width_fine,
         width_anchor,
         height_anchor,
