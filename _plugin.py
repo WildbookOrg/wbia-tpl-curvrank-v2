@@ -711,7 +711,6 @@ def wbia_plugin_curvrank_pipeline(
     # Compute Curvature Descriptors
     if verbose:
         print('\tCompute Curvature Pipeline')
-
     if use_depc:
         config_ = _convert_kwargs_config_to_depc_config(config)
         success_list = ibs.depc_annot.get('descriptor', aid_list, 'success', config=config_)

@@ -106,7 +106,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['fluke'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
-    'curvrank_trim': 50,
+    'curvrank_trim': 0,
     'curvrank_scale': DEFAULT_SCALE['fluke'],
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
@@ -258,7 +258,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         'height_coarse',
     ],
     coltypes=[
-        ('extern', cv2.imread, cv2.imwrite),
+        ('extern', lambda x : cv2.imread(x, cv2.IMREAD_GRAYSCALE), cv2.imwrite),
         int,
         int,
     ],
@@ -470,7 +470,7 @@ class ContoursConfig(dtool.Config):
     tablename='contour',
     parents=['coarse', 'fine', 'anchor', 'preprocess'],
     colnames=['contour'],
-    coltypes=[('extern', np.load, np.save)],
+    coltypes=[('extern', lambda x : [np.load(x)], np.save)],
     configclass=ContoursConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -533,12 +533,11 @@ class CurvaturesConfig(dtool.Config):
             ut.ParamInfo('ext', '.npy', hideif='.npy')
         ]
 
-
 @register_preproc_annot(
     tablename='curvature',
     parents=['contour'],
     colnames=['curvature'],
-    coltypes=[('extern', np.load, np.save)],
+    coltypes=[('extern', lambda x : [np.load(x)], np.save)],
     configclass=CurvaturesConfig,
     fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
@@ -575,8 +574,8 @@ def wbia_plugin_curvrank_curvatures_depc(
     scales = config['curvrank_scales']
     transpose_dims = config['curvrank_transpose_dims']
 
-    contours = [depc.get_native('contour', contour_rowid_list, 'contour')]
-    #import ipdb; ipdb.set_trace()
+    contours = depc.get_native('contour', contour_rowid_list, 'contour')
+
     curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, width_fine, height_fine, scales, transpose_dims)
     for curv in curvatures:
         yield curv
@@ -639,8 +638,8 @@ def wbia_plugin_curvrank_descriptors_depc(
     feat_dim = config['curvrank_feat_dim']
     num_keypoints = config['curvrank_num_keypoints']
 
-    contours = [depc.get_native('contour', contour_rowid_list, 'contour')]
-    curvatures = [depc.get_native('curvature', curvature_rowid_list, 'curvature')]
+    contours = depc.get_native('contour', contour_rowid_list, 'contour')
+    curvatures = depc.get_native('curvature', curvature_rowid_list, 'curvature')
 
     values = ibs.wbia_plugin_curvrank_descriptors(
         contours, curvatures, scales, curv_length, feat_dim, num_keypoints
