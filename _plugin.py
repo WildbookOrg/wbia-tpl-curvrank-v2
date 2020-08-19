@@ -34,7 +34,6 @@ register_api = controller_inject.get_wbia_flask_api(__name__)
 
 
 USE_DEPC = True
-USE_DEPC_OPTIMIZED = True
 
 
 FORCE_SERIAL = False
@@ -93,53 +92,18 @@ def wbia_plugin_curvrank_preprocessing(
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:1
 
     Example0:
         >>> # ENABLE_DOCTEST
         >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
-        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
-        >>> resized_images, resized_masks, pre_transforms = values
-        >>> resized_image = resized_images[0]
-        >>> resized_mask  = resized_masks[0]
-        >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) in ['inxtvdeyxibloygwuyhxzpnevpkoenec']
-        >>> assert ut.hash_data(resized_mask)  in ['mnhartnytowmmhskblocubqmzhbofynr']
-        >>> result = pre_transform
-        >>> print(result)
-        [[ 0.36571429  0.          0.        ]
-         [ 0.          0.36571429 38.        ]
-         [ 0.          0.          1.        ]]
-
-    Example0:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> width = DEFAULT_WIDTH[model_type]
-        >>> height = DEFAULT_HEIGHT[model_type]
-        >>> values = ibs.wbia_plugin_curvrank_preprocessing(aid_list, width=width, height=height)
-        >>> resized_images, resized_masks, pre_transforms = values
-        >>> resized_image = resized_images[0]
-        >>> resized_mask  = resized_masks[0]
-        >>> pre_transform = pre_transforms[0]
-        >>> assert ut.hash_data(resized_image) in ['rygggbfijzssfanhlvbchlyxdvaltuvy']
-        >>> assert ut.hash_data(resized_mask)  in ['xrecwbobdxovkrzojngixulmmegimxwv']
-        >>> result = pre_transform
-        >>> print(result)
-        [[ 0.54857143  0.          0.        ]
-         [ 0.          0.54857143 52.        ]
-         [ 0.          0.          1.        ]]
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> cropped_image = cropped_images[0]
+        >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
     """
     ibs._parallel_chips = not FORCE_SERIAL
     gid_list = ibs.get_annot_gids(aid_list)
@@ -560,7 +524,6 @@ def wbia_plugin_curvrank_pipeline(
     aid_list=None,
     config={},
     use_depc=USE_DEPC,
-    use_depc_optimized=USE_DEPC_OPTIMIZED,
     verbose=False,
 ):
     r"""
@@ -605,7 +568,7 @@ def wbia_plugin_curvrank_pipeline(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -620,7 +583,7 @@ def wbia_plugin_curvrank_pipeline(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=True)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -672,7 +635,7 @@ def wbia_plugin_curvrank_pipeline(
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -698,7 +661,7 @@ def wbia_plugin_curvrank_pipeline(
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True, use_depc_optimized=True)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -741,7 +704,6 @@ def wbia_plugin_curvrank_scores(
     use_names=True,
     minimum_score=-1e-5,
     use_depc=USE_DEPC,
-    use_depc_optimized=USE_DEPC_OPTIMIZED,
 ):
     r"""
     CurvRank Example
@@ -793,7 +755,7 @@ def wbia_plugin_curvrank_scores(
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -813,7 +775,7 @@ def wbia_plugin_curvrank_scores(
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
         >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -875,7 +837,7 @@ def wbia_plugin_curvrank_scores(
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -906,7 +868,7 @@ def wbia_plugin_curvrank_scores(
         >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
         >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
         >>> }
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -1071,7 +1033,6 @@ def wbia_plugin_curvrank_scores(
                 config=config,
                 verbose=verbose,
                 use_depc=use_depc,
-                use_depc_optimized=use_depc_optimized,
             )
             qr_lnbnn_data, _ = values
             for scale in qr_lnbnn_data:
@@ -1159,7 +1120,6 @@ def wbia_plugin_curvrank_scores(
                     config=config,
                     verbose=verbose,
                     use_depc=use_depc,
-                    use_depc_optimized=use_depc_optimized,
                 )
                 db_lnbnn_data, _ = values
 
@@ -1324,7 +1284,6 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
             qr_aids_list,
             config=config,
             use_names=False,
-            use_depc_optimized=USE_DEPC_OPTIMIZED,
         )
         score_dict = {}
         for value in value_iter:
@@ -1342,65 +1301,6 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         score *= -1.0
 
         yield (score,)
-
-
-@register_ibs_method
-def wbia_plugin_curvrank_delete_cache_optimized(ibs, aid_list, tablename):
-    import networkx as nx
-
-    assert tablename in [
-        'CurvRankDorsal',
-        'CurvRankFluke',
-        'CurvRankFinfindrHybridDorsal',
-    ]
-
-    tablename_list = [
-        'curvature_descriptor_optimized',
-        tablename,
-    ]
-
-    graph = ibs.depc_annot.make_graph(implicit=True)
-    root = ibs.depc_annot.root
-    params_iter = list(zip(aid_list))
-
-    for target_tablename in tablename_list:
-        print(target_tablename)
-
-        path = nx.shortest_path(graph, root, target_tablename)
-        for parent, child in ut.itertwo(path):
-            child_table = ibs.depc_annot[child]
-
-            relevant_col_attrs = []
-            for attrs in child_table.parent_col_attrs:
-                if attrs['parent_table'] == parent:
-                    relevant_col_attrs.append(attrs)
-
-            parent_colnames = []
-            for attrs in relevant_col_attrs:
-                parent_colnames.append(attrs['intern_colname'])
-
-            child_rowids = []
-            for colname in parent_colnames:
-                indexname = '%s_index' % (colname,)
-                command = """CREATE INDEX IF NOT EXISTS {indexname} ON {tablename} ({colname}, {rowid_colname});""".format(
-                    indexname=indexname,
-                    tablename=child,
-                    colname=colname,
-                    rowid_colname=child_table.rowid_colname,
-                )
-                child_table.db.connection.execute(command).fetchall()
-
-                child_rowids_ = child_table.db.get_where_eq_set(
-                    child_table.tablename,
-                    (child_table.rowid_colname,),
-                    params_iter,
-                    unpack_scalars=False,
-                    where_colnames=[colname],
-                )
-                # child_rowids_ = ut.flatten(child_rowids_)
-                child_rowids += child_rowids_
-
-            child_table.delete_rows(child_rowids, delete_extern=True)
 
 
 if __name__ == '__main__':

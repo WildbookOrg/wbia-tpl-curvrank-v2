@@ -199,7 +199,7 @@ class PreprocessConfig(dtool.Config):
         ('extern', cv2.imread, cv2.imwrite),
     ],
     configclass=PreprocessConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -223,8 +223,10 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list = ibs.get_image_aids(23)
         >>> cropped_images = ibs.depc_annot.get('preprocess', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> cropped_image = cropped_images[0]
+        >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
     """
     ibs = depc.controller
 
@@ -263,7 +265,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         int,
     ],
     configclass=CoarseProbabilitiesConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -330,7 +332,7 @@ class FineGradientsConfig(dtool.Config):
         int,
     ],
     configclass=FineGradientsConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -401,7 +403,7 @@ class AnchorPointsConfig(dtool.Config):
         int,
     ],
     configclass=AnchorPointsConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -472,7 +474,7 @@ class ContoursConfig(dtool.Config):
     colnames=['contour'],
     coltypes=[('extern', lambda x : [np.load(x)], np.save)],
     configclass=ContoursConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -539,7 +541,7 @@ class CurvaturesConfig(dtool.Config):
     colnames=['curvature'],
     coltypes=[('extern', lambda x : [np.load(x)], np.save)],
     configclass=CurvaturesConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -604,7 +606,7 @@ class DescriptorConfig(dtool.Config):
         ),
     ],
     configclass=DescriptorConfig,
-    fname='curvrank_unoptimized',
+    fname='curvrank',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -688,7 +690,7 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_DORSAL_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -711,7 +713,7 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_DORSAL_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -734,7 +736,7 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=False)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
@@ -757,7 +759,7 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> config['curvrank_daily_cache'] = False
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores_depc(db_aid_list, [qr_aid_list], config=config)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
