@@ -43,7 +43,6 @@ def refine_by_gradient(img):
 
 
 def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width_fine):
-    coarse = cv2.cvtColor(coarse, cv2.COLOR_BGR2GRAY)
     fine = cv2.cvtColor(fine, cv2.COLOR_BGR2GRAY)
 
     ratio = width_fine / part_img.shape[1]
