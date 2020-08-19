@@ -104,7 +104,7 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
         contour = utils.resample2d(contour, curv_length)
         # Store the resampled contour so that the keypoints align
         # during visualization.
-        data = {'keypoints': {}, 'descriptors': {}, 'contour': contour}
+        data = {}
         curvature = utils.resample1d(curvature, curv_length)
         smoothed = gaussian_filter1d(curvature, 5.0, axis=0)
 
@@ -140,29 +140,22 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
                 # used for slicing, i.e., x[0:5] and not x[5:0].
                 keypts_idx = np.sort(keypts_idx)
                 pairs_of_keypts_idx = list(combinations(keypts_idx, 2))
-                keypoints = np.empty((len(pairs_of_keypts_idx), 2),
-                                     dtype=np.int32)
                 descriptors = np.empty((len(pairs_of_keypts_idx), feat_dim),
                                        dtype=np.float32)
                 for i, (idx0, idx1) in enumerate(pairs_of_keypts_idx):
                     subcurv = curvature[idx0:idx1 + 1, j]
                     feature = utils.resample1d(subcurv, feat_dim)
-                    keypoints[i] = (idx0, idx1)
                     # L2-normalization of descriptor.
                     descriptors[i] = feature / np.linalg.norm(feature)
-                data['descriptors'][scales[j]] = descriptors
-                data['keypoints'][scales[j]] = keypoints
+                data[scales[j]] = descriptors
             # If there are no local extrema at a particular scale.
             else:
-                data['descriptors'][scales[j]] = np.empty(
+                data[scales[j]] = np.empty(
                     (0, feat_dim), dtype=np.float32
-                )
-                data['keypoints'][scales[j]] = np.empty(
-                    (0, 2), dtype=np.int32
                 )
         success_ = True
     else:
-        data = {'keypoints': {}, 'descriptors': {}, 'contour': []}
+        data = {}
         success_ = False
 
     return success_, data
