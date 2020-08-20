@@ -83,7 +83,7 @@ def wbia_plugin_curvrank_preprocessing(
 
     Args:
         ibs       (IBEISController): IBEIS controller object
-        aid_list  (list of int): list of image rowids (aids)
+        aid_list  (list of int): list of annotation rowids (aids)
         pad       (float in (0,1)): fraction of image with to pad
 
     Returns:
@@ -295,12 +295,11 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
-        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
         >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
-        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points, **config)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
         >>> contour = contours[0]
         >>> assert ut.hash_data(contour) in ['grmabnqzjkjfzymohymoktkwrltmdmin']
     """
@@ -352,13 +351,12 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
-        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
         >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
-        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points, **config)
-        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
+        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
         >>> curvature = curvatures[0]
         >>> assert ut.hash_data(curvature) in ['dooynspuqotikvtsdyndwwejcuqjzgip']
     """
@@ -413,22 +411,20 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> config = DEFAULT_FLUKE_TEST_CONFIG
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
-        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
         >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
-        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points, **config)
-        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
-        >>> values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures, **config)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
+        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
+        >>> values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures)
         >>> success_list, descriptors = values
-        >>> success = success_list[0]
-        >>> descriptor = descriptors[0]
+        >>> assert success_list == [True]
+        >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
-        >>>     ut.hash_data(descriptor[scale])
-        >>>     for scale in sorted(list(descriptor.keys()))
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
-        >>> assert success
         >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
     """
     scales_list = [scales] * len(contours)
@@ -459,19 +455,16 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of wbia_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
+        aid_list  (list of int): list of annotation rowids (aids)
 
     Returns:
-        success_list_
-        curvature_descriptors
+        success_list
+        descriptors
 
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:0
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:1
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:2
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:3
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -480,7 +473,7 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list = ibs.get_image_aids(23)
         >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
@@ -489,45 +482,16 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
+        >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
 
     Example1:
         >>> # ENABLE_DOCTEST
         >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
-        >>> success_list, curvature_descriptor_dicts = values
-        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
-        >>> assert success_list == [True]
-        >>> hash_list = [
-        >>>     ut.hash_data(curvature_descriptor_dict[scale])
-        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
         >>> aid_list *= 20
         >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
@@ -539,39 +503,7 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['mkhgqrrkhisuaenxkuxgbbcqpdfpoofp']
-
-    Example3:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> aid_list *= 20
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
-        >>> success_list, curvature_descriptor_dicts = values
-        >>> success_list = success_list[:1]
-        >>> curvature_descriptor_dicts = curvature_descriptor_dicts[:1]
-        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
-        >>> assert success_list == [True]
-        >>> hash_list = [
-        >>>     ut.hash_data(curvature_descriptor_dict[scale])
-        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
+        >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
     """
     cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
 
@@ -586,9 +518,9 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
     curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, **config)
 
     values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures, **config)
-    success, descriptors = values
+    success_list, descriptors = values
 
-    return success, descriptors
+    return success_list, descriptors
 
 
 @register_ibs_method
@@ -598,17 +530,16 @@ def wbia_plugin_curvrank_pipeline_aggregate(
     r"""
     Args:
         ibs       (IBEISController): IBEIS controller object
-        success_list: output of wbia_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
+        aid_list  (list of int): list of annotation rowids (aids)
+        success_list: output of wbia_plugin_curvrank_compute
+        descriptor_dict_list: output of wbia_plugin_curvrank_compute
 
     Returns:
-        success_list_
-        curvature_descriptors
+        lnbnn_dict
 
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -617,7 +548,7 @@ def wbia_plugin_curvrank_pipeline_aggregate(
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list = ibs.get_image_aids(23)
         >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list)
         >>> success_list, curvature_descriptor_dicts = values
         >>> lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
@@ -625,35 +556,7 @@ def wbia_plugin_curvrank_pipeline_aggregate(
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['wntkcfldlkhsxvnzvthlenvjrcxblmtd']
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
-        >>> success_list, curvature_descriptor_dicts = values
-        >>> lnbnn_dict = ibs.wbia_plugin_curvrank_pipeline_aggregate(aid_list, success_list, curvature_descriptor_dicts)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['ylxevmyeygxlhbcsuwzakfnlisbantdr']
+        >>> assert ut.hash_data(hash_list) in ['amrogtjactncyringgzrmtkavtxvpnsp']
     """
     lnbnn_dict = {}
     zipped = zip(aid_list, success_list, descriptor_dict_list)
@@ -667,7 +570,6 @@ def wbia_plugin_curvrank_pipeline_aggregate(
                     'descriptors': [],
                     'aids': [],
                 }
-
             descriptors = descriptor_dict[scale]
             aids = [aid] * descriptors.shape[0]
 
@@ -700,22 +602,20 @@ def wbia_plugin_curvrank_pipeline(
 ):
     r"""
     Args:
-        ibs       (IBEISController): IBEIS controller object
-        success_list: output of wbia_plugin_curvrank_outline
-        outlines (list of np.ndarray): output of wbia_plugin_curvrank_outline
+        ibs             (IBEISController): IBEIS controller object
+        imageset_rowid  (int)
+        aid_list        (list of ints)
+        config          (dict)
+        use_depc        (bool)
+        verbose         (bool)
 
     Returns:
-        success_list_
-        curvature_descriptors
+        lnbnn_dict
+        aid_list
 
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:1
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:2
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:3
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:4
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:5
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -724,121 +624,15 @@ def wbia_plugin_curvrank_pipeline(
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
+        >>> aid_list = ibs.get_image_aids(23)
         >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
-        >>> assert ut.hash_data(hash_list) in ['wntkcfldlkhsxvnzvthlenvjrcxblmtd']
+        >>> assert ut.hash_data(hash_list) in ['amrogtjactncyringgzrmtkavtxvpnsp']
 
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['wntkcfldlkhsxvnzvthlenvjrcxblmtd']
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(1)
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['wntkcfldlkhsxvnzvthlenvjrcxblmtd']
-
-    Example3:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=False)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['ylxevmyeygxlhbcsuwzakfnlisbantdr']
-
-    Example4:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['ylxevmyeygxlhbcsuwzakfnlisbantdr']
-
-    Example5:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, config=config, use_depc=True)
-        >>> hash_list = [
-        >>>     ut.hash_data(lnbnn_dict[scale])
-        >>>     for scale in sorted(list(lnbnn_dict.keys()))
-        >>> ]
-        >>> assert ut.hash_data(hash_list) in ['ylxevmyeygxlhbcsuwzakfnlisbantdr']
+    #TODO: Depc test
     """
     if aid_list is None:
         aid_list = ibs.get_imageset_aids(imageset_rowid)
@@ -878,11 +672,17 @@ def wbia_plugin_curvrank_scores(
     use_depc=USE_DEPC,
 ):
     r"""
-    CurvRank Example
+    Compute CurvRank scores
 
     Args:
-        ibs       (IBEISController): IBEIS controller object
-        lnbnn_k   (int): list of image rowids (aids)
+        ibs            (IBEISController): IBEIS controller object
+        db_aid_list    (list of ints): database annotaion rowids 
+        qr_aids_list   (list of ints): query annotaion rowids 
+        config         (dict)
+        verbose        (bool)
+        use_names      (bool)
+        minimum_score  (float)
+        use_depc       (bool)
 
     Returns:
         score_dict
@@ -903,9 +703,9 @@ def wbia_plugin_curvrank_scores(
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
         >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
         >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
         >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=False)
         >>> score_dict_list = list(score_dict_iter)
@@ -914,140 +714,8 @@ def wbia_plugin_curvrank_scores(
         >>>     score_dict[key] = round(score_dict[key], 8)
         >>> result = score_dict
         >>> print(result)
-        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
-        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
-        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True)
-        >>> score_dict_list = list(score_dict_iter)
-        >>> qr_aid_list, score_dict = score_dict_list[0]
-        >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
-        >>> print(result)
-        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
-
-    Example2:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
-        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
-        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True)
-        >>> score_dict_list = list(score_dict_iter)
-        >>> qr_aid_list, score_dict = score_dict_list[0]
-        >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
-        >>> print(result)
-        {1: -31.81339289, 2: -3.7092349, 3: -4.95274189}
-
-    Example3:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
-        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
-        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=False)
-        >>> score_dict_list = list(score_dict_iter)
-        >>> qr_aid_list, score_dict = score_dict_list[0]
-        >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
-        >>> print(result)
-        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
-
-    Example4:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
-        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
-        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True)
-        >>> score_dict_list = list(score_dict_iter)
-        >>> qr_aid_list, score_dict = score_dict_list[0]
-        >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
-        >>> print(result)
-        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
-
-    Example5:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
-        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
-        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
-        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
-        >>> model_type = 'fluke'
-        >>> config = {
-        >>>     'model_type'     : model_type,
-        >>>     'width'          : DEFAULT_WIDTH[model_type],
-        >>>     'height'         : DEFAULT_HEIGHT[model_type],
-        >>>     'scale'          : DEFAULT_SCALE[model_type],
-        >>>     'scales'         : DEFAULT_SCALES[model_type],
-        >>>     'allow_diagonal' : DEFAULT_ALLOW_DIAGONAL[model_type],
-        >>>     'transpose_dims' : DEFAULT_TRANSPOSE_DIMS[model_type],
-        >>> }
-        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], config=config, use_depc=True)
-        >>> score_dict_list = list(score_dict_iter)
-        >>> qr_aid_list, score_dict = score_dict_list[0]
-        >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
-        >>> print(result)
-        {14: -1.00862974, 7: -0.55433992, 8: -0.70058628, 9: -0.3044969, 10: -0.27739539, 11: -7.8684881, 12: -1.01431028, 13: -1.46861451}
+        {14: -0.93904755, 7: -0.63248846, 8: -0.40850647, 9: -0.30543529, 10: -0.31075782, 11: -8.33429324, 12: -1.0005674, 13: -1.44472247}
+    #TODO: Depc tests
     """
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
@@ -1406,6 +1074,15 @@ def wbia_plugin_curvrank_scores(
 @register_ibs_method
 def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     r"""
+    Compute CurvRank scores
+
+    Args:
+        ibs        (IBEISController): IBEIS controller object
+        label      (string)
+        qaid_list  (list of ints): query annotaion rowids 
+        daid_list  (list of ints): database annotaion rowids 
+        config     (dict)
+
     CommandLine:
         python -m wbia_curvrank._plugin --exec-wbia_plugin_curvrank
 
@@ -1418,16 +1095,16 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> depc = ibs.depc_annot
-        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Dorsal Database', 'Dorsal Query'])
+        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Fluke Database', 'Fluke Query'])
         >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
         >>> # Call function normally
-        >>> config = CurvRankDorsalConfig()
+        >>> config = CurvRankFlukeConfig()
         >>> score_list = list(ibs.wbia_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
         >>> result = score_list
-        >>> print(result)
-        [(-0.0,), (1.9445927201886661,), (0.11260342702735215,), (0.06715983111644164,), (0.05171962268650532,), (0.08413137518800795,), (0.6862188717350364,), (1.0749932969920337,), (1.928582369175274,), (-0.0,), (0.3083178228698671,), (0.31571834394708276,), (0.144817239837721,), (0.4288492240011692,), (1.678820631466806,), (1.3525973158539273,), (0.31891411560354754,), (0.18176447856239974,), (-0.0,), (0.386130575905554,), (0.0972284316085279,), (0.19626294076442719,), (0.3404016795102507,), (0.16608526022173464,), (0.11954134894767776,), (0.2543876450508833,), (0.6982887189369649,), (-0.0,), (0.4541728966869414,), (0.30956776603125036,), (0.4229014730080962,), (0.22321902139810845,), (0.12588574923574924,), (0.09017095575109124,), (0.21655505849048495,), (0.5589789934456348,), (-0.0,), (6.011784115340561,), (0.4132015435025096,), (0.09880360751412809,), (0.19417243939824402,), (0.10126215778291225,), (0.24388620839454234,), (0.28090291377156973,), (5.304396523628384,), (-0.0,), (0.36655064788646996,), (0.18875156180001795,), (0.521016908576712,), (1.5610270453616977,), (0.31230442877858877,), (0.22889767913147807,), (0.1405167318880558,), (0.22574857133440673,), (-0.0,), (0.6370306296739727,), (1.092248206725344,), (2.110280451888684,), (0.08121629932429641,), (0.06134591973386705,), (0.10521706636063755,), (0.1293912068940699,), (0.762320066569373,), (-0.0,)]
+        >>> print(result[:30])
+        [(-0.0,), (0.37746960995718837,), (0.12098837457597256,), (0.06497363653033972,), (0.12550411745905876,), (0.025412724586203694,), (0.0169567228294909,), (0.047490136697888374,), (0.036325025372207165,), (0.022403023205697536,), (0.05835426819976419,), (0.036471717758104205,), (0.13536082883365452,), (0.05980395479127765,), (0.09383234661072493,), (0.03159746481105685,), (0.17747170035727322,), (0.05540256551466882,), (0.08077964466065168,), (0.3461144999600947,), (0.27904838346876204,), (0.08006769698113203,), (0.18570028350222856,), (0.36427399911917746,), (0.15990138333290815,), (0.005860310746356845,), (0.016297575319185853,), (0.10116989212110639,), (0.15989514626562595,), (0.057233988773077726,)]
     """
     print('Computing %s' % (label,))
 
