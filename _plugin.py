@@ -280,7 +280,7 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         width_fine            (int): width of resized fine gradients
 
     Returns:
-        fine_gradients
+        contours
 
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours

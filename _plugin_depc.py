@@ -825,10 +825,11 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     ):
         import cv2
 
-        scale = request.config.curvrank_scale
-
         chip_ = np.copy(chip)
-        chip_ = cv2.resize(chip_, dsize=None, fx=scale, fy=scale)
+        ratio = request.config.curvrank_width_fine / chip_.shape[1]
+        chip_ = cv2.resize(
+            chip_, (0, 0), fx=ratio, fy=ratio,
+            interpolation=cv2.INTER_AREA)
         h, w = chip_.shape[:2]
 
         if outline is not None:
@@ -849,7 +850,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
         depc = request.depc
 
-        chips = depc.get('localization', aid_list, 'localized_img', config=request.config)
+        chips = depc.get('preprocess', aid_list, 'cropped_img', config=request.config)
         outlines = [None] * len(chips)
         trailing_edges = [None] * len(chips)
 
@@ -864,13 +865,13 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 
         if overlay:
             if model_type not in ['dorsalfinfindrhybrid']:
-                outlines = depc.get('outline', aid_list, 'outline', config=request.config)
+                outlines = depc.get('contour', aid_list, 'contour', config=request.config)
             trailing_edges = depc.get(
-                'trailing_edge', aid_list, 'trailing_edge', config=request.config
+                'contour', aid_list, 'contour', config=request.config
             )
 
         overlay_chips = [
-            request.overlay_trailing_edge(chip, outline, trailing_edge)
+            request.overlay_trailing_edge(chip, outline[0], trailing_edge[0])
             for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
         ]
         return overlay_chips
@@ -1034,7 +1035,7 @@ def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     CommandLine:
         python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fluke --show
 
-    Example:
+    Example0:
         >>> # DISABLE_DOCTEST
         >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> import wbia
@@ -1060,6 +1061,29 @@ def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
         >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
         >>> ut.quit_if_noshow()
         >>> am_list2 = [am for am in am_list2 if am.qaid == 23]
+        >>> am = am_list2[0]
+        >>> am.ishow_analysis(request)
+        >>> ut.show_if_requested()
+
+    Example1:
+        >>> # DISABLE_DOCTEST
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> import itertools as it
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> depc = ibs.depc_annot
+        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Fluke Database', 'Fluke Query'])
+        >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
+        >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
+        >>> qaid_list, daid_list = root_rowids
+        >>> config = CurvRankFlukeConfig()
+        >>> # Call function via request
+        >>> request = CurvRankFlukeRequest.new(depc, aid_list, aid_list)
+        >>> am_list1 = request.execute()
+        >>> ut.quit_if_noshow()
+        >>> am_list2 = [am for am in am_list1 if am.qaid == 23]
         >>> am = am_list2[0]
         >>> am.ishow_analysis(request)
         >>> ut.show_if_requested()
