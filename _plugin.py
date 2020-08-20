@@ -18,7 +18,6 @@ import torch
 # We want to register the depc plugin functions as well, so import it here for IBEIS
 import wbia_curvrank._plugin_depc  # NOQA
 from wbia_curvrank._plugin_depc import (
-    DEFAULT_FLUKE_TEST_CONFIG,
     DEFAULT_SCALES,
     INDEX_NUM_TREES,
     INDEX_SEARCH_K,
