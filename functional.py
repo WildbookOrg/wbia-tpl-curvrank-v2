@@ -71,36 +71,31 @@ def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width
     # TODO: set this based on the config
     path_ij = pyastar.astar_path(W, start_ij, end_ij,
                                  allow_diagonal=True)
-    # Store the contour as a list of a single array.  This is to be consistent
-    # with the other algorithm, that extracts multiple contour segments.
     if trim > 0 and path_ij.shape[0] > 2 * trim:
         path_ij = path_ij[trim:-trim]
-    contour = [path_ij] if path_ij.size > 0 else []
+    contour = path_ij if path_ij.size > 0 else None
 
     return contour
 
 
 def curvature(contour, width_fine, height_fine, scales, transpose_dims):
     radii = np.array(scales) * max(height_fine, width_fine)
-    if contour:
+    if contour is not None:
         if transpose_dims:
             # If the start point was left, it will now be top.
-            curvature = [curv.oriented_curvature(c, radii)
-                         for c in contour]
+            curvature = curv.oriented_curvature(contour, radii)
         else:
             # Start point is already top, but need to convert to xy.
-            curvature = [curv.oriented_curvature(c[:, ::-1], radii)
-                         for c in contour]
+            curvature = curv.oriented_curvature(contour[:, ::-1], radii)
+
     else:
-        curvature = []
+        curvature = None
 
     return curvature
 
 
 def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num_keypoints):
-    if contour and curvature:
-        contour, curvature = utils.pad_curvature_gaps(contour,
-                                                      curvature)
+    if contour is not None and curvature is not None:
         contour = utils.resample2d(contour, curv_length)
         # Store the resampled contour so that the keypoints align
         # during visualization.

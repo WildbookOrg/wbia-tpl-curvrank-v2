@@ -300,7 +300,7 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
         >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
         >>> contour = contours[0]
-        >>> assert ut.hash_data(contour) in ['grmabnqzjkjfzymohymoktkwrltmdmin']
+        >>> assert ut.hash_data(contour) in ['vgflccidxsowhwyaivycoxrmebdyutid']
     """
     trim_list = [trim] * len(cropped_images)
     width_fine_list = [width_fine] * len(cropped_images)
@@ -329,7 +329,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
 
     Args:
         ibs                   (IBEISController): IBEIS controller object
-        contours              (list of lists of np.ndarray)
+        contours: output of wbia_plugin_curvrank_contours
         width_fine            (int): width of resized fine gradients
         height_fine           (int): height of resized fine gradients
         scales                (list of floats): integral curvature scales
@@ -357,7 +357,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
         >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
         >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
         >>> curvature = curvatures[0]
-        >>> assert ut.hash_data(curvature) in ['dooynspuqotikvtsdyndwwejcuqjzgip']
+        >>> assert ut.hash_data(curvature) in ['ambbhnrarmwzsdqpomydchonebdkcclb']
     """
     height_fine_list = [height_fine] * len(contours)
     width_fine_list = [width_fine] * len(contours)

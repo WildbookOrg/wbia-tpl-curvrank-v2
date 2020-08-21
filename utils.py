@@ -47,40 +47,6 @@ def resample2d(input, length):
     return np.vstack((xn, yn)).T
 
 
-def pad_curvature_gaps(contour, curvature):
-    # When padding we don't want to change the point density. Mostly this
-    # should be 1, but may be up to sqrt(2) when we allow diagonal steps in A*.
-    avg_step = np.mean([
-        np.mean(np.linalg.norm(np.diff(c, axis=0), axis=1)) for c in contour
-        if c.shape[0] > 1  # Ignore single points.
-    ])
-    # Need to copy the contour because we're inserting into it.
-    copy_contour = list(contour)
-    num_scales = curvature[0].shape[1]
-    dtype = curvature[0].dtype
-    gaps_filled = 0
-    # TODO: this may be simpler done backwards.
-    for i in range(1, len(copy_contour)):
-        prev, curr = copy_contour[i - 1], copy_contour[i]
-        dist = np.linalg.norm(curr[0] - prev[-1])
-        num_steps = int(np.ceil(dist / avg_step))
-        # Inserting n points means n + 1 steps to get from A to B:
-        # A x x x B
-        step = dist / (1. + num_steps)
-        normal = (curr[0] - prev[-1]) / dist
-        # Don't duplicate the existing contour points, this breaks the
-        # resampling.  So start/end one step away.
-        cont_filler = prev[-1] + (
-            normal * np.linspace(step, dist - step, num_steps)[:, None]
-        )
-        curv_filler = np.full((num_steps, num_scales), 0.5, dtype=dtype)
-        contour.insert(i + gaps_filled, cont_filler)
-        curvature.insert(i + gaps_filled, curv_filler)
-        gaps_filled += 1
-
-    return np.vstack(contour), np.vstack(curvature)
-
-
 def random_colors(n):
     grc = 0.618033988749895
     h = np.random.random()

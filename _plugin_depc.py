@@ -464,7 +464,6 @@ class ContoursConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_trim', 0.1),
             ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
-            ut.ParamInfo('ext', '.npy', hideif='.npy')
         ]
 
 
@@ -472,7 +471,7 @@ class ContoursConfig(dtool.Config):
     tablename='contour',
     parents=['coarse', 'fine', 'anchor', 'preprocess'],
     colnames=['contour'],
-    coltypes=[('extern', lambda x : [np.load(x)], np.save)],
+    coltypes=[np.ndarray],
     configclass=ContoursConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
@@ -499,6 +498,7 @@ def wbia_plugin_curvrank_contours_depc(
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(1)
         >>> values = ibs.depc_annot.get('contour', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> import ipdb; ipdb.set_trace()
     """
     ibs = depc.controller
 
@@ -518,11 +518,9 @@ def wbia_plugin_curvrank_contours_depc(
     contours = ibs.wbia_plugin_curvrank_contours(
         cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim, width_fine
     )
-
+    
     for contour in contours:
-        yield (
-            contour
-        )
+        yield (contour,)
 
 
 class CurvaturesConfig(dtool.Config):
@@ -532,14 +530,13 @@ class CurvaturesConfig(dtool.Config):
             ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
             ut.ParamInfo('curvrank_scales', DEFAULT_SCALES['fluke']),
             ut.ParamInfo('curvrank_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
-            ut.ParamInfo('ext', '.npy', hideif='.npy')
         ]
 
 @register_preproc_annot(
     tablename='curvature',
     parents=['contour'],
     colnames=['curvature'],
-    coltypes=[('extern', lambda x : [np.load(x)], np.save)],
+    coltypes=[np.ndarray],
     configclass=CurvaturesConfig,
     fname='curvrank',
     rm_extern_on_delete=True,
@@ -580,7 +577,7 @@ def wbia_plugin_curvrank_curvatures_depc(
 
     curvatures = ibs.wbia_plugin_curvrank_curvatures(contours, width_fine, height_fine, scales, transpose_dims)
     for curv in curvatures:
-        yield curv
+        yield (curv,)
 
 
 class DescriptorConfig(dtool.Config):
