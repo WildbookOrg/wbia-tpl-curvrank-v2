@@ -868,7 +868,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
             )
 
         overlay_chips = [
-            request.overlay_trailing_edge(chip, outline[0], trailing_edge[0])
+            request.overlay_trailing_edge(chip, outline, trailing_edge)
             for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
         ]
         return overlay_chips
