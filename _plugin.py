@@ -7,10 +7,8 @@ import wbia_curvrank.functional as F
 import wbia_curvrank.regression as regression
 
 # import wbia.constants as const
-from scipy import interpolate
 import numpy as np
 import utool as ut
-import vtool as vt
 import datetime
 import cv2
 import torch
@@ -34,6 +32,7 @@ register_api = controller_inject.get_wbia_flask_api(__name__)
 
 
 USE_DEPC = True
+USE_DEPC_OPTIMIZED = True
 
 
 FORCE_SERIAL = False
@@ -141,7 +140,7 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
     Args:
         ibs             (IBEISController): IBEIS controller object
         cropped_images  (list of np.ndarray): BGR images
-        width_coarse    (int): width of output 
+        width_coarse    (int): width of output
         height_coarse   (int): height of output
 
     Returns:
@@ -377,7 +376,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
     curvatures = []
     for curvature in generator:
         curvatures.append(curvature)
-    
+
     return curvatures
 
 
@@ -439,7 +438,7 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
         'force_serial': ibs.force_serial or FORCE_SERIAL,
         'progkw': {'freq': 10},
     }
-    generator = ut.generate2(F.curvature_descriptors, zipped)
+    generator = ut.generate2(F.curvature_descriptors, zipped, **config_)
 
     descriptors, success_list = [], []
     for success, descriptor in generator:
@@ -597,16 +596,18 @@ def wbia_plugin_curvrank_pipeline(
     aid_list=None,
     config={},
     use_depc=USE_DEPC,
+    use_depc_optimized=USE_DEPC_OPTIMIZED,
     verbose=False,
 ):
     r"""
     Args:
-        ibs             (IBEISController): IBEIS controller object
-        imageset_rowid  (int)
-        aid_list        (list of ints)
-        config          (dict)
-        use_depc        (bool)
-        verbose         (bool)
+        ibs                 (IBEISController): IBEIS controller object
+        imageset_rowid      (int)
+        aid_list            (list of ints)
+        config              (dict)
+        use_depc            (bool)
+        use_depc_optimized  (bool)
+        verbose             (bool)
 
     Returns:
         lnbnn_dict
@@ -624,7 +625,7 @@ def wbia_plugin_curvrank_pipeline(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=False, use_depc_optimized=False)
         >>> hash_list = [
         >>>     ut.hash_data(lnbnn_dict[scale])
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
@@ -641,9 +642,10 @@ def wbia_plugin_curvrank_pipeline(
         print('\tCompute Curvature Pipeline')
     if use_depc:
         config_ = _convert_kwargs_config_to_depc_config(config)
-        success_list = ibs.depc_annot.get('descriptor', aid_list, 'success', config=config_)
+        table_name = 'descriptor_optimized' if use_depc_optimized else 'descriptor'
+        success_list = ibs.depc_annot.get(table_name, aid_list, 'success', config=config_)
         descriptor_dict_list = ibs.depc_annot.get(
-            'descriptor', aid_list, 'descriptor', config=config_
+            table_name, aid_list, 'descriptor', config=config_
         )
     else:
         values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config=config)
@@ -669,19 +671,21 @@ def wbia_plugin_curvrank_scores(
     use_names=True,
     minimum_score=-1e-5,
     use_depc=USE_DEPC,
+    use_depc_optimized=USE_DEPC_OPTIMIZED,
 ):
     r"""
     Compute CurvRank scores
 
     Args:
-        ibs            (IBEISController): IBEIS controller object
-        db_aid_list    (list of ints): database annotaion rowids 
-        qr_aids_list   (list of ints): query annotaion rowids 
-        config         (dict)
-        verbose        (bool)
-        use_names      (bool)
-        minimum_score  (float)
-        use_depc       (bool)
+        ibs                 (IBEISController): IBEIS controller object
+        db_aid_list         (list of ints): database annotaion rowids 
+        qr_aids_list        (list of ints): query annotaion rowids 
+        config              (dict)
+        verbose             (bool)
+        use_names           (bool)
+        minimum_score       (float)
+        use_depc            (bool)
+        use_depc_optimized  (bool)
 
     Returns:
         score_dict
@@ -872,6 +876,7 @@ def wbia_plugin_curvrank_scores(
                 config=config,
                 verbose=verbose,
                 use_depc=use_depc,
+                use_depc_optimized=use_depc_optimized,
             )
             qr_lnbnn_data, _ = values
             for scale in qr_lnbnn_data:
@@ -959,6 +964,7 @@ def wbia_plugin_curvrank_scores(
                     config=config,
                     verbose=verbose,
                     use_depc=use_depc,
+                    use_depc_optimized=use_depc_optimized,
                 )
                 db_lnbnn_data, _ = values
 
@@ -1132,6 +1138,7 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
             qr_aids_list,
             config=config,
             use_names=False,
+            use_depc_optimized=USE_DEPC_OPTIMIZED,
         )
         score_dict = {}
         for value in value_iter:

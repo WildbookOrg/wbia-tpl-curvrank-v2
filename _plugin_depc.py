@@ -199,7 +199,7 @@ class PreprocessConfig(dtool.Config):
         ('extern', cv2.imread, cv2.imwrite),
     ],
     configclass=PreprocessConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -265,7 +265,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         int,
     ],
     configclass=CoarseProbabilitiesConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -332,7 +332,7 @@ class FineGradientsConfig(dtool.Config):
         int,
     ],
     configclass=FineGradientsConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -360,7 +360,6 @@ def wbia_plugin_curvrank_fine_gradients_depc(
     """
     ibs = depc.controller
 
-    aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
     cropped_imgs = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
     fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_imgs)
@@ -403,7 +402,7 @@ class AnchorPointsConfig(dtool.Config):
         int,
     ],
     configclass=AnchorPointsConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=128,
 )
@@ -438,7 +437,6 @@ def wbia_plugin_curvrank_anchor_points_depc(
     width_anchor = config['curvrank_width_anchor']
     height_anchor = config['curvrank_height_anchor']
 
-    aid_list = depc.get_ancestor_rowids('preprocess', preprocess_rowid_list)
     cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
     anchor_points = ibs.wbia_plugin_curvrank_anchor_points(
@@ -473,7 +471,7 @@ class ContoursConfig(dtool.Config):
     colnames=['contour'],
     coltypes=[np.ndarray],
     configclass=ContoursConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -518,7 +516,7 @@ def wbia_plugin_curvrank_contours_depc(
     contours = ibs.wbia_plugin_curvrank_contours(
         cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim, width_fine
     )
-    
+
     for contour in contours:
         yield (contour,)
 
@@ -532,13 +530,14 @@ class CurvaturesConfig(dtool.Config):
             ut.ParamInfo('curvrank_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
         ]
 
+
 @register_preproc_annot(
     tablename='curvature',
     parents=['contour'],
     colnames=['curvature'],
     coltypes=[np.ndarray],
     configclass=CurvaturesConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -603,7 +602,7 @@ class DescriptorConfig(dtool.Config):
         ),
     ],
     configclass=DescriptorConfig,
-    fname='curvrank',
+    fname='curvrank_unoptimized',
     rm_extern_on_delete=True,
     chunksize=256,
 )
@@ -648,6 +647,100 @@ def wbia_plugin_curvrank_descriptors_depc(
     for success, curvature_descriptor_dict in zip(
         success_list, curvature_descriptor_dicts
     ):
+        yield (
+            success,
+            curvature_descriptor_dict,
+        )
+
+
+class CurvatuveDescriptorOptimizedConfig(dtool.Config):
+    def get_param_info_list(self):
+        # exclude_key_list = [
+        #     'curvrank_daily_cache',
+        #     'curvrank_daily_tag',
+        #     'curvrank_cache_recompute',
+        # ]
+
+        # param_list = []
+        # key_list = DEFAULT_DORSAL_TEST_CONFIG.keys()
+        # for key in key_list:
+        #     if key in exclude_key_list:
+        #         continue
+        #     value = DEFAULT_DORSAL_TEST_CONFIG[key]
+        #     if key.startswith('trailing_edge_finfindr') or key in ['curvrank_greyscale']:
+        #         param = ut.ParamInfo(key, value, hideif=value)
+        #     else:
+        #         param = ut.ParamInfo(key, value)
+        #     param_list.append(param)
+
+        param_list = [
+            ut.ParamInfo('curvrank_model_type', 'fluke'),
+            ut.ParamInfo('curvrank_pad', 0.1),
+            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
+            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
+            ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
+            ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_trim', 0),
+            ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['fluke']),
+            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['fluke']),
+            ut.ParamInfo('outline_allow_diagonal', DEFAULT_ALLOW_DIAGONAL['fluke']),
+            ut.ParamInfo('curvatute_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
+            ut.ParamInfo('curvature_descriptor_curv_length', 1024),
+            ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
+            ut.ParamInfo('curvature_descriptor_uniform', False),
+            ut.ParamInfo('curvature_descriptor_feat_dim', 32),
+            ut.ParamInfo('index_trees', INDEX_NUM_TREES),
+            ut.ParamInfo('index_search_k', INDEX_SEARCH_K),
+            ut.ParamInfo('index_lnbnn_k', INDEX_LNBNN_K),
+        ]
+
+        return param_list
+
+
+@register_preproc_annot(
+    tablename='descriptor_optimized', parents=[ROOT],
+    colnames=['success', 'descriptor'],
+    coltypes=[bool, ('extern', ut.partial(ut.load_cPkl, verbose=False), ut.partial(ut.save_cPkl, verbose=False))],
+    configclass=CurvatuveDescriptorOptimizedConfig,
+    fname='curvrank_optimized',
+    rm_extern_on_delete=True,
+    chunksize=256,
+)
+# chunksize defines the max number of 'yield' below that will be called in a chunk
+# so you would decrease chunksize on expensive calculations
+def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None):
+    r"""
+    CommandLine:
+        python -m wbia_curvrank._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc
+        python -m wbia_curvrank._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:0
+
+    Example0:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> success_list = ibs.depc_annot.get('descriptor_optimized', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> curvature_descriptor_dicts = ibs.depc_annot.get('descriptor_optimized', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> curvature_descriptor_dict = curvature_descriptor_dicts[0]
+        >>> assert success_list == [True]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['zacdsfedcywqdyqozfhdirrcqnypaazw']
+    """
+    ibs = depc.controller
+
+    config_ = _convert_depc_config_to_kwargs_config(config)
+    values = ibs.wbia_plugin_curvrank_pipeline_compute(aid_list, config_)
+    success_list, curvature_descriptor_dicts = values
+
+    for success, curvature_descriptor_dict in zip(success_list, curvature_descriptor_dicts):
         yield (
             success,
             curvature_descriptor_dict,

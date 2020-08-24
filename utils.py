@@ -112,9 +112,3 @@ def sub_image(image, center, theta, width, height,
                           flags=cv2.WARP_INVERSE_MAP,
                           borderMode=border_mode,
                           borderValue=0.)
-
-def extend_line(p1, p2):
-    m = np.array([p2[0] - p1[0], p2[1] - p1[1]])
-    new_p1 = p1 + 1000*m
-    new_p2 = p2 - 1000*m
-    return new_p1, new_p2

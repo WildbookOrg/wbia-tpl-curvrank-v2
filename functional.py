@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank import curv, dorsal_utils, pyastar, utils
+from wbia_curvrank import curv, pyastar, utils
 from wbia_curvrank.costs2 import exp_cost_func as cost_func
 import annoy
 import cv2
@@ -10,7 +10,6 @@ from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
 import tqdm
 import time
-import torch
 
 
 def preprocess_image(img, bbox, flip, pad):
@@ -18,9 +17,7 @@ def preprocess_image(img, bbox, flip, pad):
         img = img[:, ::-1]
 
     x, y, w, h = bbox
-    crop, _ = utils.crop_with_padding(
-            img, x, y, w, h, pad
-    )
+    crop, _ = utils.crop_with_padding(img, x, y, w, h, pad)
 
     return crop
 
