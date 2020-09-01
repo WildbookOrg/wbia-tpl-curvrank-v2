@@ -32,7 +32,7 @@ register_api = controller_inject.get_wbia_flask_api(__name__)
 
 
 USE_DEPC = True
-USE_DEPC_OPTIMIZED = True
+USE_DEPC_OPTIMIZED = False
 
 
 FORCE_SERIAL = False
@@ -47,29 +47,6 @@ RIGHT_FLIP_LIST = [  # CASE IN-SINSITIVE
     'dorsal fin right',
     'dorsal_fin_right',
 ]
-
-
-HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK = False
-
-
-URL_DICT = {
-    'dorsal': {
-        'localization': 'https://wildbookiarepository.azureedge.net/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.dorsal.weights.pkl',
-    },
-    'dorsalfinfindrhybrid': {
-        'localization': 'https://wildbookiarepository.azureedge.net/models/curvrank.localization.dorsal.weights.pkl',
-        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.dorsal.weights.pkl',
-    },
-    'fluke': {
-        'localization': None,
-        'segmentation': 'https://wildbookiarepository.azureedge.net/models/curvrank.segmentation.fluke.weights.pkl',
-    },
-}
-
-if not HYBRID_FINFINDR_EXTRACTION_FAILURE_CURVRANK_FALLBACK:
-    URL_DICT['dorsalfinfindrhybrid']['localization'] = None
-    URL_DICT['dorsalfinfindrhybrid']['segmentation'] = None
 
 
 @register_ibs_method
@@ -90,6 +67,7 @@ def wbia_plugin_curvrank_preprocessing(
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -102,12 +80,24 @@ def wbia_plugin_curvrank_preprocessing(
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> cropped_image = cropped_images[0]
         >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> cropped_image = cropped_images[0]
+        >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
     """
     ibs._parallel_chips = not FORCE_SERIAL
     gid_list = ibs.get_annot_gids(aid_list)
     image_list = ibs.get_images(gid_list)
     bboxes = ibs.get_annot_bboxes(aid_list)
-
     viewpoint_list = ibs.get_annot_viewpoints(aid_list)
     viewpoint_list = [
         None if viewpoint is None else viewpoint.lower() for viewpoint in viewpoint_list
@@ -146,9 +136,40 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
     Returns:
         coarse_probabilities
 
-    TODO: Tests
+    CommandLine:
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities:1
+
+    Example0:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> coarse_probability = coarse_probabilities[0]
+        >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
+    
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> coarse_probability = coarse_probabilities[0]
+        >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
     """
     coarse_params = '_weights/Jul15_19-53-26_remote.params'
+    #coarse_params = '_weights/Aug26_02-28-43_dorsals.params'
     unet = fcnn.UNet()
     unet.load_state_dict(torch.load(coarse_params, map_location='cuda:0'))
     unet.cuda(None)
@@ -183,6 +204,7 @@ def wbia_plugin_curvrank_fine_gradients(ibs, cropped_images):
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_gradients
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_gradients:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_gradients:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -192,6 +214,20 @@ def wbia_plugin_curvrank_fine_gradients(ibs, cropped_images):
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> fine_gradient = fine_gradients[0]
+        >>> assert ut.hash_data(fine_gradient) in ['gedpviyoownwvwkzwffgyjsistjxyvev']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
         >>> fine_gradient = fine_gradients[0]
@@ -227,9 +263,48 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
     Returns:
         anchor_points
 
-    TODO: Tests
+    CommandLine:
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points:1
+
+    Example0:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
+        >>> start = anchor_points[0]['start']
+        >>> end = anchor_points[0]['end']
+        >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
+        >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
+        >>> start = anchor_points[0]['start']
+        >>> end = anchor_points[0]['end']
+        >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
+        >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
     """
     anchor_params = '_weights/Jun18_20-05-58_using-20th-pt.params'
+    #anchor_params = '_weights/Aug26_02-28-44_brightness-contrast.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
     anchor_nn.cuda(None)
@@ -284,6 +359,7 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -300,10 +376,26 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
         >>> contour = contours[0]
         >>> assert ut.hash_data(contour) in ['vgflccidxsowhwyaivycoxrmebdyutid']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
+        >>> contour = contours[0]
+        >>> assert ut.hash_data(contour) in ['vgflccidxsowhwyaivycoxrmebdyutid']
     """
     trim_list = [trim] * len(cropped_images)
     width_fine_list = [width_fine] * len(cropped_images)
-
     zipped = zip(cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim_list, width_fine_list)
 
     config_ = {
@@ -340,6 +432,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -349,6 +442,24 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
+        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
+        >>> curvature = curvatures[0]
+        >>> assert ut.hash_data(curvature) in ['ambbhnrarmwzsdqpomydchonebdkcclb']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
         >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
         >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
@@ -400,6 +511,7 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors:1
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -417,12 +529,38 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
         >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
         >>> values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures)
         >>> success_list, descriptors = values
-        >>> assert success_list == [True]
         >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
         >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
         >>> ]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
+
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> aid_list *= 10
+        >>> cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
+        >>> fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+        >>> anchor_points = ibs.wbia_plugin_curvrank_anchor_points(cropped_images)
+        >>> contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, anchor_points)
+        >>> curvatures = ibs.wbia_plugin_curvrank_curvatures(contours)
+        >>> values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures)
+        >>> success_list, descriptors = values
+        >>> success = success_list[0]
+        >>> curvature_descriptor_dict = descriptors[0]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert success == True
         >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
     """
     scales_list = [scales] * len(contours)
@@ -616,6 +754,8 @@ def wbia_plugin_curvrank_pipeline(
     CommandLine:
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:0
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:1
+        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -632,7 +772,35 @@ def wbia_plugin_curvrank_pipeline(
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['amrogtjactncyringgzrmtkavtxvpnsp']
 
-    #TODO: Depc test
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=False)
+        >>> hash_list = [
+        >>>     ut.hash_data(lnbnn_dict[scale])
+        >>>     for scale in sorted(list(lnbnn_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['amrogtjactncyringgzrmtkavtxvpnsp']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(23)
+        >>> lnbnn_dict, aid_list = ibs.wbia_plugin_curvrank_pipeline(aid_list=aid_list, use_depc=True, use_depc_optimized=True)
+        >>> hash_list = [
+        >>>     ut.hash_data(lnbnn_dict[scale])
+        >>>     for scale in sorted(list(lnbnn_dict.keys()))
+        >>> ]
+        >>> assert ut.hash_data(hash_list) in ['amrogtjactncyringgzrmtkavtxvpnsp']
     """
     if aid_list is None:
         aid_list = ibs.get_imageset_aids(imageset_rowid)
@@ -678,8 +846,8 @@ def wbia_plugin_curvrank_scores(
 
     Args:
         ibs                 (IBEISController): IBEIS controller object
-        db_aid_list         (list of ints): database annotaion rowids 
-        qr_aids_list        (list of ints): query annotaion rowids 
+        db_aid_list         (list of ints): database annotation rowids 
+        qr_aids_list        (list of ints): query annotation rowids 
         config              (dict)
         verbose             (bool)
         use_names           (bool)
@@ -695,9 +863,6 @@ def wbia_plugin_curvrank_scores(
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:0
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:1
         python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:2
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:3
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:4
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:5
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -718,7 +883,46 @@ def wbia_plugin_curvrank_scores(
         >>> result = score_dict
         >>> print(result)
         {14: -0.93904755, 7: -0.63248846, 8: -0.40850647, 9: -0.30543529, 10: -0.31075782, 11: -8.33429324, 12: -1.0005674, 13: -1.44472247}
-    #TODO: Depc tests
+    
+    Example1:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=False)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {14: -0.93904755, 7: -0.63248846, 8: -0.40850647, 9: -0.30543529, 10: -0.31075782, 11: -8.33429324, 12: -1.0005674, 13: -1.44472247}
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Fluke Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_scores(db_aid_list, [qr_aid_list], use_depc=True, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 8)
+        >>> result = score_dict
+        >>> print(result)
+        {14: -0.93904755, 7: -0.63248846, 8: -0.40850647, 9: -0.30543529, 10: -0.31075782, 11: -8.33429324, 12: -1.0005674, 13: -1.44472247}
     """
     cache_path = abspath(join(ibs.get_cachedir(), 'curvrank'))
     ut.ensuredir(cache_path)
