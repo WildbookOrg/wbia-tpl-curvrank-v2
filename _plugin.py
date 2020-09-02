@@ -168,8 +168,8 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
     """
-    coarse_params = '_weights/Jul15_19-53-26_remote.params'
-    #coarse_params = '_weights/Aug26_02-28-43_dorsals.params'
+    #coarse_params = '_weights/humpback_flukes_coarse.params'
+    coarse_params = '_weights/bottlenose_dorsals_coarse.params'
     unet = fcnn.UNet()
     unet.load_state_dict(torch.load(coarse_params, map_location='cuda:0'))
     unet.cuda(None)
@@ -303,8 +303,8 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
         >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
         >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
     """
-    anchor_params = '_weights/Jun18_20-05-58_using-20th-pt.params'
-    #anchor_params = '_weights/Aug26_02-28-44_brightness-contrast.params'
+    #anchor_params = '_weights/humpback_flukes_anchor.params'
+    anchor_params = '_weights/bottlenose_dorsals_anchor.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
     anchor_nn.cuda(None)
@@ -340,7 +340,7 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim=0, width_fine=1152, **kwargs):
+def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim=0, width_fine=1152, cost_func='exp', **kwargs):
     r"""
     Extract contours for CurvRank
 
@@ -352,6 +352,7 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         anchor_points         (list of dicts): contour start and end points
         trim                  (int): number of points to trim from contour ends
         width_fine            (int): width of resized fine gradients
+        csot_func             (str): type of cost function to use
 
     Returns:
         contours
@@ -396,7 +397,8 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
     """
     trim_list = [trim] * len(cropped_images)
     width_fine_list = [width_fine] * len(cropped_images)
-    zipped = zip(cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim_list, width_fine_list)
+    cost_func_list = [cost_func] * len(cropped_images)
+    zipped = zip(cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim_list, width_fine_list, cost_func_list)
 
     config_ = {
         'ordered': True,

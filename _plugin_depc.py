@@ -13,14 +13,6 @@ _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 
 register_preproc_annot = controller_inject.register_preprocs['annot']
 
-# Keep dorsal compatibility for now
-DEFAULT_WIDTH = {
-    'dorsal': 256,
-}
-DEFAULT_HEIGHT = {
-    'dorsal': 256,
-}
-
 DEFAULT_WIDTH_COARSE = {
     'fluke': 384,
     'dorsal': 256,
@@ -67,7 +59,8 @@ INDEX_NUM_TREES = 10
 INDEX_NUM_ANNOTS = 2500  # 1000
 INDEX_LNBNN_K = 2
 INDEX_SEARCH_D = 1  # 1
-INDEX_SEARCH_K = INDEX_LNBNN_K * INDEX_NUM_TREES * INDEX_SEARCH_D
+#INDEX_SEARCH_K = INDEX_LNBNN_K * INDEX_NUM_TREES * INDEX_SEARCH_D
+INDEX_SEARCH_K = 10000
 
 
 DEFAULT_DORSAL_TEST_CONFIG = {
@@ -83,6 +76,7 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['dorsal'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['dorsal'],
     'curvrank_trim': 0,
+    'curvrank_cost_func': 'hyp',
     'curvrank_scale': DEFAULT_SCALE['dorsal'],
     'curvature_scales': DEFAULT_SCALES['dorsal'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['dorsal'],
@@ -110,6 +104,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
     'curvrank_trim': 0,
+    'curvrank_cost_func': 'exp',
     'curvrank_scale': DEFAULT_SCALE['fluke'],
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
@@ -137,6 +132,7 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_weights_anchor': 'weights_anchor',
     'curvrank_height_anchor': 'height_anchor',
     'curvrank_trim': 'trim',
+    'curvrank_cost_func': 'cost_func',
     'curvrank_scale': 'scale',
     'curvature_scales': 'scales',
     'outline_allow_diagonal': 'allow_diagonal',
@@ -526,6 +522,7 @@ class ContoursConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_trim', 0),
             ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('curvrank_cost_func', 'exp'),
         ]
 
 
@@ -581,6 +578,7 @@ def wbia_plugin_curvrank_contours_depc(
 
     trim = config['curvrank_trim']
     width_fine = config['curvrank_width_fine']
+    cost_func = config['curvrank_cost_func']
 
     start = depc.get_native('anchor', anchor_rowid_list, 'start')
     end = depc.get_native('anchor', anchor_rowid_list, 'end')
@@ -593,7 +591,7 @@ def wbia_plugin_curvrank_contours_depc(
     cropped_images = depc.get_native('preprocess', preprocess_rowid_list, 'cropped_img')
 
     contours = ibs.wbia_plugin_curvrank_contours(
-        cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim, width_fine
+        cropped_images, coarse_probabilities, fine_gradients, anchor_points, trim, width_fine, cost_func
     )
 
     for contour in contours:
@@ -1099,7 +1097,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
     """
 
     def get_param_info_list(self):
@@ -1182,9 +1180,9 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> from wbia_curvrank._plugin_depc import *  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
-        >>> import ipdb; ipdb.set_trace()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
+
     """
 
     def get_param_info_list(self):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 from wbia_curvrank import curv, pyastar, utils
-from wbia_curvrank.costs2 import exp_cost_func as cost_func
+from wbia_curvrank.costs import exp_cost_func, hyp_cost_func
 import annoy
 import cv2
 import numpy as np
@@ -39,7 +39,7 @@ def refine_by_gradient(img):
     return refined
 
 
-def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width_fine):
+def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width_fine, cost_func):
     fine = cv2.cvtColor(fine, cv2.COLOR_BGR2GRAY)
 
     ratio = width_fine / part_img.shape[1]
@@ -54,7 +54,12 @@ def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width
                          alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
     coarse = cv2.normalize(coarse.astype(np.float32), None,
                            alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
-    W = cost_func(coarse, fine)
+
+    if cost_func == 'exp':
+        W = exp_cost_func(coarse, fine)
+        asd
+    if cost_func == 'hyp':
+        W = hyp_cost_func(coarse, fine)
 
     start_xy = anchor_points['start'][0]
     end_xy = anchor_points['end'][0]
