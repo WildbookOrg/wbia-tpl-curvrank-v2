@@ -5,6 +5,7 @@ from os.path import abspath, join, exists, split
 import wbia_curvrank.fcnn as fcnn
 import wbia_curvrank.functional as F
 import wbia_curvrank.regression as regression
+from wbia_curvrank import algo
 
 # import wbia.constants as const
 import numpy as np
@@ -32,7 +33,7 @@ register_api = controller_inject.get_wbia_flask_api(__name__)
 
 
 USE_DEPC = True
-USE_DEPC_OPTIMIZED = False
+USE_DEPC_OPTIMIZED = True
 
 
 FORCE_SERIAL = False
@@ -168,8 +169,8 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
     """
-    #coarse_params = '_weights/humpback_flukes_coarse.params'
-    coarse_params = '_weights/bottlenose_dorsals_coarse.params'
+    coarse_params = '_weights/humpback_flukes_coarse.params'
+    #coarse_params = '_weights/bottlenose_dorsals_coarse.params'
     unet = fcnn.UNet()
     unet.load_state_dict(torch.load(coarse_params, map_location='cuda:0'))
     unet.cuda(None)
@@ -249,6 +250,66 @@ def wbia_plugin_curvrank_fine_gradients(ibs, cropped_images):
 
 
 @register_ibs_method
+def wbia_plugin_curvrank_control_points(ibs, coarse_probabilities):
+    r"""
+    Extract control points for CurvRank
+    """
+    config_ = {
+        'ordered': True,
+        'chunksize': CHUNKSIZE,
+        'force_serial': ibs.force_serial or FORCE_SERIAL,
+        'progkw': {'freq': 10},
+    }
+    generator = ut.generate2(F.control_points, zip(coarse_probabilities), nTasks=len(coarse_probabilities), **config_)
+
+    control_points = []
+    for cp in generator:
+        control_points.append(cp)
+
+    return control_points
+
+
+@register_ibs_method
+def wbia_plugin_curvrank_fine_probabilities(ibs, cropped_images, control_points, width_coarse=384, height_coarse=192, width_fine=1152, height_fine=576, patch_size=16, **kwargs):
+    r"""
+    Extract fine probabilities for CurvRank.
+    """
+    gpu_id = None
+    patch_params = '_weights/humpback_flukes_fine.params.chkpt'
+    #patch_params = '_weights/elephant_ears_fine.params'
+    patchnet = fcnn.UNet()
+    patchnet.load_state_dict(torch.load(patch_params, map_location='cuda:0'))
+    patchnet.cuda(gpu_id)
+    patchnet.eval()
+
+    fine_probs = []
+    for img, cp in zip(cropped_images, control_points):
+        contour = cp['contours']
+        contour_pts_xy = np.vstack(contour)[:, ::-1]
+        # Map the points onto the part image.
+        height_ratio = 1. * img.shape[0] / height_coarse
+        width_ratio = 1. * img.shape[1] / width_coarse
+        M = np.array([[width_ratio, 0.], [0., height_ratio]])
+        pts_xy = cv2.transform(np.array([contour_pts_xy]), M)[0]
+
+        # Map the patch size onto the image dimensions.
+        patch_dims = (
+            patch_size * img.shape[1] / width_fine,
+            patch_size * img.shape[0] / height_fine
+        )
+        # Extract patches at contour points to get fine probabilities.
+        refined = algo.refine_contour(
+            img, (0, 0, img.shape[1], img.shape[0]), pts_xy,
+            patch_dims, patch_size, patchnet, gpu_id
+        )
+        refined = cv2.normalize(refined, None, alpha=0, beta=255,
+                                        norm_type=cv2.NORM_MINMAX)
+        fine_probs.append(refined)
+
+    return fine_probs
+
+
+@register_ibs_method
 def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs):
     r"""
     Extract anchor points for CurvRank
@@ -303,8 +364,8 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
         >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
         >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
     """
-    #anchor_params = '_weights/humpback_flukes_anchor.params'
-    anchor_params = '_weights/bottlenose_dorsals_anchor.params'
+    anchor_params = '_weights/humpback_flukes_anchor.params'
+    #anchor_params = '_weights/bottlenose_dorsals_anchor.params'
     anchor_nn = regression.VGG16()
     anchor_nn.load_state_dict(torch.load(anchor_params))
     anchor_nn.cuda(None)
@@ -643,11 +704,17 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
     """
+    import time
+    start = time.time()
     cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
 
     coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
 
-    fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+    #fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
+
+    control_points = ibs.wbia_plugin_curvrank_control_points(coarse_probabilities)
+
+    fine_gradients = wbia_plugin_curvrank_fine_probabilities(ibs, cropped_images, control_points, **config)
 
     endpoints = ibs.wbia_plugin_curvrank_anchor_points(cropped_images, **config)
 
@@ -657,7 +724,8 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures, **config)
     success_list, descriptors = values
-
+    end = time.time()
+    print(f'Total: {end-start}')
     return success_list, descriptors
 
 

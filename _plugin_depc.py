@@ -103,6 +103,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['fluke'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
+    'curvrank_patch_size': 16,
     'curvrank_trim': 0,
     'curvrank_cost_func': 'exp',
     'curvrank_scale': DEFAULT_SCALE['fluke'],
