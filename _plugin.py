@@ -42,7 +42,7 @@ FORCE_SERIAL = FORCE_SERIAL or 'macosx' in ut.get_plat_specifier().lower()
 CHUNKSIZE = 16
 
 
-RIGHT_FLIP_LIST = [  # CASE IN-SINSITIVE
+RIGHT_FLIP_LIST = [  # CASE IN-SENSITIVE
     'right',
     'r',
     'dorsal fin right',
@@ -116,11 +116,15 @@ def wbia_plugin_curvrank_preprocessing(
     }
     generator = ut.generate2(F.preprocess_image, zipped, nTasks=len(aid_list), **config_)
 
+    images = []
     cropped_images = []
-    for cropped_image in generator:
+    cropped_bboxes = []
+    for img, cropped_image, cropped_bbox in generator:
+        images.append(img)
         cropped_images.append(cropped_image)
+        cropped_bboxes.append(cropped_bbox)
 
-    return cropped_images
+    return images, cropped_images, cropped_bboxes
 
 
 @register_ibs_method
@@ -270,12 +274,12 @@ def wbia_plugin_curvrank_control_points(ibs, coarse_probabilities):
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_fine_probabilities(ibs, cropped_images, control_points, width_coarse=384, height_coarse=192, width_fine=1152, height_fine=576, patch_size=16, **kwargs):
+def wbia_plugin_curvrank_fine_probabilities(ibs, images, cropped_images, cropped_bboxes, control_points, width_coarse=384, height_coarse=192, width_fine=1152, height_fine=576, patch_size=128, **kwargs):
     r"""
     Extract fine probabilities for CurvRank.
     """
     gpu_id = None
-    patch_params = '_weights/humpback_flukes_fine.params.chkpt'
+    patch_params = '_weights/fine_fcnn_128x128.params.chkpt'
     #patch_params = '_weights/elephant_ears_fine.params'
     patchnet = fcnn.UNet()
     patchnet.load_state_dict(torch.load(patch_params, map_location='cuda:0'))
@@ -283,23 +287,24 @@ def wbia_plugin_curvrank_fine_probabilities(ibs, cropped_images, control_points,
     patchnet.eval()
 
     fine_probs = []
-    for img, cp in zip(cropped_images, control_points):
-        contour = cp['contours']
-        contour_pts_xy = np.vstack(contour)[:, ::-1]
+    for img, cropped_img, cp, bbox in zip(images, cropped_images, control_points, cropped_bboxes):
+        contours = cp['contours']
+        all_contour_pts_xy = np.vstack(contours)[:, ::-1]
         # Map the points onto the part image.
-        height_ratio = 1. * img.shape[0] / height_coarse
-        width_ratio = 1. * img.shape[1] / width_coarse
+        height_ratio = 1. * cropped_img.shape[0] / height_coarse
+        width_ratio = 1. * cropped_img.shape[1] / width_coarse
         M = np.array([[width_ratio, 0.], [0., height_ratio]])
-        pts_xy = cv2.transform(np.array([contour_pts_xy]), M)[0]
+        pts_xy = cv2.transform(np.array([all_contour_pts_xy]), M)[0]
+        pts_xy += np.array([bbox[0], bbox[1]])
 
         # Map the patch size onto the image dimensions.
         patch_dims = (
-            patch_size * img.shape[1] / width_fine,
-            patch_size * img.shape[0] / height_fine
+            patch_size * cropped_img.shape[1] / width_fine,
+            patch_size * cropped_img.shape[0] / height_fine
         )
         # Extract patches at contour points to get fine probabilities.
         refined = algo.refine_contour(
-            img, (0, 0, img.shape[1], img.shape[0]), pts_xy,
+            img, cropped_img, bbox, pts_xy,
             patch_dims, patch_size, patchnet, gpu_id
         )
         refined = cv2.normalize(refined, None, alpha=0, beta=255,
@@ -704,19 +709,17 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['wuvhrrgvlpjputxhkmxdadleefsnhrsx']
     """
-    import time
-    start = time.time()
-    cropped_images = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
+    images, cropped_images, cropped_bboxes = ibs.wbia_plugin_curvrank_preprocessing(aid_list, **config)
 
     coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images, **config)
 
     #fine_gradients = ibs.wbia_plugin_curvrank_fine_gradients(cropped_images)
 
+    endpoints = ibs.wbia_plugin_curvrank_anchor_points(cropped_images, **config)
+
     control_points = ibs.wbia_plugin_curvrank_control_points(coarse_probabilities)
 
-    fine_gradients = wbia_plugin_curvrank_fine_probabilities(ibs, cropped_images, control_points, **config)
-
-    endpoints = ibs.wbia_plugin_curvrank_anchor_points(cropped_images, **config)
+    fine_gradients = ibs.wbia_plugin_curvrank_fine_probabilities(images, cropped_images, cropped_bboxes, control_points, **config)
 
     contours = ibs.wbia_plugin_curvrank_contours(cropped_images, coarse_probabilities, fine_gradients, endpoints, **config)
 
@@ -724,8 +727,7 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     values = ibs.wbia_plugin_curvrank_descriptors(contours, curvatures, **config)
     success_list, descriptors = values
-    end = time.time()
-    print(f'Total: {end-start}')
+
     return success_list, descriptors
 
 

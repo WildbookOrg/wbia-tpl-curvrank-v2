@@ -17,9 +17,9 @@ def preprocess_image(img, bbox, flip, pad):
         img = img[:, ::-1]
 
     x, y, w, h = bbox
-    crop, _ = utils.crop_with_padding(img, x, y, w, h, pad)
+    crop, cropped_bbox = utils.crop_with_padding(img, x, y, w, h, pad)
 
-    return crop
+    return img, crop, cropped_bbox
 
 
 def refine_by_gradient(img):
