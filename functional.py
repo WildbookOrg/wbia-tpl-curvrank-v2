@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank import algo, curv, pyastar, utils
-from wbia_curvrank.costs import exp_cost_func, hyp_cost_func
+# from wbia_curvrank_v2 import algo
+from wbia_curvrank_v2 import curv, pyastar, utils
+from wbia_curvrank_v2.costs import exp_cost_func, hyp_cost_func
 import annoy
 import cv2
 import numpy as np

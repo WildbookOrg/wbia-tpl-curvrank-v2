@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank import costs, datasets, model
+from wbia_curvrank_v2 import costs, datasets, model
 import cv2
 import h5py
 import pandas as pd

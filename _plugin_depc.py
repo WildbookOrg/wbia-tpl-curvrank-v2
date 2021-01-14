@@ -217,13 +217,13 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
         config    (PreprocessConfig): config for depcache
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_preprocessing_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -235,7 +235,7 @@ def wbia_plugin_curvrank_preprocessing_depc(depc, aid_list, config=None):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -296,13 +296,13 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
     Extract coarse probabilities for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_coarse_probabilities_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -314,7 +314,7 @@ def wbia_plugin_curvrank_coarse_probabilities_depc(depc, preprocess_rowid_list, 
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -376,13 +376,13 @@ def wbia_plugin_curvrank_control_points_depc(
     Extract fine probabilities for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_control_points_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_control_points_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_control_points_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_control_points_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_control_points_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_control_points_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -393,7 +393,7 @@ def wbia_plugin_curvrank_control_points_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -447,13 +447,13 @@ def wbia_plugin_curvrank_fine_probabilities_depc(
     Extract fine probabilities for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_fine_probabilities_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -465,7 +465,7 @@ def wbia_plugin_curvrank_fine_probabilities_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -537,13 +537,13 @@ def wbia_plugin_curvrank_anchor_points_depc(
     Anchor Points for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_anchor_points_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -556,7 +556,7 @@ def wbia_plugin_curvrank_anchor_points_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -622,13 +622,13 @@ def wbia_plugin_curvrank_contours_depc(
     Contours for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_contours_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_contours_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_contours_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_contours_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -640,7 +640,7 @@ def wbia_plugin_curvrank_contours_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -706,13 +706,13 @@ def wbia_plugin_curvrank_curvatures_depc(
     Curvatures for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_curvatures_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -724,7 +724,7 @@ def wbia_plugin_curvrank_curvatures_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -785,13 +785,13 @@ def wbia_plugin_curvrank_descriptors_depc(
     Curvature Descriptors for CurvRank with Dependency Cache (depc)
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_descriptors_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -809,7 +809,7 @@ def wbia_plugin_curvrank_descriptors_depc(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -911,13 +911,13 @@ class CurvatureDescriptorOptimizedConfig(dtool.Config):
 def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None):
     r"""
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc
-        python -m wbia_curvrank._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:0
-        python -m wbia_curvrank._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -935,7 +935,7 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -972,21 +972,21 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
     Args:
         ibs           (IBEISController): IBEIS controller object
-        db_aid_list   (list of ints): database annotation rowids 
-        qr_aids_list  (list of ints): query annotation rowids 
+        db_aid_list   (list of ints): database annotation rowids
+        qr_aids_list  (list of ints): query annotation rowids
 
     Returns:
         score_dict
 
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:0
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_scores_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_scores_depc
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_scores_depc:0
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_scores_depc:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1008,8 +1008,8 @@ def wbia_plugin_curvrank_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1166,11 +1166,11 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
 class CurvRankDorsalConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-CurvRankDorsalConfig
+        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankDorsalConfig
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
@@ -1208,11 +1208,11 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
 def wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --exec-wbia_plugin_curvrank_dorsal --show
+        python -m wbia_curvrank_v2._plugin_depc --exec-wbia_plugin_curvrank_dorsal --show
 
     Example:
         >>> # DISABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1250,11 +1250,11 @@ def wbia_plugin_curvrank_dorsal(depc, qaid_list, daid_list, config):
 class CurvRankFlukeConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-CurvRankFlukeConfig
+        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankFlukeConfig
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
@@ -1292,11 +1292,11 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
 def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
     r"""
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --test-wbia_plugin_curvrank_fluke --show
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_fluke --show
 
     Example0:
         >>> # DISABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1326,7 +1326,7 @@ def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
 
     Example1:
         >>> # DISABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1358,7 +1358,7 @@ def wbia_plugin_curvrank_fluke(depc, qaid_list, daid_list, config):
 if __name__ == '__main__':
     r"""
     CommandLine:
-        python -m wbia_curvrank._plugin_depc --allexamples
+        python -m wbia_curvrank_v2._plugin_depc --allexamples
     """
     import multiprocessing
 

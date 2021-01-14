@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank import affine
+from wbia_curvrank_v2 import affine
 import cv2
 import numpy as np
 

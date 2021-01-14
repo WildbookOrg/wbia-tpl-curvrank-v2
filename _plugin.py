@@ -2,10 +2,10 @@
 from __future__ import absolute_import, division, print_function
 from wbia.control import controller_inject  # NOQA
 from os.path import abspath, join, exists, split
-import wbia_curvrank.fcnn as fcnn
-import wbia_curvrank.functional as F
-import wbia_curvrank.regression as regression
-from wbia_curvrank import algo
+import wbia_curvrank_v2.fcnn as fcnn
+import wbia_curvrank_v2.functional as F
+import wbia_curvrank_v2.regression as regression
+from wbia_curvrank_v2 import algo
 
 # import wbia.constants as const
 import numpy as np
@@ -15,8 +15,8 @@ import cv2
 import torch
 
 # We want to register the depc plugin functions as well, so import it here for IBEIS
-import wbia_curvrank._plugin_depc  # NOQA
-from wbia_curvrank._plugin_depc import (
+import wbia_curvrank_v2._plugin_depc  # NOQA
+from wbia_curvrank_v2._plugin_depc import (
     DEFAULT_SCALES,
     INDEX_NUM_TREES,
     INDEX_SEARCH_K,
@@ -66,13 +66,13 @@ def wbia_plugin_curvrank_preprocessing(
         cropped_images
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_preprocessing:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_preprocessing
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_preprocessing:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_preprocessing:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -84,7 +84,7 @@ def wbia_plugin_curvrank_preprocessing(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -142,13 +142,13 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
         coarse_probabilities
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_coarse_probabilities:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_coarse_probabilities
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_coarse_probabilities:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_coarse_probabilities:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -158,10 +158,10 @@ def wbia_plugin_curvrank_coarse_probabilities(ibs, cropped_images, width_coarse=
         >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
-    
+
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -201,19 +201,19 @@ def wbia_plugin_curvrank_control_points(ibs, coarse_probabilities):
 
     Args:
         ibs             (IBEISController): IBEIS controller object
-        coarse_probabilities  (list of np.ndarray): Grayscale images  
+        coarse_probabilities  (list of np.ndarray): Grayscale images
 
     Returns:
         control_points
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_control_points
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_control_points:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_control_points:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_control_points
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_control_points:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_control_points:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -223,10 +223,10 @@ def wbia_plugin_curvrank_control_points(ibs, coarse_probabilities):
         >>> coarse_probabilities = ibs.wbia_plugin_curvrank_coarse_probabilities(cropped_images)
         >>> control_points = ibs.wbia_plugin_curvrank_control_points(coarse_probabilities)
         >>> assert ut.hash_data(control_points[0]['contours'][0]) in ['trnpwanrllbecxttowvhirxioqdfheqn']
-    
+
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -274,13 +274,13 @@ def wbia_plugin_curvrank_fine_probabilities(ibs, images, cropped_images, cropped
         coarse_probabilities
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_probabilities
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_probabilities:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_fine_probabilities:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_fine_probabilities
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_fine_probabilities:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_fine_probabilities:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -292,11 +292,11 @@ def wbia_plugin_curvrank_fine_probabilities(ibs, images, cropped_images, cropped
         >>> fine_probabilities = ibs.wbia_plugin_curvrank_fine_probabilities(images, cropped_images, cropped_bboxes, control_points)
         >>> fine_probability = fine_probabilities[0]
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
-        
-    
+
+
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -362,13 +362,13 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
         anchor_points
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_anchor_points:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_anchor_points
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_anchor_points:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_anchor_points:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -384,7 +384,7 @@ def wbia_plugin_curvrank_anchor_points(ibs, cropped_images, width_fine=1152, wid
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -454,13 +454,13 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
         contours
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_contours:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_contours
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_contours:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_contours:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -477,7 +477,7 @@ def wbia_plugin_curvrank_contours(ibs, cropped_images, coarse_probabilities, fin
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -530,13 +530,13 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
         curvatures
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_curvatures:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_curvatures
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_curvatures:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_curvatures:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -554,7 +554,7 @@ def wbia_plugin_curvrank_curvatures(ibs, contours, width_fine=1152, height_fine=
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -611,13 +611,13 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
         curvatures
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_descriptors:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_descriptors
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_descriptors:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_descriptors:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -643,7 +643,7 @@ def wbia_plugin_curvrank_descriptors(ibs, contours, curvatures, scales=DEFAULT_S
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -703,13 +703,13 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
         descriptors
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_compute:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline_compute
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline_compute:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline_compute:1
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -727,7 +727,7 @@ def wbia_plugin_curvrank_pipeline_compute(ibs, aid_list, config={}):
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -781,12 +781,12 @@ def wbia_plugin_curvrank_pipeline_aggregate(
         lnbnn_dict
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline_aggregate
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline_aggregate:0
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -859,14 +859,14 @@ def wbia_plugin_curvrank_pipeline(
         aid_list
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:1
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_pipeline:2
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_pipeline:2
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -881,7 +881,7 @@ def wbia_plugin_curvrank_pipeline(
 
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -896,7 +896,7 @@ def wbia_plugin_curvrank_pipeline(
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -953,8 +953,8 @@ def wbia_plugin_curvrank_scores(
 
     Args:
         ibs                 (IBEISController): IBEIS controller object
-        db_aid_list         (list of ints): database annotation rowids 
-        qr_aids_list        (list of ints): query annotation rowids 
+        db_aid_list         (list of ints): database annotation rowids
+        qr_aids_list        (list of ints): query annotation rowids
         config              (dict)
         verbose             (bool)
         use_names           (bool)
@@ -966,14 +966,14 @@ def wbia_plugin_curvrank_scores(
         score_dict
 
     CommandLine:
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:0
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:1
-        python -m wbia_curvrank._plugin --test-wbia_plugin_curvrank_scores:2
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_scores
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_scores:0
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_scores:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_scores:2
 
     Example0:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -990,10 +990,10 @@ def wbia_plugin_curvrank_scores(
         >>> result = score_dict
         >>> print(result)
         {14: -0.66998079, 7: -0.50211695, 8: -0.35338076, 9: -0.22488221, 10: -0.32056554, 11: -6.39051612, 12: -0.53023922, 13: -0.91845786}
-    
+
     Example1:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1013,7 +1013,7 @@ def wbia_plugin_curvrank_scores(
 
     Example2:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
         >>> dbdir = sysres.ensure_testdb_curvrank()
@@ -1395,16 +1395,16 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
     Args:
         ibs        (IBEISController): IBEIS controller object
         label      (string)
-        qaid_list  (list of ints): query annotaion rowids 
-        daid_list  (list of ints): database annotaion rowids 
+        qaid_list  (list of ints): query annotaion rowids
+        daid_list  (list of ints): database annotaion rowids
         config     (dict)
 
     CommandLine:
-        python -m wbia_curvrank._plugin --exec-wbia_plugin_curvrank
+        python -m wbia_curvrank_v2._plugin --exec-wbia_plugin_curvrank
 
     Example:
         >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank._plugin_depc import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> import itertools as it
         >>> from wbia.init import sysres
@@ -1472,7 +1472,7 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
 if __name__ == '__main__':
     r"""
     CommandLine:
-        python -m wbia_curvrank._plugin --allexamples
+        python -m wbia_curvrank_v2._plugin --allexamples
     """
     import multiprocessing
 
