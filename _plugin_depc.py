@@ -793,7 +793,7 @@ class DescriptorConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='descriptor_two',
+    tablename='curvature_descriptor_two',
     parents=['contour_two', 'curvature_two'],
     colnames=['success', 'descriptor'],
     coltypes=[
@@ -830,8 +830,8 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('descriptor_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> descriptors = ibs.depc_annot.get('descriptor_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
@@ -849,8 +849,8 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
         >>> aid_list *= 10
-        >>> success_list = ibs.depc_annot.get('descriptor_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> descriptors = ibs.depc_annot.get('descriptor_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> success = success_list[0]
         >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
@@ -931,7 +931,7 @@ class CurvatureDescriptorOptimizedConfig(dtool.Config):
 
 
 @register_preproc_annot(
-    tablename='descriptor_optimized_two',
+    tablename='curvature_descriptor_optimized_two',
     parents=[ROOT],
     colnames=['success', 'descriptor'],
     coltypes=[
@@ -964,8 +964,8 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('descriptor_optimized_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> descriptors = ibs.depc_annot.get('descriptor_optimized_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
         >>>     ut.hash_data(curvature_descriptor_dict[scale])
@@ -982,8 +982,8 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
         >>> dbdir = sysres.ensure_testdb_curvrank()
         >>> ibs = wbia.opendb(dbdir=dbdir)
         >>> aid_list = ibs.get_image_aids(23)
-        >>> success_list = ibs.depc_annot.get('descriptor_optimized_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> descriptors = ibs.depc_annot.get('descriptor_optimized_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'success', config=DEFAULT_FLUKE_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'descriptor', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> success = success_list[0]
         >>> curvature_descriptor_dict = descriptors[0]
         >>> hash_list = [
@@ -1156,18 +1156,7 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         outlines = [None] * len(chips)
         trailing_edges = [None] * len(chips)
 
-        model_type = request.config.curvrank_model_type
-        if model_type in ['dorsalfinfindrhybrid']:
-            chips = depc.get(
-                'localization',
-                aid_list,
-                'localized_img',
-                config=DEFAULT_DORSAL_TEST_CONFIG,
-            )
-
         if overlay:
-            if model_type not in ['dorsalfinfindrhybrid']:
-                outlines = depc.get('outline', aid_list, 'outline', config=request.config)
             trailing_edges = depc.get(
                 'contour_two', aid_list, 'contour', config=request.config
             )
@@ -1285,7 +1274,7 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     label = 'CurvRankTwoDorsal'
-    value_iter = ibs.wbia_plugin_curvrank(label, qaid_list, daid_list, config)
+    value_iter = ibs.wbia_plugin_curvrank_v2(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
 
@@ -1393,7 +1382,7 @@ def wbia_plugin_curvrank_v2_fluke(depc, qaid_list, daid_list, config):
     ibs = depc.controller
 
     label = 'CurvRankTwoFluke'
-    value_iter = ibs.wbia_plugin_curvrank(label, qaid_list, daid_list, config)
+    value_iter = ibs.wbia_plugin_curvrank_v2(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
 

@@ -57,6 +57,7 @@ MODEL_URL_DICT = {
     'coarse.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.params',
     'coarse.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.elephant.ear.params',
     'coarse.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.humpback.fluke.params',
+    'fine.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
     'fine.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
     'fine.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.humpback.fluke.params.chkpt',
     'fine.fcnn': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
@@ -144,7 +145,7 @@ def wbia_plugin_curvrank_v2_preprocessing(ibs, aid_list, pad=0.1, **kwargs):
 
 @register_ibs_method
 def wbia_plugin_curvrank_v2_coarse_probabilities(
-    ibs, cropped_images, width_coarse=384, height_coarse=192, **kwargs
+    ibs, cropped_images, width_coarse=384, height_coarse=192, model_type='fluke', **kwargs
 ):
     r"""
     Extract coarse probabilities for CurvRank
@@ -190,8 +191,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
     """
-    # model_tag = 'coarse.dorsal'
-    model_tag = 'coarse.fluke'
+    model_tag = 'coarse.%s' % (model_type, )
 
     if model_tag in MODEL_URL_DICT:
         archive_url = MODEL_URL_DICT[model_tag]
@@ -299,6 +299,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     width_fine=1152,
     height_fine=576,
     patch_size=128,
+    model_type='fluke',
     **kwargs
 ):
     r"""
@@ -358,8 +359,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     """
     gpu_id = None
 
-    # model_tag = 'fine.ear
-    model_tag = 'fine.fcnn'
+    model_tag = 'fine.%s' % (model_type, )
 
     if model_tag in MODEL_URL_DICT:
         archive_url = MODEL_URL_DICT[model_tag]
@@ -408,7 +408,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
 
 @register_ibs_method
 def wbia_plugin_curvrank_v2_anchor_points(
-    ibs, cropped_images, width_fine=1152, width_anchor=224, height_anchor=224, **kwargs
+    ibs, cropped_images, width_fine=1152, width_anchor=224, height_anchor=224, model_type='fluke', **kwargs
 ):
     r"""
     Extract anchor points for CurvRank
@@ -461,8 +461,7 @@ def wbia_plugin_curvrank_v2_anchor_points(
         >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
         >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
     """
-    # model_tag = 'anchor.doorsal'
-    model_tag = 'anchor.fluke'
+    model_tag = 'anchor.%s' % (model_type, )
 
     if model_tag in MODEL_URL_DICT:
         archive_url = MODEL_URL_DICT[model_tag]
@@ -1563,7 +1562,7 @@ def wbia_plugin_curvrank_v2_scores(
 
 
 @register_ibs_method
-def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
+def wbia_plugin_curvrank_v2(ibs, label, qaid_list, daid_list, config):
     r"""
     Compute CurvRank scores
 
@@ -1575,7 +1574,7 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         config     (dict)
 
     CommandLine:
-        python -m wbia_curvrank_v2._plugin --exec-wbia_plugin_curvrank
+        python -m wbia_curvrank_v2._plugin --exec-wbia_plugin_curvrank_v2
 
     Example:
         >>> # ENABLE_DOCTEST
@@ -1592,7 +1591,7 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         >>> qaid_list, daid_list = root_rowids
         >>> # Call function normally
         >>> config = CurvRankFlukeConfig()
-        >>> score_list = list(ibs.wbia_plugin_curvrank('CurvRankTest', qaid_list, daid_list, config))
+        >>> score_list = list(ibs.wbia_plugin_curvrank_v2('CurvRankTest', qaid_list, daid_list, config))
         >>> result = score_list
         >>> print(result[:30])
         [(-0.0,), (0.37746960995718837,), (0.12098837457597256,), (0.06497363653033972,), (0.12550411745905876,), (0.025412724586203694,), (0.0169567228294909,), (0.047490136697888374,), (0.036325025372207165,), (0.022403023205697536,), (0.05835426819976419,), (0.036471717758104205,), (0.13536082883365452,), (0.05980395479127765,), (0.09383234661072493,), (0.03159746481105685,), (0.17747170035727322,), (0.05540256551466882,), (0.08077964466065168,), (0.3461144999600947,), (0.27904838346876204,), (0.08006769698113203,), (0.18570028350222856,), (0.36427399911917746,), (0.15990138333290815,), (0.005860310746356845,), (0.016297575319185853,), (0.10116989212110639,), (0.15989514626562595,), (0.057233988773077726,)]
@@ -1642,6 +1641,64 @@ def wbia_plugin_curvrank(ibs, label, qaid_list, daid_list, config):
         score *= -1.0
 
         yield (score,)
+
+
+@register_ibs_method
+def wbia_plugin_curvrank_v2_delete_cache_optimized(ibs, aid_list, tablename):
+    import networkx as nx
+
+    assert tablename in [
+        'CurvRankTwoDorsal',
+        'CurvRankTwoFluke',
+    ]
+
+    tablename_list = [
+        'curvature_descriptor_optimized_two',
+        tablename,
+    ]
+
+    graph = ibs.depc_annot.make_graph(implicit=True)
+    root = ibs.depc_annot.root
+    params_iter = list(zip(aid_list))
+
+    for target_tablename in tablename_list:
+        print(target_tablename)
+
+        path = nx.shortest_path(graph, root, target_tablename)
+        for parent, child in ut.itertwo(path):
+            child_table = ibs.depc_annot[child]
+
+            relevant_col_attrs = []
+            for attrs in child_table.parent_col_attrs:
+                if attrs['parent_table'] == parent:
+                    relevant_col_attrs.append(attrs)
+
+            parent_colnames = []
+            for attrs in relevant_col_attrs:
+                parent_colnames.append(attrs['intern_colname'])
+
+            child_rowids = []
+            for colname in parent_colnames:
+                indexname = '%s_index' % (colname,)
+                command = """CREATE INDEX IF NOT EXISTS {indexname} ON {tablename} ({colname}, {rowid_colname});""".format(
+                    indexname=indexname,
+                    tablename=child,
+                    colname=colname,
+                    rowid_colname=child_table.rowid_colname,
+                )
+                child_table.db.connection.execute(command).fetchall()
+
+                child_rowids_ = child_table.db.get_where_eq_set(
+                    child_table.tablename,
+                    (child_table.rowid_colname,),
+                    params_iter,
+                    unpack_scalars=False,
+                    where_colnames=[colname],
+                )
+                # child_rowids_ = ut.flatten(child_rowids_)
+                child_rowids += child_rowids_
+
+            child_table.delete_rows(child_rowids, delete_extern=True)
 
 
 if __name__ == '__main__':
