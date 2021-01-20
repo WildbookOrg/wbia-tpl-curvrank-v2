@@ -565,8 +565,10 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
         >>> aid_list = ibs.get_image_aids(23)
         >>> start = ibs.depc_annot.get('anchor_two', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)[0]
         >>> end = ibs.depc_annot.get('anchor_two', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)[0]
-        >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
-        >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
+        >>> start = np.around(start, 2).tolist()
+        >>> end = np.around(end, 2).tolist()
+        >>> assert start == [[24.73, 44.67]]
+        >>> assert end == [[1073.62, 24.86]]
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -579,8 +581,10 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
         >>> aid_list *= 10
         >>> start = ibs.depc_annot.get('anchor_two', aid_list, 'start', config=DEFAULT_FLUKE_TEST_CONFIG)[0]
         >>> end = ibs.depc_annot.get('anchor_two', aid_list, 'end', config=DEFAULT_FLUKE_TEST_CONFIG)[0]
-        >>> hash_list = [ut.hash_data(start), ut.hash_data(end)]
-        >>> assert ut.hash_data(hash_list) in ['bmacjpkcvzjpkkhadllkmwwbugfqyove']
+        >>> start = np.around(start, 2).tolist()
+        >>> end = np.around(end, 2).tolist()
+        >>> assert start == [[24.73, 44.67]]
+        >>> assert end == [[1073.62, 24.86]]
     """
     ibs = depc.controller
 
@@ -1044,10 +1048,10 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
+        >>>     score_dict[key] = round(score_dict[key], 2)
+        >>> result = sorted(score_dict.items())
         >>> print(result)
-        {14: -0.66998079, 7: -0.50211695, 8: -0.35338076, 9: -0.22488221, 10: -0.32056554, 11: -6.39051612, 12: -0.53023922, 13: -0.91845786}
+        [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -1067,10 +1071,10 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>> score_dict_list = list(score_dict_iter)
         >>> qr_aid_list, score_dict = score_dict_list[0]
         >>> for key in score_dict:
-        >>>     score_dict[key] = round(score_dict[key], 8)
-        >>> result = score_dict
+        >>>     score_dict[key] = round(score_dict[key], 2)
+        >>> result = sorted(score_dict.items())
         >>> print(result)
-        {14: -0.66998079, 7: -0.50211695, 8: -0.35338076, 9: -0.22488221, 10: -0.32056554, 11: -6.39051612, 12: -0.53023922, 13: -0.91845786}
+        [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
     """
     kwargs['use_depc'] = True
     kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
@@ -1271,6 +1275,7 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         >>> am.ishow_analysis(request)
         >>> ut.show_if_requested()
     """
+    raise NotImplementedError('This configuration of CurvRank V2 is not available')
     ibs = depc.controller
 
     label = 'CurvRankTwoDorsal'
