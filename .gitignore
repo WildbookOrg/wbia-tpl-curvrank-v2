@@ -7,5 +7,6 @@
 *.jpg
 .DS_Store
 *.ann
+stitch.c
 
 timeings.txt

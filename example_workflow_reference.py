@@ -8,7 +8,7 @@ import segmentation
 import theano_funcs
 from dorsal_utils import find_dorsal_keypoints, dorsal_cost_func
 from dorsal_utils import separate_leading_trailing_edges
-from os.path import isfile, join
+from os.path import join
 
 
 # images, list of np.ndarray: untouched input images.

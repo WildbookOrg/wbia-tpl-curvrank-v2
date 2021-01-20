@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import cv2
 import colorsys
 import numpy as np
@@ -22,8 +23,9 @@ def reverse_contour_directionality(contour, type_):
         start, end = contour[0][0], contour[-1][-1]
         return start[0] < end[0]  # Compare i-coodinates.
     else:
-        raise ValueError('No consistent directionality defined for Part type:'
-                         '%s.' % (type_))
+        raise ValueError(
+            'No consistent directionality defined for Part type:' '%s.' % (type_)
+        )
 
 
 # Applies resampling along the axis=0, treating all columns as
@@ -39,8 +41,8 @@ def resample1d(input, length):
 # initially the points are not necessarily equidistant.
 def resample2d(input, length):
     dist = np.linalg.norm(np.diff(input, axis=0), axis=1)
-    u = np.hstack((0., np.cumsum(dist)))
-    t = np.linspace(0., u.max(), length)
+    u = np.hstack((0.0, np.cumsum(dist)))
+    t = np.linspace(0.0, u.max(), length)
     xn = np.interp(t, u, input[:, 0])
     yn = np.interp(t, u, input[:, 1])
 
@@ -55,7 +57,7 @@ def random_colors(n):
         h += grc
         h %= 1
         r, g, b = colorsys.hsv_to_rgb(h, 0.99, 0.99)
-        colors.append((255. * r, 255. * g, 255. * b))
+        colors.append((255.0 * r, 255.0 * g, 255.0 * b))
 
     return colors
 
@@ -87,8 +89,7 @@ def crop_with_padding(image, x, y, w, h, pad):
 
 
 # https://github.com/martinjevans/OpenCV-Rotate-and-Crop/blob/master/rotate_and_crop.py
-def sub_image(image, center, theta, width, height,
-              border_mode=cv2.BORDER_REPLICATE):
+def sub_image(image, center, theta, width, height, border_mode=cv2.BORDER_REPLICATE):
     """Extract a rectangle from the source image.
 
     image - source image
@@ -97,18 +98,22 @@ def sub_image(image, center, theta, width, height,
     width, height - rectangle dimensions.
     """
 
-    #if np.pi / 4. < theta <= np.pi / 2.:
+    # if np.pi / 4. < theta <= np.pi / 2.:
     #    theta = theta - np.pi / 2.
     #    width, height = height, width
 
-    #theta *= np.pi / 180  # convert to rad
+    # theta *= np.pi / 180  # convert to rad
     v_x = (np.cos(theta), np.sin(theta))
     v_y = (-np.sin(theta), np.cos(theta))
     s_x = center[0] - v_x[0] * (width / 2) - v_y[0] * (height / 2)
     s_y = center[1] - v_x[1] * (width / 2) - v_y[1] * (height / 2)
     mapping = np.array([[v_x[0], v_y[0], s_x], [v_x[1], v_y[1], s_y]])
 
-    return cv2.warpAffine(image, mapping, (width, height),
-                          flags=cv2.WARP_INVERSE_MAP,
-                          borderMode=border_mode,
-                          borderValue=0.)
+    return cv2.warpAffine(
+        image,
+        mapping,
+        (width, height),
+        flags=cv2.WARP_INVERSE_MAP,
+        borderMode=border_mode,
+        borderValue=0.0,
+    )

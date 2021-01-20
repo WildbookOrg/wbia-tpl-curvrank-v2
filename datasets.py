@@ -135,7 +135,12 @@ def load_sdrp_dataset(years):
         # we only use left-view images for now
         if date.year in years:
             data_list.append(
-                (join(data_dir, fname), alias, '%s-%s' % (survey, sighting), side,)
+                (
+                    join(data_dir, fname),
+                    alias,
+                    '%s-%s' % (survey, sighting),
+                    side,
+                )
             )
 
     return data_list
@@ -169,7 +174,14 @@ def load_fw_dataset():
     # no encounter information, assume all separate
     for enc, (fname, indiv, side) in enumerate(df[['Filename', 'ID', 'Side']].values):
         img_fpath = join(root, 'images', fname)
-        data_list.append((img_fpath, indiv, enc, side,))
+        data_list.append(
+            (
+                img_fpath,
+                indiv,
+                enc,
+                side,
+            )
+        )
 
     return data_list
 

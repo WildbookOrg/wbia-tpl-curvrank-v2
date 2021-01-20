@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-# from wbia_curvrank_v2 import algo
+from wbia_curvrank_v2 import algo
 from wbia_curvrank_v2 import curv, pyastar, utils
 from wbia_curvrank_v2.costs import exp_cost_func, hyp_cost_func
 import annoy
@@ -24,18 +24,13 @@ def preprocess_image(img, bbox, flip, pad):
 
 
 def refine_by_gradient(img):
-    Sx = np.array([[ 0.,  0., 0.],
-                   [-0.5, 0,  0.5],
-                   [ 0.,  0., 0.]], dtype=np.float32)
-    Sy = np.array([[0., -0.5, 0.],
-                   [0.,  0,   0.],
-                   [0.,  0.5, 0.]], dtype=np.float32)
+    Sx = np.array([[0.0, 0.0, 0.0], [-0.5, 0, 0.5], [0.0, 0.0, 0.0]], dtype=np.float32)
+    Sy = np.array([[0.0, -0.5, 0.0], [0.0, 0, 0.0], [0.0, 0.5, 0.0]], dtype=np.float32)
     dx = cv2.filter2D(img, cv2.CV_32F, Sx)
     dy = cv2.filter2D(img, cv2.CV_32F, Sy)
 
     refined = cv2.magnitude(dx, dy)
-    refined = cv2.normalize(refined, None, alpha=0, beta=255,
-                            norm_type=cv2.NORM_MINMAX)
+    refined = cv2.normalize(refined, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
 
     refined = cv2.cvtColor(refined, cv2.COLOR_BGR2GRAY)
 
@@ -45,29 +40,27 @@ def refine_by_gradient(img):
 def control_points(coarse):
     peaks_ij, normals, is_max = algo.control_points(coarse)
     contours = algo.link_points(peaks_ij, normals, is_max)
-    subpixel_contours = [
-        peaks_ij[contour[:, 0], contour[:, 1]] for contour in contours
-    ]
-    subpixel_normals = [
-        normals[contour[:, 0], contour[:, 1]] for contour in contours
-    ]
+    subpixel_contours = [peaks_ij[contour[:, 0], contour[:, 1]] for contour in contours]
+    subpixel_normals = [normals[contour[:, 0], contour[:, 1]] for contour in contours]
     data = {'contours': subpixel_contours, 'normals': subpixel_normals}
     return data
 
 
-def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width_fine, cost_func):
+def contour_from_anchorpoints(
+    part_img, coarse, fine, anchor_points, trim, width_fine, cost_func
+):
     ratio = width_fine / part_img.shape[1]
     coarse_height, coarse_width = coarse.shape[0:2]
-    fine = cv2.resize(fine, (0, 0), fx=ratio, fy=ratio,
-                      interpolation=cv2.INTER_AREA)
-    coarse = cv2.resize(coarse, fine.shape[0:2][::-1],
-                        interpolation=cv2.INTER_AREA)
+    fine = cv2.resize(fine, (0, 0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
+    coarse = cv2.resize(coarse, fine.shape[0:2][::-1], interpolation=cv2.INTER_AREA)
     height_fine, width_fine = fine.shape[0:2]
 
-    fine = cv2.normalize(fine.astype(np.float32), None,
-                         alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
-    coarse = cv2.normalize(coarse.astype(np.float32), None,
-                           alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    fine = cv2.normalize(
+        fine.astype(np.float32), None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
+    coarse = cv2.normalize(
+        coarse.astype(np.float32), None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX
+    )
 
     if cost_func == 'exp':
         W = exp_cost_func(coarse, fine)
@@ -84,8 +77,7 @@ def contour_from_anchorpoints(part_img, coarse, fine, anchor_points, trim, width
     end_ij = tuple(end_xy[::-1].astype(np.int32))
     # A* expects start and endpoints in matrix coordinates.
     # TODO: set this based on the config
-    path_ij = pyastar.astar_path(W, start_ij, end_ij,
-                                 allow_diagonal=True)
+    path_ij = pyastar.astar_path(W, start_ij, end_ij, allow_diagonal=True)
     if trim > 0 and path_ij.shape[0] > 2 * trim:
         path_ij = path_ij[trim:-trim]
     contour = path_ij if path_ij.size > 0 else None
@@ -109,7 +101,9 @@ def curvature(contour, width_fine, height_fine, scales, transpose_dims):
     return curvature
 
 
-def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num_keypoints):
+def curvature_descriptors(
+    contour, curvature, scales, curv_length, feat_dim, num_keypoints
+):
     if contour is not None and curvature is not None:
         contour = utils.resample2d(contour, curv_length)
         # Store the resampled contour so that the keypoints align
@@ -119,12 +113,8 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
         smoothed = gaussian_filter1d(curvature, 5.0, axis=0)
 
         # Returns array of shape (0, 2) if no extrema.
-        maxima_idx = np.vstack(argrelextrema(
-            smoothed, np.greater, axis=0, order=3
-        )).T
-        minima_idx = np.vstack(argrelextrema(
-            smoothed, np.less, axis=0, order=3
-        )).T
+        maxima_idx = np.vstack(argrelextrema(smoothed, np.greater, axis=0, order=3)).T
+        minima_idx = np.vstack(argrelextrema(smoothed, np.less, axis=0, order=3)).T
         extrema_idx = np.vstack((maxima_idx, minima_idx))
 
         for j in range(smoothed.shape[1]):
@@ -134,9 +124,7 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
                 if keypts_idx[0] > 1:
                     keypts_idx = np.hstack((0, keypts_idx))
                 if keypts_idx[-1] < smoothed.shape[0] - 2:
-                    keypts_idx = np.hstack(
-                        (keypts_idx, smoothed.shape[0] - 1)
-                    )
+                    keypts_idx = np.hstack((keypts_idx, smoothed.shape[0] - 1))
                 extrema_val = np.abs(smoothed[keypts_idx, j] - 0.5)
                 # Ensure that the start and endpoint are included.
                 extrema_val[0] = np.inf
@@ -150,19 +138,18 @@ def curvature_descriptors(contour, curvature, scales, curv_length, feat_dim, num
                 # used for slicing, i.e., x[0:5] and not x[5:0].
                 keypts_idx = np.sort(keypts_idx)
                 pairs_of_keypts_idx = list(combinations(keypts_idx, 2))
-                descriptors = np.empty((len(pairs_of_keypts_idx), feat_dim),
-                                       dtype=np.float32)
+                descriptors = np.empty(
+                    (len(pairs_of_keypts_idx), feat_dim), dtype=np.float32
+                )
                 for i, (idx0, idx1) in enumerate(pairs_of_keypts_idx):
-                    subcurv = curvature[idx0:idx1 + 1, j]
+                    subcurv = curvature[idx0 : idx1 + 1, j]
                     feature = utils.resample1d(subcurv, feat_dim)
                     # L2-normalization of descriptor.
                     descriptors[i] = feature / np.linalg.norm(feature)
                 data[scales[j]] = descriptors
             # If there are no local extrema at a particular scale.
             else:
-                data[scales[j]] = np.empty(
-                    (0, feat_dim), dtype=np.float32
-                )
+                data[scales[j]] = np.empty((0, feat_dim), dtype=np.float32)
         success_ = True
     else:
         data = {}

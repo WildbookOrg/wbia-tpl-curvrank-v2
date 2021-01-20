@@ -49,7 +49,11 @@ class PrepareData(luigi.Task):
         return []
 
     def output(self):
-        basedir = join('data', self.dataset, self.__class__.__name__,)
+        basedir = join(
+            'data',
+            self.dataset,
+            self.__class__.__name__,
+        )
         return {
             'csv': luigi.LocalTarget(join(basedir, '%s.csv' % self.dataset)),
             'pkl': luigi.LocalTarget(join(basedir, '%s.pickle' % self.dataset)),
@@ -122,10 +126,14 @@ class EncounterStats(luigi.Task):
                 encounter_counts.append(len(ind_enc_count_dict[ind]))
 
         images_per_encounter, enc_bins = np.histogram(
-            image_counts, bins=range(1, 20), density=True,
+            image_counts,
+            bins=range(1, 20),
+            density=True,
         )
         encounters_per_individual, indiv_bins = np.histogram(
-            encounter_counts, bins=range(1, 20), density=True,
+            encounter_counts,
+            bins=range(1, 20),
+            density=True,
         )
 
         f, (ax1, ax2) = plt.subplots(2, 1, figsize=(22.0, 12))
@@ -1845,7 +1853,11 @@ class TimeWarpingResults(luigi.Task):
 
         weightdir = 'weighted' if self.spatial_weights else 'uniform'
         outdir = join(
-            basedir, self.eval_dir, weightdir, curvdir, '%s' % self.num_db_encounters,
+            basedir,
+            self.eval_dir,
+            weightdir,
+            curvdir,
+            '%s' % self.num_db_encounters,
         )
 
         all_targets = [

@@ -11,8 +11,8 @@ from tqdm import tqdm
 import matplotlib
 
 matplotlib.use('Agg')  # NOQA
-import matplotlib.pyplot as plt
-import six
+import matplotlib.pyplot as plt  # NOQA
+import six  # NOQA
 
 if six.PY2:
     import cPickle as pickle
@@ -341,7 +341,13 @@ def compute_gauss_descriptors(
         trailing_edge = trailing_edge[:, ::-1]
         for (m, s) in scales:
             desc = dorsal_utils.diff_of_gauss_descriptor(
-                trailing_edge, m, s, num_keypoints, feat_dim, contour_length, uniform,
+                trailing_edge,
+                m,
+                s,
+                num_keypoints,
+                feat_dim,
+                contour_length,
+                uniform,
             )
             descriptors.append(desc.astype(np.float32))
     else:
@@ -607,7 +613,10 @@ def visualize_misidentifications(
                 )
                 db_row.append(db_img)
 
-            db_qr_img = cv2.resize(cv2.imread(db_qr_edge_fname.path), (256, 256),)
+            db_qr_img = cv2.resize(
+                cv2.imread(db_qr_edge_fname.path),
+                (256, 256),
+            )
             cv2.putText(
                 db_qr_img,
                 '%d) %s: %.6f'
