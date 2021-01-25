@@ -205,7 +205,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
     device = get_device()
     unet.load_state_dict(torch.load(coarse_params, map_location=device))
     if torch.cuda.is_available():
-        unet.cuda(None)
+        unet.cuda(device)
     unet.eval()
     coarse_probabilities = []
     for index, x in enumerate(cropped_images):
@@ -214,7 +214,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
         x = x[np.newaxis, ...]
         x = torch.FloatTensor(x)
         if torch.cuda.is_available():
-            x = x.cuda(None)
+            x = x.cuda(device)
         with torch.no_grad():
             _, y_hat = unet(x)
         y_hat = y_hat.data.cpu().numpy().transpose(0, 2, 3, 1)
@@ -357,8 +357,6 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> fine_probability = fine_probabilities[0]
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
     """
-    gpu_id = None
-
     model_tag = 'fine.%s' % (model_type, )
 
     if model_tag in MODEL_URL_DICT:
@@ -373,7 +371,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     device = get_device()
     patchnet.load_state_dict(torch.load(patch_params, map_location=device))
     if torch.cuda.is_available():
-        patchnet.cuda(gpu_id)
+        patchnet.cuda(device)
     patchnet.eval()
 
     fine_probs = []
@@ -396,7 +394,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         )
         # Extract patches at contour points to get fine probabilities.
         refined = algo.refine_contour(
-            img, cropped_img, bbox, pts_xy, patch_dims, patch_size, patchnet, gpu_id
+            img, cropped_img, bbox, pts_xy, patch_dims, patch_size, patchnet
         )
         refined = cv2.normalize(
             refined, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
@@ -475,7 +473,7 @@ def wbia_plugin_curvrank_v2_anchor_points(
     device = get_device()
     anchor_nn.load_state_dict(torch.load(anchor_params, map_location=device))
     if torch.cuda.is_available():
-        anchor_nn.cuda(None)
+        anchor_nn.cuda(device)
     anchor_nn.eval()
     anchor_points = []
     for index, x in enumerate(cropped_images):
@@ -489,7 +487,7 @@ def wbia_plugin_curvrank_v2_anchor_points(
         x = x[np.newaxis, ...]
         x = torch.FloatTensor(x)
         if torch.cuda.is_available():
-            x = x.cuda(None)
+            x = x.cuda(device)
         with torch.no_grad():
             y0_hat, y1_hat = anchor_nn(x)
         y0_hat = y0_hat.data.cpu().numpy()

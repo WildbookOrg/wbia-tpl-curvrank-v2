@@ -115,9 +115,8 @@ class PatchSet(data.Dataset):
 
 
 def refine_contour(
-    img, cropped_img, bounding_box, contour, patch_dims, patch_size, patchnet, gpu_id
+    img, cropped_img, bounding_box, contour, patch_dims, patch_size, patchnet
 ):
-
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     using_gpu = str(device) != 'cpu'
 
@@ -138,7 +137,7 @@ def refine_contour(
 
     for i, x in enumerate(patch_iter):
         if using_gpu:
-            x = x.cuda(gpu_id)
+            x = x.cuda(device)
         with torch.no_grad():
             _, y_hat = patchnet(x)
         p_vals = (

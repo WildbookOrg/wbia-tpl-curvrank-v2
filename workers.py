@@ -8,9 +8,9 @@ import numpy as np
 # import fluke_utils
 import wbia_curvrank_v2.functional as F
 from tqdm import tqdm
-import matplotlib
+# import matplotlib
 
-matplotlib.use('Agg')  # NOQA
+# matplotlib.use('Agg')  # NOQA
 import matplotlib.pyplot as plt  # NOQA
 import six  # NOQA
 
