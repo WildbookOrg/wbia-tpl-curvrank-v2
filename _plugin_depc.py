@@ -75,6 +75,7 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['dorsal'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['dorsal'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['dorsal'],
+    'curvrank_patch_size': None,
     'curvrank_trim': 0,
     'curvrank_cost_func': 'hyp',
     'curvrank_scale': DEFAULT_SCALE['dorsal'],
@@ -126,12 +127,13 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_cache_recompute': 'force_cache_recompute',
     'curvrank_model_type': 'model_type',
     'curvrank_pad': 'pad',
-    'curvrank_height_coarse': 'height_coarse',
     'curvrank_width_coarse': 'width_coarse',
-    'curvrank_height_fine': 'height_fine',
+    'curvrank_height_coarse': 'height_coarse',
     'curvrank_width_fine': 'width_fine',
-    'curvrank_weights_anchor': 'weights_anchor',
+    'curvrank_height_fine': 'height_fine',
+    'curvrank_width_anchor': 'width_anchor',
     'curvrank_height_anchor': 'height_anchor',
+    'curvrank_patch_size': 'patch_size',
     'curvrank_trim': 'trim',
     'curvrank_cost_func': 'cost_func',
     'curvrank_scale': 'scale',
@@ -350,77 +352,6 @@ def wbia_plugin_curvrank_v2_coarse_probabilities_depc(
         )
 
 
-class ControlPointsConfig(dtool.Config):
-    def get_param_info_list(self):
-        return [
-            ut.ParamInfo('ext', '.npy', hideif='.npy'),
-        ]
-
-
-@register_preproc_annot(
-    tablename='control_points_two',
-    parents=['coarse_two'],
-    colnames=[
-        'control_points',
-    ],
-    coltypes=[
-        (
-            'extern',
-            lambda x: np.load(x, allow_pickle=True).item(),
-            lambda x, y: np.save(x, y, allow_pickle=True),
-        ),
-    ],
-    configclass=ControlPointsConfig,
-    fname='curvrank_v2_unoptimized',
-    rm_extern_on_delete=True,
-    chunksize=256,
-)
-# chunksize defines the max number of 'yield' below that will be called in a chunk
-# so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_v2_control_points_depc(depc, fine_rowid_list, config=None):
-    r"""
-    Extract fine probabilities for CurvRank with Dependency Cache (depc)
-
-    CommandLine:
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc:0
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc:1
-
-    Example0:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> control_points = ibs.depc_annot.get('control_points_two', aid_list, 'control_points', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> assert ut.hash_data(control_points[0]['contours'][0]) in ['trnpwanrllbecxttowvhirxioqdfheqn']
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> aid_list *= 10
-        >>> control_points = ibs.depc_annot.get('control_points_two', aid_list, 'control_points', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> assert ut.hash_data(control_points[0]['contours'][0]) in ['trnpwanrllbecxttowvhirxioqdfheqn']
-    """
-    ibs = depc.controller
-
-    coarse_probabilities = depc.get_native(
-        'coarse_two', fine_rowid_list, 'coarse_probabilities'
-    )
-
-    control_points = ibs.wbia_plugin_curvrank_v2_control_points(coarse_probabilities)
-
-    for cp in control_points:
-        yield (cp,)
-
-
 class FineProbabilitiesConfig(dtool.Config):
     def get_param_info_list(self):
         return [
@@ -430,7 +361,7 @@ class FineProbabilitiesConfig(dtool.Config):
 
 @register_preproc_annot(
     tablename='fine_two',
-    parents=['control_points_two'],
+    parents=['preprocess_two', 'coarse_two'],
     colnames=[
         'fine_img',
         'width',
@@ -449,7 +380,7 @@ class FineProbabilitiesConfig(dtool.Config):
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
 def wbia_plugin_curvrank_v2_fine_probabilities_depc(
-    depc, preprocess_rowid_list, config=None
+    depc, preprocess_rowid_list, coarse_rowid_list, config=None
 ):
     r"""
     Extract fine probabilities for CurvRank with Dependency Cache (depc)
@@ -491,12 +422,15 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
     cropped_bboxes = depc.get_native(
         'preprocess_two', preprocess_rowid_list, 'cropped_bbox'
     )
-    control_points = depc.get_native(
-        'control_points_two', preprocess_rowid_list, 'control_points'
+
+    coarse_probabilities = depc.get_native(
+        'coarse_two', coarse_rowid_list, 'coarse_probabilities'
     )
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(
-        imgs, cropped_imgs, cropped_bboxes, control_points
+        imgs, cropped_imgs, cropped_bboxes, coarse_probabilities, **config_
     )
 
     for fine_prob in fine_probabilities:

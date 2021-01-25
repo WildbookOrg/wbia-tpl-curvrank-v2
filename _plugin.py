@@ -85,6 +85,7 @@ def wbia_plugin_curvrank_v2_preprocessing(ibs, aid_list, pad=0.1, **kwargs):
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_preprocessing
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_preprocessing:0
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_preprocessing:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_preprocessing:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -110,6 +111,20 @@ def wbia_plugin_curvrank_v2_preprocessing(ibs, aid_list, pad=0.1, **kwargs):
         >>> _, cropped_images, _ = ibs.wbia_plugin_curvrank_v2_preprocessing(aid_list)
         >>> cropped_image = cropped_images[0]
         >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import DEFAULT_DORSAL_TEST_CONFIG, _convert_depc_config_to_kwargs_config
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> config = _convert_depc_config_to_kwargs_config(DEFAULT_DORSAL_TEST_CONFIG)
+        >>> _, cropped_images, _ = ibs.wbia_plugin_curvrank_v2_preprocessing(aid_list, **config)
+        >>> cropped_image = cropped_images[0]
+        >>> assert ut.hash_data(cropped_image) in ['dhqxniyfoaufwcjasypkgkiwchiytslz']
     """
     ibs._parallel_chips = not FORCE_SERIAL
     gid_list = ibs.get_annot_gids(aid_list)
@@ -163,6 +178,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_coarse_probabilities
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_coarse_probabilities:0
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_coarse_probabilities:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_coarse_probabilities:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -190,6 +206,22 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
         >>> coarse_probabilities = ibs.wbia_plugin_curvrank_v2_coarse_probabilities(cropped_images)
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import DEFAULT_DORSAL_TEST_CONFIG, _convert_depc_config_to_kwargs_config
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> config = _convert_depc_config_to_kwargs_config(DEFAULT_DORSAL_TEST_CONFIG)
+        >>> _, cropped_images, _ = ibs.wbia_plugin_curvrank_v2_preprocessing(aid_list, **config)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_v2_coarse_probabilities(cropped_images, **config)
+        >>> coarse_probability = coarse_probabilities[0]
+        >>> print(ut.hash_data(coarse_probability))
+        >>> assert ut.hash_data(coarse_probability) in ['mwolbzkqaflwifvrklakgfxbyvogooog']
     """
     model_tag = 'coarse.%s' % (model_type, )
 
@@ -240,7 +272,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     """
     Extract fine probabilities for CurvRank
 
-    Args: #TODO
+    Args:
         ibs             (IBEISController): IBEIS controller object
         images          (list of np.ndarray): BGR images
         cropped_images  (list of np.ndarray): BGR images
@@ -251,6 +283,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         width_fine      (int)
         height_fine     (int)
         patch_size      (int)
+        model_type      (string)
 
     Returns:
         fine_probabilities
@@ -259,6 +292,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_fine_probabilities
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_fine_probabilities:0
         python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_fine_probabilities:1
+        python -m wbia_curvrank_v2._plugin --test-wbia_plugin_curvrank_v2_fine_probabilities:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -274,7 +308,6 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> fine_probability = fine_probabilities[0]
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
 
-
     Example1:
         >>> # ENABLE_DOCTEST
         >>> from wbia_curvrank_v2._plugin import *  # NOQA
@@ -289,6 +322,23 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(images, cropped_images, cropped_bboxes, coarse_probabilities)
         >>> fine_probability = fine_probabilities[0]
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import DEFAULT_DORSAL_TEST_CONFIG, _convert_depc_config_to_kwargs_config
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> config = _convert_depc_config_to_kwargs_config(DEFAULT_DORSAL_TEST_CONFIG)
+        >>> images, cropped_images, cropped_bboxes = ibs.wbia_plugin_curvrank_v2_preprocessing(aid_list, **config)
+        >>> coarse_probabilities = ibs.wbia_plugin_curvrank_v2_coarse_probabilities(cropped_images, **config)
+        >>> fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(images, cropped_images, cropped_bboxes, coarse_probabilities, **config)
+        >>> fine_probability = fine_probabilities[0]
+        >>> # Non-deterministic output from fine_probabilities?
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc']
     """
     config_ = {
         'ordered': True,
