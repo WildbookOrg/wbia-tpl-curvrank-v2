@@ -1,6 +1,6 @@
 # Training
 
-Before training, create a .csv file of the format `data/train.csv`.
+Before training, create a .csv file of the format `data/train.csv`. Provided `prepare_training_data.py` was used for construction of this file from an older ibeis database.
 
 ## Coarse
 
