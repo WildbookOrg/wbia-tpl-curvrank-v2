@@ -1060,6 +1060,7 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -1106,6 +1107,29 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>> result = sorted(score_dict.items())
         >>> print(result)
         [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_v2_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 2)
+        >>> result = sorted(score_dict.items())
+        >>> print(result)
+        [(1, -22.31), (2, -1.74), (3, -2.49)]
     """
     kwargs['use_depc'] = True
     kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
@@ -1241,7 +1265,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
     """
 
     def get_param_info_list(self):
@@ -1306,7 +1330,7 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         >>> am.ishow_analysis(request)
         >>> ut.show_if_requested()
     """
-    raise NotImplementedError('This configuration of CurvRank V2 is not available')
+
     ibs = depc.controller
 
     label = 'CurvRankTwoDorsal'
@@ -1326,7 +1350,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvature_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
     """
 
     def get_param_info_list(self):
