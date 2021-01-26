@@ -89,11 +89,11 @@ def control_points(probs):
     dist = cv2.distanceTransform(probs_thresh, cv2.DIST_L2,
                                  cv2.DIST_MASK_5)
     #plt.savefig('coarse.png', bbox_inches='tight')
-    f, ax = plt.subplots(1, 1)
-    ax.set_axis_off()
-    ax.imshow(dist, cmap=plt.cm.gray)
-    plt.savefig('dist.png', bbox_inches='tight')
-    plt.show()
+    #f, ax = plt.subplots(1, 1)
+    #ax.set_axis_off()
+    #ax.imshow(dist, cmap=plt.cm.gray)
+    #plt.savefig('dist.png', bbox_inches='tight')
+    #plt.show()
 
     nonzero_coords = np.vstack(np.where(dist > 0)).T
 
@@ -254,21 +254,21 @@ def refine_contour(img, bounding_box, contour,
 
         colors = ['blue' if i == j else 'red' for j in range(contour.shape[0])]
 
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        ax1.imshow(part_img[:, :, ::-1])
+        #fig, (ax1, ax2) = plt.subplots(1, 2)
+        #ax1.imshow(part_img[:, :, ::-1])
         #ax1.imshow(255 * probs, alpha=0.25, cmap=plt.cm.gray)
-        ax1.scatter(contour[:, 0], contour[:, 1], s=5, color=colors)
+        #ax1.scatter(contour[:, 0], contour[:, 1], s=5, color=colors)
         xy = c - 0.5 * np.array(patch_dims)
         rect = mpl_patches.Rectangle(xy, patch_dims[0], patch_dims[1],
                                      linewidth=1, edgecolor='red',
                                      facecolor='none')
-        ax1.add_patch(rect)
+        #ax1.add_patch(rect)
 
-        ax2.imshow(p, cmap=plt.cm.gray, interpolation='none')
+        #ax2.imshow(p, cmap=plt.cm.gray, interpolation='none')
 
-        plt.show()
-        for ax in (ax1, ax2):
-            ax.clear()
+        #plt.show()
+        #for ax in (ax1, ax2):
+        #    ax.clear()
 
 
 def choose_longest_path(G, paths):

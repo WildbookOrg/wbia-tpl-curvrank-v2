@@ -7,16 +7,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from datetime import datetime
 from os import makedirs
 from os.path import join
 from torch.utils.data import DataLoader
 
 
 @click.command()
-@click.option('--datafile', default='data/anchor.csv')
-@click.option('--batch-size', default=1)
-@click.option('--max-epochs', default=2)
+@click.option('--datafile', default='data/train.csv')
+@click.option('--batch-size', default=8)
+@click.option('--max-epochs', default=20)
 @click.option('--pad', default=0.1)
 @click.option('--height', default=224)  # height, width = 336,336
 @click.option('--width', default=224)
@@ -33,7 +32,7 @@ def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, s
     weights_fpath = join(results_dir, 'weights.params')
     samples_dir = join(results_dir, 'samples')
     makedirs(samples_dir, exist_ok=True)
-    
+
     reg_nn = regression.VGG16()
 
     print('Splitting training/validation by name.')

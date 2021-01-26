@@ -13,9 +13,9 @@ from torch.utils.data import DataLoader
 
 
 @click.command()
-@click.option('--datafile', default='data/coarse.csv')
+@click.option('--datafile', default='data/train.csv')
 @click.option('--batch-size', default=8)
-@click.option('--max-epochs', default=2)
+@click.option('--max-epochs', default=20)
 @click.option('--pad', default=0.1)
 @click.option('--height', default=256)  # height, width = 192, 384
 @click.option('--width', default=256)
