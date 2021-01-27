@@ -128,7 +128,7 @@ def refine_contour(
         patchset,
         shuffle=False,
         batch_size=batch_size,
-        num_workers=batch_size // 8,
+        num_workers=0,
         pin_memory=using_gpu,
     )
 
