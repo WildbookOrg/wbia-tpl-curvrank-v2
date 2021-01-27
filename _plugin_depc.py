@@ -445,7 +445,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
         >>> aid_list = ibs.get_image_aids(7)
         >>> fine_probabilities = ibs.depc_annot.get('fine_two', aid_list, 'fine_img', config=DEFAULT_DORSAL_TEST_CONFIG)
         >>> fine_probability = fine_probabilities[0]
-        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs']
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc']
     """
     ibs = depc.controller
 

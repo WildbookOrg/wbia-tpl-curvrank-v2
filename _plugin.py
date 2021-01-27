@@ -339,7 +339,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(images, cropped_images, cropped_bboxes, coarse_probabilities, **config)
         >>> fine_probability = fine_probabilities[0]
         >>> # Non-deterministic output from fine_probabilities?
-        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs']
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc']
     """
     config_ = {
         'ordered': True,
@@ -1300,7 +1300,7 @@ def wbia_plugin_curvrank_v2_scores(
         >>>     score_dict[key] = round(score_dict[key], 2)
         >>> result = sorted(score_dict.items())
         >>> print(result)
-        [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
+        [(7, -0.64), (8, -0.45), (9, -0.24), (10, -0.27), (11, -7.43), (12, -0.49), (13, -0.81), (14, -0.72)]
 
     Example3:
         >>> # ENABLE_DOCTEST
