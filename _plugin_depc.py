@@ -1072,7 +1072,7 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>>     score_dict[key] = round(score_dict[key], 2)
         >>> result = sorted(score_dict.items())
         >>> print(result)
-        [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
+        [(7, -0.64), (8, -0.45), (9, -0.24), (10, -0.27), (11, -7.43), (12, -0.49), (13, -0.81), (14, -0.72)]
 
     Example1:
         >>> # ENABLE_DOCTEST
@@ -1095,7 +1095,7 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>>     score_dict[key] = round(score_dict[key], 2)
         >>> result = sorted(score_dict.items())
         >>> print(result)
-        [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
+        [(7, -0.64), (8, -0.45), (9, -0.24), (10, -0.27), (11, -7.43), (12, -0.49), (13, -0.81), (14, -0.72)]
 
     Example2:
         >>> # ENABLE_DOCTEST
