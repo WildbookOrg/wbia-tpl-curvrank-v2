@@ -325,7 +325,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
 
     Example2:
-        >>> # ENABLE_DOCTEST
+        >>> # DISABLE_DOCTEST
         >>> from wbia_curvrank_v2._plugin import *  # NOQA
         >>> from wbia_curvrank_v2._plugin_depc import DEFAULT_DORSAL_TEST_CONFIG, _convert_depc_config_to_kwargs_config
         >>> import wbia
@@ -339,7 +339,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         >>> fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(images, cropped_images, cropped_bboxes, coarse_probabilities, **config)
         >>> fine_probability = fine_probabilities[0]
         >>> # Non-deterministic output from fine_probabilities?
-        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc']
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc', 'giamwnlbinzynmjckvqtrxgkzbvhlqnr']
     """
     config_ = {
         'ordered': True,

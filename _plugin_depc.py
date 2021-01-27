@@ -436,7 +436,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
 
     Example2:
-        >>> # ENABLE_DOCTEST
+        >>> # DISABLE_DOCTEST
         >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
         >>> import wbia
         >>> from wbia.init import sysres
@@ -445,7 +445,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
         >>> aid_list = ibs.get_image_aids(7)
         >>> fine_probabilities = ibs.depc_annot.get('fine_two', aid_list, 'fine_img', config=DEFAULT_DORSAL_TEST_CONFIG)
         >>> fine_probability = fine_probabilities[0]
-        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc']
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs', 'yvlacxoolxgdfpmjboymovhcgjdjhjqc', 'giamwnlbinzynmjckvqtrxgkzbvhlqnr']
     """
     ibs = depc.controller
 
