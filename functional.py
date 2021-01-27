@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
-from wbia_curvrank_v2 import algo
+from wbia_curvrank_v2 import algo, fcnn
 from wbia_curvrank_v2 import curv, pyastar, utils
 from wbia_curvrank_v2.costs import exp_cost_func, hyp_cost_func
 import annoy
 import cv2
 import numpy as np
+import torch
 from itertools import combinations
 from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
@@ -35,6 +36,57 @@ def refine_by_gradient(img):
     refined = cv2.cvtColor(refined, cv2.COLOR_BGR2GRAY)
 
     return refined
+
+
+def refine_by_network(
+    images,
+    cropped_images,
+    cropped_bboxes,
+    control_points,
+    width_coarse,
+    height_coarse,
+    width_fine,
+    height_fine,
+    patch_size,
+    patch_params,
+    device):
+
+    gpu_id = None
+
+    patchnet = fcnn.UNet()
+    patchnet.load_state_dict(torch.load(patch_params, map_location=device))
+    if torch.cuda.is_available():
+        patchnet.cuda(gpu_id)
+    patchnet.eval()
+
+    fine_probs = []
+    for img, cropped_img, cp, bbox in zip(
+        images, cropped_images, control_points, cropped_bboxes
+    ):
+        contours = cp['contours']
+        all_contour_pts_xy = np.vstack(contours)[:, ::-1]
+        # Map the points onto the part image.
+        height_ratio = 1.0 * cropped_img.shape[0] / height_coarse
+        width_ratio = 1.0 * cropped_img.shape[1] / width_coarse
+        M = np.array([[width_ratio, 0.0], [0.0, height_ratio]])
+        pts_xy = cv2.transform(np.array([all_contour_pts_xy]), M)[0]
+        pts_xy += np.array([bbox[0], bbox[1]])
+
+        # Map the patch size onto the image dimensions.
+        patch_dims = (
+            patch_size * cropped_img.shape[1] / width_fine,
+            patch_size * cropped_img.shape[0] / height_fine,
+        )
+        # Extract patches at contour points to get fine probabilities.
+        refined = algo.refine_contour(
+            img, cropped_img, bbox, pts_xy, patch_dims, patch_size, patchnet, gpu_id
+        )
+        refined = cv2.normalize(
+            refined, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
+        )
+        fine_probs.append(refined)
+
+    return fine_probs
 
 
 def control_points(coarse):

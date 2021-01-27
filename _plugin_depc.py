@@ -37,6 +37,10 @@ DEFAULT_HEIGHT_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
 }
+DEFAULT_PATCH_SIZE = {
+    'fluke': 128,
+    'dorsal': None
+}
 DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
@@ -75,12 +79,13 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['dorsal'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['dorsal'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['dorsal'],
+    'curvrank_patch_size': DEFAULT_PATCH_SIZE['dorsal'],
     'curvrank_trim': 0,
     'curvrank_cost_func': 'hyp',
     'curvrank_scale': DEFAULT_SCALE['dorsal'],
     'curvature_scales': DEFAULT_SCALES['dorsal'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['dorsal'],
-    'curvatute_transpose_dims': DEFAULT_TRANSPOSE_DIMS['dorsal'],
+    'curvature_transpose_dims': DEFAULT_TRANSPOSE_DIMS['dorsal'],
     'curvature_descriptor_curv_length': 1024,
     'curvature_descriptor_num_keypoints': 32,
     'curvature_descriptor_uniform': False,
@@ -103,13 +108,13 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_height_fine': DEFAULT_HEIGHT_FINE['fluke'],
     'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['fluke'],
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['fluke'],
-    'curvrank_patch_size': 128,
+    'curvrank_patch_size': DEFAULT_PATCH_SIZE['fluke'],
     'curvrank_trim': 0,
     'curvrank_cost_func': 'exp',
     'curvrank_scale': DEFAULT_SCALE['fluke'],
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
-    'curvatute_transpose_dims': DEFAULT_TRANSPOSE_DIMS['fluke'],
+    'curvature_transpose_dims': DEFAULT_TRANSPOSE_DIMS['fluke'],
     'curvature_descriptor_curv_length': 1024,
     'curvature_descriptor_num_keypoints': 32,
     'curvature_descriptor_uniform': False,
@@ -126,18 +131,19 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_cache_recompute': 'force_cache_recompute',
     'curvrank_model_type': 'model_type',
     'curvrank_pad': 'pad',
-    'curvrank_height_coarse': 'height_coarse',
     'curvrank_width_coarse': 'width_coarse',
-    'curvrank_height_fine': 'height_fine',
+    'curvrank_height_coarse': 'height_coarse',
     'curvrank_width_fine': 'width_fine',
-    'curvrank_weights_anchor': 'weights_anchor',
+    'curvrank_height_fine': 'height_fine',
+    'curvrank_width_anchor': 'width_anchor',
     'curvrank_height_anchor': 'height_anchor',
+    'curvrank_patch_size': 'patch_size',
     'curvrank_trim': 'trim',
     'curvrank_cost_func': 'cost_func',
     'curvrank_scale': 'scale',
     'curvature_scales': 'scales',
     'outline_allow_diagonal': 'allow_diagonal',
-    'curvatute_transpose_dims': 'transpose_dims',
+    'curvature_transpose_dims': 'transpose_dims',
     'curvature_descriptor_curv_length': 'curv_length',
     'curvature_descriptor_num_keypoints': 'num_keypoints',
     'curvature_descriptor_uniform': 'uniform',
@@ -220,6 +226,7 @@ def wbia_plugin_curvrank_v2_preprocessing_depc(depc, aid_list, config=None):
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_preprocessing_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_preprocessing_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_preprocessing_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_preprocessing_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -245,6 +252,18 @@ def wbia_plugin_curvrank_v2_preprocessing_depc(depc, aid_list, config=None):
         >>> cropped_images = ibs.depc_annot.get('preprocess_two', aid_list, 'cropped_img', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> cropped_image = cropped_images[0]
         >>> assert ut.hash_data(cropped_image) in ['zrtghjovbhnangjdlsqtfvrntlzqmaey']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> cropped_images = ibs.depc_annot.get('preprocess_two', aid_list, 'cropped_img', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> cropped_image = cropped_images[0]
+        >>> assert ut.hash_data(cropped_image) in ['dhqxniyfoaufwcjasypkgkiwchiytslz']
     """
     ibs = depc.controller
 
@@ -267,6 +286,7 @@ class CoarseProbabilitiesConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
             ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
+            ut.ParamInfo('curvrank_model_type', 'fluke'),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -274,16 +294,8 @@ class CoarseProbabilitiesConfig(dtool.Config):
 @register_preproc_annot(
     tablename='coarse_two',
     parents=['preprocess_two'],
-    colnames=[
-        'coarse_probabilities',
-        'width_coarse',
-        'height_coarse',
-    ],
-    coltypes=[
-        ('extern', np.load, np.save),
-        int,
-        int,
-    ],
+    colnames=['coarse_probabilities'],
+    coltypes=[('extern', np.load, np.save)],
     configclass=CoarseProbabilitiesConfig,
     fname='curvrank_v2_unoptimized',
     rm_extern_on_delete=True,
@@ -301,6 +313,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_coarse_probabilities_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_coarse_probabilities_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_coarse_probabilities_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_coarse_probabilities_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -326,111 +339,53 @@ def wbia_plugin_curvrank_v2_coarse_probabilities_depc(
         >>> coarse_probabilities = ibs.depc_annot.get('coarse_two', aid_list, 'coarse_probabilities',  config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['qnusxayrvvygnvllicwgeroesouxdfkh']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> coarse_probabilities = ibs.depc_annot.get('coarse_two', aid_list, 'coarse_probabilities',  config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> coarse_probability = coarse_probabilities[0]
+        >>> assert ut.hash_data(coarse_probability) in ['mwolbzkqaflwifvrklakgfxbyvogooog']
     """
     ibs = depc.controller
-
-    width = config['curvrank_width_coarse']
-    height = config['curvrank_height_coarse']
 
     cropped_images = depc.get_native(
         'preprocess_two', preprocess_rowid_list, 'cropped_img'
     )
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     coarse_probabilities = ibs.wbia_plugin_curvrank_v2_coarse_probabilities(
-        cropped_images,
-        width=width,
-        height=height,
+        cropped_images, **config_
     )
 
     for coarse_prob in coarse_probabilities:
         yield (
             coarse_prob,
-            width,
-            height,
         )
-
-
-class ControlPointsConfig(dtool.Config):
-    def get_param_info_list(self):
-        return [
-            ut.ParamInfo('ext', '.npy', hideif='.npy'),
-        ]
-
-
-@register_preproc_annot(
-    tablename='control_points_two',
-    parents=['coarse_two'],
-    colnames=[
-        'control_points',
-    ],
-    coltypes=[
-        (
-            'extern',
-            lambda x: np.load(x, allow_pickle=True).item(),
-            lambda x, y: np.save(x, y, allow_pickle=True),
-        ),
-    ],
-    configclass=ControlPointsConfig,
-    fname='curvrank_v2_unoptimized',
-    rm_extern_on_delete=True,
-    chunksize=256,
-)
-# chunksize defines the max number of 'yield' below that will be called in a chunk
-# so you would decrease chunksize on expensive calculations
-def wbia_plugin_curvrank_v2_control_points_depc(depc, fine_rowid_list, config=None):
-    r"""
-    Extract fine probabilities for CurvRank with Dependency Cache (depc)
-
-    CommandLine:
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc:0
-        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_control_points_depc:1
-
-    Example0:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> control_points = ibs.depc_annot.get('control_points_two', aid_list, 'control_points', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> assert ut.hash_data(control_points[0]['contours'][0]) in ['trnpwanrllbecxttowvhirxioqdfheqn']
-
-    Example1:
-        >>> # ENABLE_DOCTEST
-        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> import wbia
-        >>> from wbia.init import sysres
-        >>> dbdir = sysres.ensure_testdb_curvrank()
-        >>> ibs = wbia.opendb(dbdir=dbdir)
-        >>> aid_list = ibs.get_image_aids(23)
-        >>> aid_list *= 10
-        >>> control_points = ibs.depc_annot.get('control_points_two', aid_list, 'control_points', config=DEFAULT_FLUKE_TEST_CONFIG)
-        >>> assert ut.hash_data(control_points[0]['contours'][0]) in ['trnpwanrllbecxttowvhirxioqdfheqn']
-    """
-    ibs = depc.controller
-
-    coarse_probabilities = depc.get_native(
-        'coarse_two', fine_rowid_list, 'coarse_probabilities'
-    )
-
-    control_points = ibs.wbia_plugin_curvrank_v2_control_points(coarse_probabilities)
-
-    for cp in control_points:
-        yield (cp,)
 
 
 class FineProbabilitiesConfig(dtool.Config):
     def get_param_info_list(self):
         return [
+            ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
+            ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
+            ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
+            ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
+            ut.ParamInfo('curvrank_patch_site', DEFAULT_PATCH_SIZE['fluke']),
+            ut.ParamInfo('curvrank_model_type', 'fluke'),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
 
 @register_preproc_annot(
     tablename='fine_two',
-    parents=['control_points_two'],
+    parents=['preprocess_two', 'coarse_two'],
     colnames=[
         'fine_img',
         'width',
@@ -449,7 +404,7 @@ class FineProbabilitiesConfig(dtool.Config):
 # chunksize defines the max number of 'yield' below that will be called in a chunk
 # so you would decrease chunksize on expensive calculations
 def wbia_plugin_curvrank_v2_fine_probabilities_depc(
-    depc, preprocess_rowid_list, config=None
+    depc, preprocess_rowid_list, coarse_rowid_list, config=None
 ):
     r"""
     Extract fine probabilities for CurvRank with Dependency Cache (depc)
@@ -458,6 +413,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_fine_probabilities_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_fine_probabilities_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_fine_probabilities_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_fine_probabilities_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -483,6 +439,18 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
         >>> fine_probabilities = ibs.depc_annot.get('fine_two', aid_list, 'fine_img', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> fine_probability = fine_probabilities[0]
         >>> assert ut.hash_data(fine_probability) in ['vnlujxwbtwejjmvmsqwitopeoqejchdm']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> fine_probabilities = ibs.depc_annot.get('fine_two', aid_list, 'fine_img', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> fine_probability = fine_probabilities[0]
+        >>> assert ut.hash_data(fine_probability) in ['frhhbeoukfgsztkcutnnznnjdrjyxmkc', 'tknfmnvyakedytrpfqcirjkmfakirqgs']
     """
     ibs = depc.controller
 
@@ -491,12 +459,15 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
     cropped_bboxes = depc.get_native(
         'preprocess_two', preprocess_rowid_list, 'cropped_bbox'
     )
-    control_points = depc.get_native(
-        'control_points_two', preprocess_rowid_list, 'control_points'
+
+    coarse_probabilities = depc.get_native(
+        'coarse_two', coarse_rowid_list, 'coarse_probabilities'
     )
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(
-        imgs, cropped_imgs, cropped_bboxes, control_points
+        imgs, cropped_imgs, cropped_bboxes, coarse_probabilities, **config_
     )
 
     for fine_prob in fine_probabilities:
@@ -517,6 +488,7 @@ class AnchorPointsConfig(dtool.Config):
             ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
             ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
             ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_model_type', 'fluke'),
         ]
 
 
@@ -526,14 +498,10 @@ class AnchorPointsConfig(dtool.Config):
     colnames=[
         'start',
         'end',
-        'width_anchor',
-        'height_anchor',
     ],
     coltypes=[
         np.ndarray,
         np.ndarray,
-        int,
-        int,
     ],
     configclass=AnchorPointsConfig,
     fname='curvrank_v2_unoptimized',
@@ -554,6 +522,7 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_anchor_points_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_anchor_points_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_anchor_points_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_anchor_points_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -585,22 +554,32 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
         >>> end = np.around(end, 2).tolist()
         >>> assert start == [[24.73, 44.67]]
         >>> assert end == [[1073.62, 24.86]]
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> start = ibs.depc_annot.get('anchor_two', aid_list, 'start', config=DEFAULT_DORSAL_TEST_CONFIG)[0]
+        >>> end = ibs.depc_annot.get('anchor_two', aid_list, 'end', config=DEFAULT_DORSAL_TEST_CONFIG)[0]
+        >>> start = np.around(start, 2).tolist()
+        >>> end = np.around(end, 2).tolist()
+        >>> assert start == [[52.65, 553.15]]
+        >>> assert end == [[868.04, 558.56]]
     """
     ibs = depc.controller
-
-    width_fine = config['curvrank_width_fine']
-    width_anchor = config['curvrank_width_anchor']
-    height_anchor = config['curvrank_height_anchor']
 
     cropped_images = depc.get_native(
         'preprocess_two', preprocess_rowid_list, 'cropped_img'
     )
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     anchor_points = ibs.wbia_plugin_curvrank_v2_anchor_points(
-        cropped_images,
-        width_fine,
-        width_anchor,
-        height_anchor,
+        cropped_images, **config_
     )
 
     for pt in anchor_points:
@@ -609,8 +588,6 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
         yield (
             start,
             end,
-            width_anchor,
-            height_anchor,
         )
 
 
@@ -650,6 +627,7 @@ def wbia_plugin_curvrank_v2_contours_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_contours_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_contours_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_contours_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_contours_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -675,12 +653,20 @@ def wbia_plugin_curvrank_v2_contours_depc(
         >>> contours = ibs.depc_annot.get('contour_two', aid_list, None, config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> contour = contours[0][0]
         >>> assert ut.hash_data(contour) in ['jluhaoxjgacguizqrxyjvpglbscshlfv']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> contours = ibs.depc_annot.get('contour_two', aid_list, None, config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> contour = contours[0][0]
+        >>> assert ut.hash_data(contour) in ['dpbtamrdhmrptmqkxkbtzgtzaheskxkj']
     """
     ibs = depc.controller
-
-    trim = config['curvrank_trim']
-    width_fine = config['curvrank_width_fine']
-    cost_func = config['curvrank_cost_func']
 
     start = depc.get_native('anchor_two', anchor_rowid_list, 'start')
     end = depc.get_native('anchor_two', anchor_rowid_list, 'end')
@@ -696,14 +682,10 @@ def wbia_plugin_curvrank_v2_contours_depc(
         'preprocess_two', preprocess_rowid_list, 'cropped_img'
     )
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     contours = ibs.wbia_plugin_curvrank_v2_contours(
-        cropped_images,
-        coarse_probabilities,
-        fine_gradients,
-        anchor_points,
-        trim,
-        width_fine,
-        cost_func,
+        cropped_images, coarse_probabilities, fine_gradients, anchor_points, **config_
     )
 
     for contour in contours:
@@ -715,8 +697,8 @@ class CurvaturesConfig(dtool.Config):
         return [
             ut.ParamInfo('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke']),
             ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
-            ut.ParamInfo('curvrank_scales', DEFAULT_SCALES['fluke']),
-            ut.ParamInfo('curvrank_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
+            ut.ParamInfo('curvature_scales', DEFAULT_SCALES['fluke']),
+            ut.ParamInfo('curvature_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
         ]
 
 
@@ -744,6 +726,7 @@ def wbia_plugin_curvrank_v2_curvatures_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_curvatures_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_curvatures_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_curvatures_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_curvatures_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -769,19 +752,29 @@ def wbia_plugin_curvrank_v2_curvatures_depc(
         >>> curvatures = ibs.depc_annot.get('curvature_two', aid_list, 'curvature', config=DEFAULT_FLUKE_TEST_CONFIG)
         >>> curvature = curvatures[0]
         >>> assert ut.hash_data(curvature) in ['byjahrxbzgfkoatkpikcsejvoltxzqid']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> curvatures = ibs.depc_annot.get('curvature_two', aid_list, 'curvature', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> curvature = curvatures[0]
+        >>> assert ut.hash_data(curvature) in ['skyelacotkmcafpytcbqiqyvkswrympm']
     """
     ibs = depc.controller
 
-    width_fine = config['curvrank_width_fine']
-    height_fine = config['curvrank_height_fine']
-    scales = config['curvrank_scales']
-    transpose_dims = config['curvrank_transpose_dims']
-
     contours = depc.get_native('contour_two', contour_rowid_list, 'contour')
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     curvatures = ibs.wbia_plugin_curvrank_v2_curvatures(
-        contours, width_fine, height_fine, scales, transpose_dims
+        contours, **config_
     )
+
     for curv in curvatures:
         yield (curv,)
 
@@ -825,6 +818,7 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_descriptors_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_descriptors_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_descriptors_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_descriptors_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -863,19 +857,34 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
         >>> ]
         >>> assert success == True
         >>> assert ut.hash_data(hash_list) in ['ghvpdcfvrvukasxpsoxhzjwyjbbxjzjv']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_two', aid_list, 'descriptor', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> curvature_descriptor_dict = descriptors[0]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(hash_list) in ['mqxafinoctvyuhljodhqqvsdmfzssuqo']
     """
     ibs = depc.controller
-
-    scales = config['curvrank_scales']
-    curv_length = config['curvrank_curv_length']
-    feat_dim = config['curvrank_feat_dim']
-    num_keypoints = config['curvrank_num_keypoints']
 
     contours = depc.get_native('contour_two', contour_rowid_list, 'contour')
     curvatures = depc.get_native('curvature_two', curvature_rowid_list, 'curvature')
 
+    config_ = _convert_depc_config_to_kwargs_config(config)
+
     values = ibs.wbia_plugin_curvrank_v2_descriptors(
-        contours, curvatures, scales, curv_length, feat_dim, num_keypoints
+        contours, curvatures, **config_
     )
     success_list, curvature_descriptor_dicts = values
 
@@ -917,11 +926,13 @@ class CurvatureDescriptorOptimizedConfig(dtool.Config):
             ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
             ut.ParamInfo('curvrank_width_anchor', DEFAULT_WIDTH_ANCHOR['fluke']),
             ut.ParamInfo('curvrank_height_anchor', DEFAULT_HEIGHT_ANCHOR['fluke']),
+            ut.ParamInfo('curvrank_patch_size', DEFAULT_PATCH_SIZE['fluke']),
             ut.ParamInfo('curvrank_trim', 0),
+            ut.ParamInfo('curvrank_cost_func', 'hyp'),
             ut.ParamInfo('curvrank_scale', DEFAULT_SCALE['fluke']),
             ut.ParamInfo('curvature_scales', DEFAULT_SCALES['fluke']),
             ut.ParamInfo('outline_allow_diagonal', DEFAULT_ALLOW_DIAGONAL['fluke']),
-            ut.ParamInfo('curvatute_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
+            ut.ParamInfo('curvature_transpose_dims', DEFAULT_TRANSPOSE_DIMS['fluke']),
             ut.ParamInfo('curvature_descriptor_curv_length', 1024),
             ut.ParamInfo('curvature_descriptor_num_keypoints', 32),
             ut.ParamInfo('curvature_descriptor_uniform', False),
@@ -959,6 +970,7 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
         python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc
         python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-ibeis_plugin_curvrank_descriptors_optimized_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -996,10 +1008,29 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
         >>> ]
         >>> assert success == True
         >>> assert ut.hash_data(hash_list) in ['ghvpdcfvrvukasxpsoxhzjwyjbbxjzjv']
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> aid_list = ibs.get_image_aids(7)
+        >>> success_list = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'success', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> descriptors = ibs.depc_annot.get('curvature_descriptor_optimized_two', aid_list, 'descriptor', config=DEFAULT_DORSAL_TEST_CONFIG)
+        >>> curvature_descriptor_dict = descriptors[0]
+        >>> hash_list = [
+        >>>     ut.hash_data(curvature_descriptor_dict[scale])
+        >>>     for scale in sorted(list(curvature_descriptor_dict.keys()))
+        >>> ]
+        >>> assert success_list == [True]
+        >>> assert ut.hash_data(hash_list) in ['mqxafinoctvyuhljodhqqvsdmfzssuqo']
     """
     ibs = depc.controller
 
     config_ = _convert_depc_config_to_kwargs_config(config)
+
     values = ibs.wbia_plugin_curvrank_v2_pipeline_compute(aid_list, config_)
     success_list, curvature_descriptor_dicts = values
 
@@ -1029,6 +1060,7 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:0
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:1
+        python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_scores_depc:2
 
     Example0:
         >>> # ENABLE_DOCTEST
@@ -1075,6 +1107,29 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
         >>> result = sorted(score_dict.items())
         >>> print(result)
         [(7, -0.5), (8, -0.36), (9, -0.22), (10, -0.32), (11, -6.4), (12, -0.53), (13, -0.92), (14, -0.68)]
+
+    Example2:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin import *  # NOQA
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> db_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Database')
+        >>> db_aid_list = ibs.get_imageset_aids(db_imageset_rowid)
+        >>> qr_imageset_rowid = ibs.get_imageset_imgsetids_from_text('Dorsal Query')
+        >>> qr_aid_list = ibs.get_imageset_aids(qr_imageset_rowid)
+        >>> config = DEFAULT_DORSAL_TEST_CONFIG
+        >>> config['curvrank_daily_cache'] = False
+        >>> score_dict_iter = ibs.wbia_plugin_curvrank_v2_scores_depc(db_aid_list, [qr_aid_list], config=config, use_depc_optimized=True)
+        >>> score_dict_list = list(score_dict_iter)
+        >>> qr_aid_list, score_dict = score_dict_list[0]
+        >>> for key in score_dict:
+        >>>     score_dict[key] = round(score_dict[key], 2)
+        >>> result = sorted(score_dict.items())
+        >>> print(result)
+        [(1, -22.31), (2, -1.74), (3, -2.49)]
     """
     kwargs['use_depc'] = True
     kwargs['config'] = _convert_depc_config_to_kwargs_config(kwargs.get('config', {}))
@@ -1210,7 +1265,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvatute_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
     """
 
     def get_param_info_list(self):
@@ -1275,7 +1330,7 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         >>> am.ishow_analysis(request)
         >>> ut.show_if_requested()
     """
-    raise NotImplementedError('This configuration of CurvRank V2 is not available')
+
     ibs = depc.controller
 
     label = 'CurvRankTwoDorsal'
@@ -1295,7 +1350,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         >>> config = CurvRankFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvatute_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
+        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvature_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
     """
 
     def get_param_info_list(self):
