@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import click
 import torch
 import torch.nn as nn
@@ -16,7 +17,9 @@ from os.path import join
 @click.option('--batch-size', default=2)
 @click.option('--max-epochs', default=20)  # 100000
 @click.option('--height1', default=256)
-@click.option('--width1', default=256)  # Dims. of downsampled input for computing sample points.
+@click.option(
+    '--width1', default=256
+)  # Dims. of downsampled input for computing sample points.
 @click.option('--height2', default=1024)  # Dims. of image from which to sample patches.
 @click.option('--width2', default=1024)
 @click.option('--lr', default=0.00001)
@@ -28,7 +31,24 @@ from os.path import join
 @click.option('--num-samples', default=24)  # Max. number of pos./neg. patches per image.
 @click.option('--num_fixed', default=32)
 @click.option('--patch_size', default=128)
-def train_pcnn(datafile, batch_size, max_epochs, height1, width1, height2, width2, lr, sample_every, checkpoint_every, num_workers, model_name, pretrain_fpath, num_samples, num_fixed, patch_size):
+def train_pcnn(
+    datafile,
+    batch_size,
+    max_epochs,
+    height1,
+    width1,
+    height2,
+    width2,
+    lr,
+    sample_every,
+    checkpoint_every,
+    num_workers,
+    model_name,
+    pretrain_fpath,
+    num_samples,
+    num_fixed,
+    patch_size,
+):
     gpu_id = None
     use_cuda = True
 
@@ -50,8 +70,10 @@ def train_pcnn(datafile, batch_size, max_epochs, height1, width1, height2, width
     def stack_patches_and_labels(data):
         synth_patches, real_patches, targets, indices = zip(*data)
         return (
-            torch.cat(synth_patches), torch.cat(real_patches),
-            torch.cat(targets), np.hstack(indices)
+            torch.cat(synth_patches),
+            torch.cat(real_patches),
+            torch.cat(targets),
+            np.hstack(indices),
         )
 
     train_list, valid_list = datasets.split_train_val(datafile)
@@ -59,21 +81,41 @@ def train_pcnn(datafile, batch_size, max_epochs, height1, width1, height2, width
     print('%d validation examples' % len(valid_list))
 
     train = datasets.FineDataset(
-        train_list, cache_dir, height1, width1, height2, width2, patch_size,
-        num_samples, num_fixed
+        train_list,
+        cache_dir,
+        height1,
+        width1,
+        height2,
+        width2,
+        patch_size,
+        num_samples,
+        num_fixed,
     )
     valid = datasets.FineDataset(
-        valid_list, cache_dir, height1, width1, height2, width2, patch_size,
-        num_samples, num_fixed
+        valid_list,
+        cache_dir,
+        height1,
+        width1,
+        height2,
+        width2,
+        patch_size,
+        num_samples,
+        num_fixed,
     )
 
     train_iter = DataLoader(
-        train, shuffle=True, batch_size=batch_size,
-        num_workers=num_workers, collate_fn=stack_patches_and_labels
+        train,
+        shuffle=True,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        collate_fn=stack_patches_and_labels,
     )
     valid_iter = DataLoader(
-        valid, shuffle=False, batch_size=batch_size,
-        num_workers=num_workers, collate_fn=stack_patches_and_labels
+        valid,
+        shuffle=False,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        collate_fn=stack_patches_and_labels,
     )
 
     if use_cuda:
@@ -104,7 +146,7 @@ def train_pcnn(datafile, batch_size, max_epochs, height1, width1, height2, width
             patchnet.eval()
             valid_losses = []
             # Sample first epoch to ensure plotting is working.
-            visualize = (epoch == 1 or (epoch % sample_every == 0))
+            visualize = epoch == 1 or (epoch % sample_every == 0)
             for itr, (x_synth, x_real, y, indices) in enumerate(valid_iter):
                 if use_cuda:
                     y = y.cuda(gpu_id)
@@ -120,12 +162,19 @@ def train_pcnn(datafile, batch_size, max_epochs, height1, width1, height2, width
                     with torch.no_grad():
                         _, y_hat_real = patchnet(x_real)
                     plot.plot_real_and_synth_samples(
-                        x_synth, y, y_hat, x_real, y_hat_real,
-                        [join(samples_dir, '%d_%d.jpg' % (itr, i))
-                         for i in range(x_synth.shape[0])]
+                        x_synth,
+                        y,
+                        y_hat,
+                        x_real,
+                        y_hat_real,
+                        [
+                            join(samples_dir, '%d_%d.jpg' % (itr, i))
+                            for i in range(x_synth.shape[0])
+                        ],
                     )
-            print(' Valid: loss = %.6f, visualize = %s' % (
-                np.mean(valid_losses), visualize))
+            print(
+                ' Valid: loss = %.6f, visualize = %s' % (np.mean(valid_losses), visualize)
+            )
 
             if (epoch % checkpoint_every) == 0:
                 checkpoint_fpath = '%s.chkpt' % (weights_fpath)

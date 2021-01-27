@@ -37,10 +37,7 @@ DEFAULT_HEIGHT_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
 }
-DEFAULT_PATCH_SIZE = {
-    'fluke': 128,
-    'dorsal': None
-}
+DEFAULT_PATCH_SIZE = {'fluke': 128, 'dorsal': None}
 DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
@@ -365,9 +362,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities_depc(
     )
 
     for coarse_prob in coarse_probabilities:
-        yield (
-            coarse_prob,
-        )
+        yield (coarse_prob,)
 
 
 class FineProbabilitiesConfig(dtool.Config):
@@ -578,9 +573,7 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
 
     config_ = _convert_depc_config_to_kwargs_config(config)
 
-    anchor_points = ibs.wbia_plugin_curvrank_v2_anchor_points(
-        cropped_images, **config_
-    )
+    anchor_points = ibs.wbia_plugin_curvrank_v2_anchor_points(cropped_images, **config_)
 
     for pt in anchor_points:
         start = pt['start']
@@ -771,9 +764,7 @@ def wbia_plugin_curvrank_v2_curvatures_depc(
 
     config_ = _convert_depc_config_to_kwargs_config(config)
 
-    curvatures = ibs.wbia_plugin_curvrank_v2_curvatures(
-        contours, **config_
-    )
+    curvatures = ibs.wbia_plugin_curvrank_v2_curvatures(contours, **config_)
 
     for curv in curvatures:
         yield (curv,)
@@ -883,9 +874,7 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
 
     config_ = _convert_depc_config_to_kwargs_config(config)
 
-    values = ibs.wbia_plugin_curvrank_v2_descriptors(
-        contours, curvatures, **config_
-    )
+    values = ibs.wbia_plugin_curvrank_v2_descriptors(contours, curvatures, **config_)
     success_list, curvature_descriptor_dicts = values
 
     for success, curvature_descriptor_dict in zip(

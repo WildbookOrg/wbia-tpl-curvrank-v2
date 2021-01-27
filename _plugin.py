@@ -5,7 +5,8 @@ from os.path import abspath, join, exists, split
 import wbia_curvrank_v2.fcnn as fcnn
 import wbia_curvrank_v2.functional as F
 import wbia_curvrank_v2.regression as regression
-from wbia_curvrank_v2 import algo
+
+# from wbia_curvrank_v2 import algo
 
 # import wbia.constants as const
 import numpy as np
@@ -222,7 +223,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
         >>> coarse_probability = coarse_probabilities[0]
         >>> assert ut.hash_data(coarse_probability) in ['mwolbzkqaflwifvrklakgfxbyvogooog']
     """
-    model_tag = 'coarse.%s' % (model_type, )
+    model_tag = 'coarse.%s' % (model_type,)
 
     if model_tag in MODEL_URL_DICT:
         archive_url = MODEL_URL_DICT[model_tag]
@@ -267,7 +268,8 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     height_fine=576,
     patch_size=128,
     model_type='fluke',
-    **kwargs):
+    **kwargs
+):
     """
     Extract fine probabilities for CurvRank
 
@@ -357,7 +359,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         for cp in generator:
             control_points.append(cp)
 
-        model_tag = 'fine.%s' % (model_type, )
+        model_tag = 'fine.%s' % (model_type,)
 
         if model_tag in MODEL_URL_DICT:
             archive_url = MODEL_URL_DICT[model_tag]
@@ -368,10 +370,27 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
             raise RuntimeError
 
         device = get_device()
-        fine_probs = F.refine_by_network(images, cropped_images, cropped_bboxes, control_points, width_coarse, height_coarse, width_fine, height_fine, patch_size, patch_params, device)
+        fine_probs = F.refine_by_network(
+            images,
+            cropped_images,
+            cropped_bboxes,
+            control_points,
+            width_coarse,
+            height_coarse,
+            width_fine,
+            height_fine,
+            patch_size,
+            patch_params,
+            device,
+        )
 
     elif model_type == 'dorsal':
-        generator = ut.generate2(F.refine_by_gradient, zip(cropped_images), nTasks=len(cropped_images), **config_)
+        generator = ut.generate2(
+            F.refine_by_gradient,
+            zip(cropped_images),
+            nTasks=len(cropped_images),
+            **config_
+        )
         fine_probs = []
         for fine_prob in generator:
             fine_probs.append(fine_prob)
@@ -381,7 +400,13 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
 
 @register_ibs_method
 def wbia_plugin_curvrank_v2_anchor_points(
-    ibs, cropped_images, width_fine=1152, width_anchor=224, height_anchor=224, model_type='fluke', **kwargs
+    ibs,
+    cropped_images,
+    width_fine=1152,
+    width_anchor=224,
+    height_anchor=224,
+    model_type='fluke',
+    **kwargs
 ):
     r"""
     Extract anchor points for CurvRank
@@ -453,7 +478,7 @@ def wbia_plugin_curvrank_v2_anchor_points(
         >>> assert start == [[52.65, 553.15]]
         >>> assert end == [[868.04, 558.56]]
     """
-    model_tag = 'anchor.%s' % (model_type, )
+    model_tag = 'anchor.%s' % (model_type,)
 
     if model_tag in MODEL_URL_DICT:
         archive_url = MODEL_URL_DICT[model_tag]
@@ -1156,7 +1181,9 @@ def wbia_plugin_curvrank_v2_pipeline(
     if use_depc:
         config_ = _convert_kwargs_config_to_depc_config(config)
         table_name = (
-            'curvature_descriptor_optimized_two' if use_depc_optimized else 'curvature_descriptor_two'
+            'curvature_descriptor_optimized_two'
+            if use_depc_optimized
+            else 'curvature_descriptor_two'
         )
         success_list = ibs.depc_annot.get(table_name, aid_list, 'success', config=config_)
         descriptor_dict_list = ibs.depc_annot.get(

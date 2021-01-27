@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import torch.nn as nn
 import torchvision.models as models
 
@@ -5,7 +6,7 @@ import torchvision.models as models
 class ResNet50(nn.Module):
     def __init__(self):
         super(ResNet50, self).__init__()
-        #resnet50 = models.resnet50(pretrained=True)
+        # resnet50 = models.resnet50(pretrained=True)
         resnet50 = models.resnet50(pretrained=False)
 
         self.resnet50 = nn.Sequential(*list(resnet50.children())[0:-2])
@@ -29,7 +30,7 @@ class ResNet50(nn.Module):
 class VGG16(nn.Module):
     def __init__(self):
         super(VGG16, self).__init__()
-        #vgg = models.vgg16_bn(pretrained=True)
+        # vgg = models.vgg16_bn(pretrained=True)
         vgg = models.vgg16(pretrained=True)
         self.features = vgg.features
         self.regressor = nn.Sequential(*list(vgg.classifier.children())[0:-1])
@@ -48,5 +49,5 @@ class VGG16(nn.Module):
 
 
 if __name__ == '__main__':
-    #model = ResNet50()
+    # model = ResNet50()
     model = VGG16()

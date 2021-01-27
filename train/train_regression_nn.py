@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import click
 import datasets
 import regression
@@ -24,7 +25,19 @@ from torch.utils.data import DataLoader
 @click.option('--checkpoint-every', default=10)
 @click.option('--num-workers', default=4)
 @click.option('--model-name', default='anchor')
-def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, sample_every, checkpoint_every, num_workers, model_name):
+def train_regression(
+    datafile,
+    batch_size,
+    max_epochs,
+    pad,
+    height,
+    width,
+    lr,
+    sample_every,
+    checkpoint_every,
+    num_workers,
+    model_name,
+):
     gpu_id = None
     use_cuda = True
 
@@ -43,23 +56,40 @@ def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, s
     def stack_imgs_and_points(data):
         imgs, imgs_torch, pts0, pts1, indices = zip(*data)
         return (
-            imgs, torch.stack(imgs_torch),
-            torch.stack(pts0), torch.stack(pts1), np.hstack(indices)
+            imgs,
+            torch.stack(imgs_torch),
+            torch.stack(pts0),
+            torch.stack(pts1),
+            np.hstack(indices),
         )
 
     train = datasets.RegressionDataset(
-        train_list, height, width, pad, random_warp=True,
+        train_list,
+        height,
+        width,
+        pad,
+        random_warp=True,
     )
     valid = datasets.RegressionDataset(
-        valid_list, height, width, pad, random_warp=False,
+        valid_list,
+        height,
+        width,
+        pad,
+        random_warp=False,
     )
     train_iter = DataLoader(
-        train, shuffle=True, batch_size=batch_size, num_workers=num_workers,
-        collate_fn=stack_imgs_and_points
+        train,
+        shuffle=True,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        collate_fn=stack_imgs_and_points,
     )
     valid_iter = DataLoader(
-        valid, shuffle=False, batch_size=batch_size, num_workers=num_workers,
-        collate_fn=stack_imgs_and_points
+        valid,
+        shuffle=False,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        collate_fn=stack_imgs_and_points,
     )
 
     if use_cuda:
@@ -81,7 +111,7 @@ def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, s
             for itr, (imgs, x, y0, y1, indices) in enumerate(train_iter):
                 if use_cuda:
                     x = x.cuda(gpu_id)
-                    y0, y1 =  y0.cuda(gpu_id), y1.cuda(gpu_id)
+                    y0, y1 = y0.cuda(gpu_id), y1.cuda(gpu_id)
                 y0_hat, y1_hat = reg_nn(x)
                 reg_nn.zero_grad()
                 loss_y0 = crit1(y0_hat, y0)
@@ -95,11 +125,11 @@ def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, s
             reg_nn.eval()
             valid_losses = []
             # Sample first epoch to ensure plotting is working.
-            visualize = (epoch == 1 or (epoch % sample_every == 0))
+            visualize = epoch == 1 or (epoch % sample_every == 0)
             for itr, (imgs, x, y0, y1, indices) in enumerate(valid_iter):
                 if use_cuda:
                     x = x.cuda(gpu_id)
-                    y0, y1 =  y0.cuda(gpu_id), y1.cuda(gpu_id)
+                    y0, y1 = y0.cuda(gpu_id), y1.cuda(gpu_id)
                 with torch.no_grad():
                     y0_hat, y1_hat = reg_nn(x)
                     loss_y0 = crit1(y0_hat, y0)
@@ -108,12 +138,11 @@ def train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, s
                 valid_losses.append(valid_loss.item())
                 # Plot the output to the samples_dir directory.
                 if visualize:
-                    fpaths = [join(samples_dir, '%d.jpg' % idx)
-                              for idx in indices]
-                    plot.plot_regression_samples(imgs, y0, y1, y0_hat, y1_hat,
-                                                 fpaths)
-            print(' Valid: loss = %.6f, visualize = %s' % (
-                np.mean(valid_losses), visualize))
+                    fpaths = [join(samples_dir, '%d.jpg' % idx) for idx in indices]
+                    plot.plot_regression_samples(imgs, y0, y1, y0_hat, y1_hat, fpaths)
+            print(
+                ' Valid: loss = %.6f, visualize = %s' % (np.mean(valid_losses), visualize)
+            )
 
             if (epoch % checkpoint_every) == 0:
                 checkpoint_fpath = '%s.chkpt' % (weights_fpath)

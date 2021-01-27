@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 import pickle
@@ -20,42 +21,43 @@ def prepare_images_with_contours(ibs, outdir, dbdir):
         if contour_dict and contour_dict['contour']
     ]
 
-    print('Found %d parts and %d parts with contours.' % (
-        len(all_pids), len(pids_contours)))
+    print(
+        'Found %d parts and %d parts with contours.' % (len(all_pids), len(pids_contours))
+    )
 
     pids, contour_dicts = zip(*pids_contours)
 
     aids = ibs.get_part_annot_rowids(pids)
     names = ibs.get_annot_names(aids)
     # Generate unique names for those individuals where we don't know the name.
-    unique_names = [
-        name if name != '____' else str(uuid.uuid4()) for name in names
-    ]
+    unique_names = [name if name != '____' else str(uuid.uuid4()) for name in names]
     names_to_split = list(set(unique_names))
     train_names, valid_names = train_test_split(names_to_split, train_size=0.8)
     train_names, valid_names = set(train_names), set(valid_names)
-    assert not (train_names & valid_names), (train_names & valid_names)
+    assert not (train_names & valid_names), train_names & valid_names
 
     bboxes = ibs.get_part_bboxes(pids)
 
     gids = ibs.get_annot_gids(aids)
-    fpaths = [None if uri is None else join(dbdir, '_ibsdb/images', uri) for uri in ibs.get_image_uris(gids)]
+    fpaths = [
+        None if uri is None else join(dbdir, '_ibsdb/images', uri)
+        for uri in ibs.get_image_uris(gids)
+    ]
 
     data_list = []
-    tqdm_iter = tqdm(enumerate(zip(contour_dicts, unique_names,
-                                   bboxes, fpaths)),
-                     total=len(fpaths))
+    tqdm_iter = tqdm(
+        enumerate(zip(contour_dicts, unique_names, bboxes, fpaths)), total=len(fpaths)
+    )
     for i, (contour_dict, name, bbox, fpath) in tqdm_iter:
-        contour_data = np.vstack([
-            (c['x'], c['y']) for c in contour_dict['contour']['segment']
-        ])
-        radii = np.hstack([
-            c['r'] * bbox[2] for c in contour_dict['contour']['segment']
-        ]) / 2.  # TODO: just a test
+        contour_data = np.vstack(
+            [(c['x'], c['y']) for c in contour_dict['contour']['segment']]
+        )
+        radii = (
+            np.hstack([c['r'] * bbox[2] for c in contour_dict['contour']['segment']])
+            / 2.0
+        )  # TODO: just a test
 
-        occluded = np.hstack([
-            c['flag'] for c in contour_dict['contour']['segment']
-        ])
+        occluded = np.hstack([c['flag'] for c in contour_dict['contour']['segment']])
 
         pts_xy = contour_data * np.array(bbox[2:4]) + np.array(bbox[0:2])
 

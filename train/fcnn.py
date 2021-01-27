@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,7 +10,7 @@ def init_weights(m):
             N = np.prod(m.kernel_size) * m.in_channels
         else:
             N = m.kernel_size * m.kernel_size * m.in_channels
-        mean = np.sqrt(2. / N)
+        mean = np.sqrt(2.0 / N)
         nn.init.normal_(m.weight, mean=mean)
 
 
@@ -32,7 +33,7 @@ class UNet(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
         )
-        #self.con1.apply(init_weights)
+        # self.con1.apply(init_weights)
 
         self.con2 = nn.Sequential(
             nn.MaxPool2d(2, stride=2),
@@ -43,7 +44,7 @@ class UNet(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
         )
-        #self.con2.apply(init_weights)
+        # self.con2.apply(init_weights)
 
         self.con3 = nn.Sequential(
             nn.MaxPool2d(2, stride=2),
@@ -54,7 +55,7 @@ class UNet(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
         )
-        #self.con3.apply(init_weights)
+        # self.con3.apply(init_weights)
 
         self.con4 = nn.Sequential(
             nn.MaxPool2d(2, stride=2),
@@ -65,7 +66,7 @@ class UNet(nn.Module):
             nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
         )
-        #self.con4.apply(init_weights)
+        # self.con4.apply(init_weights)
 
         self.con5 = nn.Sequential(
             nn.MaxPool2d(2, stride=2),
@@ -77,7 +78,7 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(1024, 512, **exp_params),
         )
-        #self.con5.apply(init_weights)
+        # self.con5.apply(init_weights)
 
         self.exp1 = nn.Sequential(
             nn.Conv2d(1024, 512, **con_params),
@@ -88,7 +89,7 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(512, 256, **exp_params),
         )
-        #self.exp1.apply(init_weights)
+        # self.exp1.apply(init_weights)
 
         self.exp2 = nn.Sequential(
             nn.Conv2d(512, 256, **con_params),
@@ -99,7 +100,7 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(256, 128, **exp_params),
         )
-        #self.exp2.apply(init_weights)
+        # self.exp2.apply(init_weights)
 
         self.exp3 = nn.Sequential(
             nn.Conv2d(256, 128, **con_params),
@@ -110,7 +111,7 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(128, 64, **exp_params),
         )
-        #self.exp3.apply(init_weights)
+        # self.exp3.apply(init_weights)
 
         self.exp4 = nn.Sequential(
             nn.Conv2d(128, 64, **con_params),
@@ -121,7 +122,7 @@ class UNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(64, 2, **out_params),
         )
-        #self.exp4.apply(init_weights)
+        # self.exp4.apply(init_weights)
 
         self.predict_proba = nn.Softmax(dim=1)
 
@@ -153,52 +154,52 @@ class UNet2(nn.Module):
         self.bnorm1a = nn.BatchNorm2d(64)
         self.conv1b = nn.Conv2d(64, 64, k, s, p)
         self.bnorm1b = nn.BatchNorm2d(64)
-        self.pool1  = nn.MaxPool2d((2, 2), stride=(2, 2))
+        self.pool1 = nn.MaxPool2d((2, 2), stride=(2, 2))
 
         self.conv2a = nn.Conv2d(64, 128, k, s, p)
         self.bnorm2a = nn.BatchNorm2d(128)
         self.conv2b = nn.Conv2d(128, 128, k, s, p)
         self.bnorm2b = nn.BatchNorm2d(128)
-        self.pool2  = nn.MaxPool2d((2, 2), stride=(2, 2))
+        self.pool2 = nn.MaxPool2d((2, 2), stride=(2, 2))
 
         self.conv3a = nn.Conv2d(128, 256, k, s, p)
         self.bnorm3a = nn.BatchNorm2d(256)
         self.conv3b = nn.Conv2d(256, 256, k, s, p)
         self.bnorm3b = nn.BatchNorm2d(256)
-        self.pool3  = nn.MaxPool2d((2, 2), stride=(2, 2))
+        self.pool3 = nn.MaxPool2d((2, 2), stride=(2, 2))
 
         self.conv4a = nn.Conv2d(256, 512, k, s, p)
         self.bnorm4a = nn.BatchNorm2d(512)
         self.conv4b = nn.Conv2d(512, 512, k, s, p)
         self.bnorm4b = nn.BatchNorm2d(512)
-        self.pool4  = nn.MaxPool2d((2, 2), stride=(2, 2))
+        self.pool4 = nn.MaxPool2d((2, 2), stride=(2, 2))
 
         self.conv5a = nn.Conv2d(512, 1024, k, s, p)
         self.bnorm5a = nn.BatchNorm2d(1024)
         self.conv5b = nn.Conv2d(1024, 1024, k, s, p)
         self.bnorm5b = nn.BatchNorm2d(1024)
-        self.up5    = nn.ConvTranspose2d(1024, 512, (2, 2), (2, 2), 0)
+        self.up5 = nn.ConvTranspose2d(1024, 512, (2, 2), (2, 2), 0)
         self.bnorm5c = nn.BatchNorm2d(512)
 
         self.conv6a = nn.Conv2d(1024, 1024, k, s, p)
         self.bnorm6a = nn.BatchNorm2d(1024)
         self.conv6b = nn.Conv2d(1024, 512, k, s, p)
         self.bnorm6b = nn.BatchNorm2d(512)
-        self.up6    = nn.ConvTranspose2d(512, 256, (2, 2), (2, 2), 0)
+        self.up6 = nn.ConvTranspose2d(512, 256, (2, 2), (2, 2), 0)
         self.bnorm6c = nn.BatchNorm2d(256)
 
         self.conv7a = nn.Conv2d(512, 512, k, s, p)
         self.bnorm7a = nn.BatchNorm2d(512)
         self.conv7b = nn.Conv2d(512, 256, k, s, p)
         self.bnorm7b = nn.BatchNorm2d(256)
-        self.up7    = nn.ConvTranspose2d(256, 128, (2, 2), (2, 2), 0)
+        self.up7 = nn.ConvTranspose2d(256, 128, (2, 2), (2, 2), 0)
         self.bnorm7c = nn.BatchNorm2d(128)
 
         self.conv8a = nn.Conv2d(256, 256, k, s, p)
         self.bnorm8a = nn.BatchNorm2d(256)
         self.conv8b = nn.Conv2d(256, 128, k, s, p)
         self.bnorm8b = nn.BatchNorm2d(128)
-        self.up8    = nn.ConvTranspose2d(128, 64, (2, 2), (2, 2), 0)
+        self.up8 = nn.ConvTranspose2d(128, 64, (2, 2), (2, 2), 0)
         self.bnorm8c = nn.BatchNorm2d(64)
 
         self.conv9a = nn.Conv2d(128, 128, k, s, p)

@@ -49,14 +49,15 @@ def refine_by_network(
     height_fine,
     patch_size,
     patch_params,
-    device):
+    device,
+):
 
-    gpu_id = None
+    # gpu_id = None
 
     patchnet = fcnn.UNet()
     patchnet.load_state_dict(torch.load(patch_params, map_location=device))
     if torch.cuda.is_available():
-        patchnet.cuda(gpu_id)
+        patchnet.to(device)
     patchnet.eval()
 
     fine_probs = []
@@ -79,7 +80,7 @@ def refine_by_network(
         )
         # Extract patches at contour points to get fine probabilities.
         refined = algo.refine_contour(
-            img, cropped_img, bbox, pts_xy, patch_dims, patch_size, patchnet, gpu_id
+            img, cropped_img, bbox, pts_xy, patch_dims, patch_size, patchnet, device
         )
         refined = cv2.normalize(
             refined, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX

@@ -1,23 +1,29 @@
+# -*- coding: utf-8 -*-
 import cv2
 import networkx as nx
 import numpy as np
 from sklearn.utils import shuffle
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import torch
 import torch.utils.data as data
-import matplotlib.patches as mpl_patches
-#import pystitch
+
+# import matplotlib.patches as mpl_patches
+
+# import pystitch
 from stitch import stitch
 from collections import defaultdict
-#from scipy.spatial.distance import directed_hausdorff
-#from sklearn.svm import SVC
-#from sklearn.metrics import hinge_loss
-#from sklearn.mixture import GaussianMixture
+
+# from scipy.spatial.distance import directed_hausdorff
+# from sklearn.svm import SVC
+# from sklearn.metrics import hinge_loss
+# from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+
+# from tqdm import tqdm
 
 import logging
+
 log = logging.getLogger('sciluigi-interface')
 
 
@@ -29,10 +35,10 @@ def reorient_normals(contour, normals):
         p = contour[i] - contour[i - 1]
         n = normals[i]
         if np.cross(p, n) < 0:
-            normals[i] *= -1.
+            normals[i] *= -1.0
 
-    if np.dot(normals[1], normals[0]) < 0.:
-        normals *= -1.
+    if np.dot(normals[1], normals[0]) < 0.0:
+        normals *= -1.0
 
     return normals
 
@@ -45,8 +51,7 @@ def shift_contour_points(scores, max_offset):
     for col in range(0, n + 1):
         for row in range(0, m):
             offsets_idx = np.arange(-max_offset, max_offset + 1)
-            offsets_val = np.full(offsets_idx.shape[0], -np.inf,
-                                  dtype=np.float32)
+            offsets_val = np.full(offsets_idx.shape[0], -np.inf, dtype=np.float32)
             for i, idx in enumerate(offsets_idx):
                 # Outside the grid.  Invalid move.
                 if row + idx < 0 or row + idx >= m:
@@ -59,8 +64,7 @@ def shift_contour_points(scores, max_offset):
                     offsets_val[i] = lookup[row + idx, col - 1]
                 # General case.  Best cost thus far and current move.
                 else:
-                    offsets_val[i] = (lookup[row + idx, col - 1] +
-                                      scores[row, col])
+                    offsets_val[i] = lookup[row + idx, col - 1] + scores[row, col]
 
             max_idx = offsets_val.argmax()
             lookup[row, col] = offsets_val[max_idx]
@@ -80,20 +84,17 @@ def shift_contour_points(scores, max_offset):
 
 
 def control_points(probs):
-    _, probs_thresh = cv2.threshold(
-        probs, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, probs_thresh = cv2.threshold(probs, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # Pad the thresholded probabilities to avoid peaks on the boundary
     # in the distance transform.
-    probs_thresh = cv2.copyMakeBorder(probs_thresh, 1, 1, 1, 1,
-                                      cv2.BORDER_CONSTANT, 0)
-    dist = cv2.distanceTransform(probs_thresh, cv2.DIST_L2,
-                                 cv2.DIST_MASK_5)
-    #plt.savefig('coarse.png', bbox_inches='tight')
-    #f, ax = plt.subplots(1, 1)
-    #ax.set_axis_off()
-    #ax.imshow(dist, cmap=plt.cm.gray)
-    #plt.savefig('dist.png', bbox_inches='tight')
-    #plt.show()
+    probs_thresh = cv2.copyMakeBorder(probs_thresh, 1, 1, 1, 1, cv2.BORDER_CONSTANT, 0)
+    dist = cv2.distanceTransform(probs_thresh, cv2.DIST_L2, cv2.DIST_MASK_5)
+    # plt.savefig('coarse.png', bbox_inches='tight')
+    # f, ax = plt.subplots(1, 1)
+    # ax.set_axis_off()
+    # ax.imshow(dist, cmap=plt.cm.gray)
+    # plt.savefig('dist.png', bbox_inches='tight')
+    # plt.show()
 
     nonzero_coords = np.vstack(np.where(dist > 0)).T
 
@@ -105,7 +106,7 @@ def control_points(probs):
     peaks_ij, is_max = subpixel_loc(smoothed, normals, nonzero_coords)
 
     # Undo the padding.
-    peaks_ij = peaks_ij[1:-1, 1:-1] - np.array([1., 1.])
+    peaks_ij = peaks_ij[1:-1, 1:-1] - np.array([1.0, 1.0])
     normals = normals[1:-1, 1:-1]
     is_max = is_max[1:-1, 1:-1]
 
@@ -124,11 +125,11 @@ class PatchSet(data.Dataset):
         pt = self.contour[index]
         img_crop_width = int(np.round(self.patch_dims[0]))
         img_crop_height = int(np.round(self.patch_dims[1]))
-        crop = cv2.getRectSubPix(self.image, (img_crop_width, img_crop_height),
-                                 tuple(pt))
-        crop = cv2.resize(crop, (self.patch_size, self.patch_size),
-                          interpolation=cv2.INTER_AREA)
-        crop = crop.transpose(2, 0, 1) / 255.
+        crop = cv2.getRectSubPix(self.image, (img_crop_width, img_crop_height), tuple(pt))
+        crop = cv2.resize(
+            crop, (self.patch_size, self.patch_size), interpolation=cv2.INTER_AREA
+        )
+        crop = crop.transpose(2, 0, 1) / 255.0
 
         return torch.FloatTensor(crop)
 
@@ -136,8 +137,7 @@ class PatchSet(data.Dataset):
         return self.contour.shape[0]
 
 
-def refine_contour(img, bounding_box, contour,
-                   patch_dims, patch_size, patchnet, gpu_id):
+def refine_contour(img, bounding_box, contour, patch_dims, patch_size, patchnet, gpu_id):
 
     (x0, y0, x1, y1) = bounding_box
     use_cuda = True
@@ -145,14 +145,15 @@ def refine_contour(img, bounding_box, contour,
     patchset = PatchSet(img, contour, patch_dims, patch_size)
 
     batch_size = 64
-    patch_iter = DataLoader(patchset, shuffle=False,
-                            batch_size=batch_size, num_workers=16)
+    patch_iter = DataLoader(
+        patchset, shuffle=False, batch_size=batch_size, num_workers=16
+    )
 
-    #crop = img[y0:y1, x0:x1]
-    #f, ax = plt.subplots(1, 1)
-    #ax.imshow(crop[:, :, ::-1])
-    #ax.set_axis_off()
-    #for i, (x, y) in enumerate(contour):
+    # crop = img[y0:y1, x0:x1]
+    # f, ax = plt.subplots(1, 1)
+    # ax.imshow(crop[:, :, ::-1])
+    # ax.set_axis_off()
+    # for i, (x, y) in enumerate(contour):
     #    x -= x0
     #    y -= y0
     #    ax.scatter(x, y, s=5, color='red')
@@ -163,21 +164,23 @@ def refine_contour(img, bounding_box, contour,
     #                                     edgecolor='red', facecolor='none')
     #        ax.add_patch(rect)
 
-    #plt.savefig('patches.png', bbox_inches='tight')
-    #exit(0)
-    patch_probs = np.zeros(
-        (contour.shape[0], patch_size, patch_size), dtype=np.float32
-    )
-    #print('Extracting features from patches.')
+    # plt.savefig('patches.png', bbox_inches='tight')
+    # exit(0)
+    patch_probs = np.zeros((contour.shape[0], patch_size, patch_size), dtype=np.float32)
+    # print('Extracting features from patches.')
     for i, x in enumerate(patch_iter):
         if use_cuda:
             x = x.cuda(gpu_id)
         with torch.no_grad():
             _, y_hat = patchnet(x)
-        p_vals = y_hat.cpu().numpy().transpose(0, 2, 3, 1).reshape(
-            -1, patch_size, patch_size, 2)
+        p_vals = (
+            y_hat.cpu()
+            .numpy()
+            .transpose(0, 2, 3, 1)
+            .reshape(-1, patch_size, patch_size, 2)
+        )
 
-        patch_probs[i * batch_size:(i + 1) * batch_size] = p_vals[:, :, :, 1]
+        patch_probs[i * batch_size : (i + 1) * batch_size] = p_vals[:, :, :, 1]
 
     print(f'Patchset len: {len(patchset)}')
     print(f'i: {i}')
@@ -186,16 +189,15 @@ def refine_contour(img, bounding_box, contour,
 
     patch_width, patch_height = patch_dims
     cost = np.zeros(part_img.shape[0:2], dtype=np.float32)
-    #cost = np.full(part_img.shape[0:2], 100., dtype=np.float32)
+    # cost = np.full(part_img.shape[0:2], 100., dtype=np.float32)
     contour = contour.astype(np.float32)
     weight = np.zeros(part_img.shape[0:2], dtype=np.int32)
     stitch(contour, patch_probs, patch_width, patch_height, cost, weight)
-    stitched = np.divide(cost, weight, out=np.zeros_like(cost),
-                         where=weight > 0)
+    stitched = np.divide(cost, weight, out=np.zeros_like(cost), where=weight > 0)
     return stitched
-    #return cost
-    #tqdm_iter = tqdm(range(contour.shape[0]), total=contour.shape[0])
-    #for k in tqdm_iter:
+    # return cost
+    # tqdm_iter = tqdm(range(contour.shape[0]), total=contour.shape[0])
+    # for k in tqdm_iter:
     #    patch = patch_probs[k]
     #    xk, yk = contour[k]
 
@@ -230,45 +232,51 @@ def refine_contour(img, bounding_box, contour,
     #                #cost[y, x] += w * (1. - interp)
     #                cost[y, x] -= w * interp
 
-    #start = np.round(contour[0, ::-1]).astype(np.int32)
-    #end = np.round(contour[-1, ::-1]).astype(np.int32)
-    #path = pyastar.astar_path(1. + cost, start, end, allow_diagonal=True)
-    #fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
-    #ax1.imshow(part_img[:, :, ::-1], interpolation='none')
-    #ax1.scatter(contour[:, 0], contour[:, 1], s=5, color='red')
-    #ax1.scatter(path[:, 1], path[:, 0], s=5, color='blue')
-    #ax2.imshow(cost, cmap=plt.cm.gray, interpolation='none')
-    #ax2.scatter(contour[:, 0], contour[:, 1], s=5, color='red')
-    #plt.show()
-    #exit(0)
+    # start = np.round(contour[0, ::-1]).astype(np.int32)
+    # end = np.round(contour[-1, ::-1]).astype(np.int32)
+    # path = pyastar.astar_path(1. + cost, start, end, allow_diagonal=True)
+    # fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+    # ax1.imshow(part_img[:, :, ::-1], interpolation='none')
+    # ax1.scatter(contour[:, 0], contour[:, 1], s=5, color='red')
+    # ax1.scatter(path[:, 1], path[:, 0], s=5, color='blue')
+    # ax2.imshow(cost, cmap=plt.cm.gray, interpolation='none')
+    # ax2.scatter(contour[:, 0], contour[:, 1], s=5, color='red')
+    # plt.show()
+    # exit(0)
 
-    tqdm_iter = tqdm(np.random.permutation(np.arange(contour.shape[0])),
-                     total=contour.shape[0])
-    #tqdm_iter = tqdm(np.arange(contour.shape[0]),
-    #                 total=contour.shape[0])
-    print('Plotting')
-    for i in tqdm_iter:
-        p = patch_probs[i]
-        #n = normals[i]
-        c = contour[i]
+    # tqdm_iter = tqdm(
+    #     np.random.permutation(np.arange(contour.shape[0])), total=contour.shape[0]
+    # )
+    # # tqdm_iter = tqdm(np.arange(contour.shape[0]),
+    # #                 total=contour.shape[0])
+    # print('Plotting')
+    # for i in tqdm_iter:
+    #     p = patch_probs[i]
+    #     # n = normals[i]
+    #     c = contour[i]
 
-        colors = ['blue' if i == j else 'red' for j in range(contour.shape[0])]
+    #     colors = ['blue' if i == j else 'red' for j in range(contour.shape[0])]
 
-        #fig, (ax1, ax2) = plt.subplots(1, 2)
-        #ax1.imshow(part_img[:, :, ::-1])
-        #ax1.imshow(255 * probs, alpha=0.25, cmap=plt.cm.gray)
-        #ax1.scatter(contour[:, 0], contour[:, 1], s=5, color=colors)
-        xy = c - 0.5 * np.array(patch_dims)
-        rect = mpl_patches.Rectangle(xy, patch_dims[0], patch_dims[1],
-                                     linewidth=1, edgecolor='red',
-                                     facecolor='none')
-        #ax1.add_patch(rect)
+    #     # fig, (ax1, ax2) = plt.subplots(1, 2)
+    #     # ax1.imshow(part_img[:, :, ::-1])
+    #     # ax1.imshow(255 * probs, alpha=0.25, cmap=plt.cm.gray)
+    #     # ax1.scatter(contour[:, 0], contour[:, 1], s=5, color=colors)
+    #     xy = c - 0.5 * np.array(patch_dims)
+    #     rect = mpl_patches.Rectangle(
+    #         xy,
+    #         patch_dims[0],
+    #         patch_dims[1],
+    #         linewidth=1,
+    #         edgecolor='red',
+    #         facecolor='none',
+    #     )
+    #     # ax1.add_patch(rect)
 
-        #ax2.imshow(p, cmap=plt.cm.gray, interpolation='none')
+    #     # ax2.imshow(p, cmap=plt.cm.gray, interpolation='none')
 
-        #plt.show()
-        #for ax in (ax1, ax2):
-        #    ax.clear()
+    #     # plt.show()
+    #     # for ax in (ax1, ax2):
+    #     #    ax.clear()
 
 
 def choose_longest_path(G, paths):
@@ -289,8 +297,8 @@ def longest_simple_path_in_forest(G):
     nodes = F.nodes()
     terminal_nodes = [node for node in nodes if F.degree(node) == 1]
     # TODO: can be made to run in linear time.
-    best0 = {node: 0. for node in nodes}
-    best1 = {node: 0. for node in nodes}
+    best0 = {node: 0.0 for node in nodes}
+    best1 = {node: 0.0 for node in nodes}
     path0 = {node: [] for node in nodes}
     path1 = {node: [] for node in nodes}
 
@@ -343,7 +351,7 @@ def longest_simple_path_in_forest(G):
 def link_contours(contours, max_dist):
     G = nx.Graph()
 
-    #f, ax = plt.subplots(1, 1)
+    # f, ax = plt.subplots(1, 1)
     # Store the endpoint coordinates as (i, j) and the index of the contour
     # from which the endpoint was taken to ensure two endpoints from the same
     # contour do not link to each other via a negative edge.
@@ -357,11 +365,11 @@ def link_contours(contours, max_dist):
             endpoints.append(s_ij)
             origins.append(i)
             G.add_node(s_ij, index=i, type='start')
-            #ax.scatter(s_ij[1], s_ij[0])
+            # ax.scatter(s_ij[1], s_ij[0])
         # Contours with two endpoints get a positive edge between them, where
         # the weight is proportional to the length.
         else:
-            score = 1. * len(c)
+            score = 1.0 * len(c)
             s_ij, e_ij = tuple(c[0]), tuple(c[-1])
             endpoints.append(s_ij)
             endpoints.append(e_ij)
@@ -370,8 +378,8 @@ def link_contours(contours, max_dist):
             G.add_node(s_ij, index=i, type='start')
             G.add_node(e_ij, index=i, type='end')
             G.add_edge(s_ij, e_ij, score=score)
-            #ax.scatter((s_ij[1], e_ij[1]), (s_ij[0], e_ij[0]))
-            #ax.plot((s_ij[1], e_ij[1]), (s_ij[0], e_ij[0]))
+            # ax.scatter((s_ij[1], e_ij[1]), (s_ij[0], e_ij[0]))
+            # ax.plot((s_ij[1], e_ij[1]), (s_ij[0], e_ij[0]))
 
     endpoints = np.vstack(endpoints)
     origins = np.array(origins)
@@ -404,42 +412,42 @@ def link_contours(contours, max_dist):
             nbr_idx = dists_to_nbrs.argmin()
             if origins[idx] != origins1[nbr_idx]:
                 u, v = (i, j), tuple(endpoints1[nbr_idx])
-                score = -1. * dists_to_nbrs[nbr_idx]
+                score = -1.0 * dists_to_nbrs[nbr_idx]
                 G.add_edge(u, v, score=score)
-                #ax.plot((u[1], v[1]), (u[0], v[0]))
+                # ax.plot((u[1], v[1]), (u[0], v[0]))
 
         if endpoints2.size > 0:
             dists_to_nbrs = np.linalg.norm(ij - endpoints2, axis=1)
             nbr_idx = dists_to_nbrs.argmin()
             if origins[idx] != origins2[nbr_idx]:
                 u, v = (i, j), tuple(endpoints2[nbr_idx])
-                score = -1. * dists_to_nbrs[nbr_idx]
+                score = -1.0 * dists_to_nbrs[nbr_idx]
                 G.add_edge(u, v, score=score)
-                #ax.plot((u[1], v[1]), (u[0], v[0]))
+                # ax.plot((u[1], v[1]), (u[0], v[0]))
 
         if endpoints3.size > 0:
             dists_to_nbrs = np.linalg.norm(ij - endpoints3, axis=1)
             nbr_idx = dists_to_nbrs.argmin()
             if origins[idx] != origins3[nbr_idx]:
                 u, v = (i, j), tuple(endpoints3[nbr_idx])
-                score = -1. * dists_to_nbrs[nbr_idx]
+                score = -1.0 * dists_to_nbrs[nbr_idx]
                 G.add_edge(u, v, score=score)
-                #ax.plot((u[1], v[1]), (u[0], v[0]))
+                # ax.plot((u[1], v[1]), (u[0], v[0]))
 
         if endpoints4.size > 0:
             dists_to_nbrs = np.linalg.norm(ij - endpoints4, axis=1)
             nbr_idx = dists_to_nbrs.argmin()
             if origins[idx] != origins4[nbr_idx]:
                 u, v = (i, j), tuple(endpoints4[nbr_idx])
-                score = -1. * dists_to_nbrs[nbr_idx]
+                score = -1.0 * dists_to_nbrs[nbr_idx]
                 G.add_edge(u, v, score=score)
-                #ax.plot((u[1], v[1]), (u[0], v[0]))
+                # ax.plot((u[1], v[1]), (u[0], v[0]))
 
-    #plt.show()
+    # plt.show()
 
-    #nx.draw(G, layout=nx.spring_layout(G), with_labels=True)
-    #plt.savefig('G.png', bbox_inches='tight')
-    #plt.clf()
+    # nx.draw(G, layout=nx.spring_layout(G), with_labels=True)
+    # plt.savefig('G.png', bbox_inches='tight')
+    # plt.clf()
 
     # A cut vertex or articulation point is a node that, if removed, increases
     # the number of connected components in G.
@@ -447,8 +455,7 @@ def link_contours(contours, max_dist):
     # A biconnected subgraph is a subgraph that cannot be made disconnected by
     # removing a single edge.
     subgraphs = [
-        sg for sg in nx.biconnected_component_subgraphs(G)
-        if len(sg.nodes()) > 2
+        sg for sg in nx.biconnected_component_subgraphs(G) if len(sg.nodes()) > 2
     ]
 
     # We cannot solve the longest path problem in G because there are cycles.
@@ -490,7 +497,7 @@ def link_contours(contours, max_dist):
                 if edges:
                     weight = np.max([G[u][v]['score'] for (u, v) in edges])
                 else:
-                    weight = 0.
+                    weight = 0.0
 
                 if weight > max_weight1:
                     max_weight2 = max_weight1
@@ -519,9 +526,7 @@ def link_contours(contours, max_dist):
                     max_weight = -np.inf
                     # Find the node with the maximum edge weight.
                     for node in nbrs:
-                        weight = np.max(
-                            [sg[u][v]['score'] for (u, v) in sg.edges(node)]
-                        )
+                        weight = np.max([sg[u][v]['score'] for (u, v) in sg.edges(node)])
                         if weight > max_weight:
                             max_weight = weight
                             end = node
@@ -535,12 +540,11 @@ def link_contours(contours, max_dist):
         else:
             new_nodes, new_edges = [], []
 
-        nodes_to_remove = [
-            node for node in sg.nodes() if node not in new_nodes
-        ]
+        nodes_to_remove = [node for node in sg.nodes() if node not in new_nodes]
         # Need to be careful, edge (a, b) might be (b, a) in the path.
         edges_to_remove = [
-            (u, v) for (u, v) in sg.edges()
+            (u, v)
+            for (u, v) in sg.edges()
             if (u, v) not in new_edges and (v, u) not in new_edges
         ]
         if dummies:
@@ -550,9 +554,9 @@ def link_contours(contours, max_dist):
         G.remove_edges_from(edges_to_remove)
         G.remove_nodes_from(nodes_to_remove)
 
-    #nx.draw(G, layout=nx.spring_layout(G), with_labels=True)
-    #plt.savefig('F.png', bbox_inches='tight')
-    #plt.clf()
+    # nx.draw(G, layout=nx.spring_layout(G), with_labels=True)
+    # plt.savefig('F.png', bbox_inches='tight')
+    # plt.clf()
 
     # It's possible that the graph is now empty.
     contour = []
@@ -595,12 +599,11 @@ def link_points(peaks, normals, is_max):
     assert peaks.shape == normals.shape
     k = 3
     pad = k // 2
-    peaks = cv2.copyMakeBorder(peaks, pad, pad, pad, pad,
-                               cv2.BORDER_CONSTANT, 0)
-    normals = cv2.copyMakeBorder(normals, pad, pad, pad, pad,
-                                 cv2.BORDER_CONSTANT, 0)
-    is_max = cv2.copyMakeBorder(is_max.astype(np.int32), pad, pad, pad, pad,
-                                cv2.BORDER_CONSTANT, 0)
+    peaks = cv2.copyMakeBorder(peaks, pad, pad, pad, pad, cv2.BORDER_CONSTANT, 0)
+    normals = cv2.copyMakeBorder(normals, pad, pad, pad, pad, cv2.BORDER_CONSTANT, 0)
+    is_max = cv2.copyMakeBorder(
+        is_max.astype(np.int32), pad, pad, pad, pad, cv2.BORDER_CONSTANT, 0
+    )
     is_max = is_max.astype(np.bool)
 
     fwd_links = np.full(peaks.shape, -1, dtype=np.int32)
@@ -617,13 +620,13 @@ def link_points(peaks, normals, is_max):
         nbr_peaks = peaks[i0:i1, j0:j1][max_idx]
         nbr_index = np.argwhere(max_idx) + np.array([i0, j0])
 
-        #if np.allclose(n[1], 0.):
+        # if np.allclose(n[1], 0.):
         #    c0, c1, c2 = 0., -1., pj
-        #else:
+        # else:
         #    m = n[0] / n[1]
         #    c0, c1, c2 = 1., -m, m * pj - pi
-        #d = c0 * nbr_peaks[:, 0] + c1 * nbr_peaks[:, 1] + c2
-        #assert np.all(np.sign(a) == np.sign(d)), (a, d, n)
+        # d = c0 * nbr_peaks[:, 0] + c1 * nbr_peaks[:, 1] + c2
+        # assert np.all(np.sign(a) == np.sign(d)), (a, d, n)
         d = (nbr_peaks[:, 0] - pi) * n[1] - (nbr_peaks[:, 1] - pj) * n[0]
         posd, negd = d > 0, d < 0
         if np.any(posd):
@@ -641,15 +644,13 @@ def link_points(peaks, normals, is_max):
 
     for (i, j) in idx:
         fi, fj = fwd_links[i, j]
-        if (np.all(fwd_links[fi, fj] == (i, j)) or
-                np.all(bwd_links[fi, fj] == (i, j))):
+        if np.all(fwd_links[fi, fj] == (i, j)) or np.all(bwd_links[fi, fj] == (i, j)):
             pass
         else:
             fwd_links[i, j] = (-1, -1)
 
         bi, bj = bwd_links[i, j]
-        if (np.all(fwd_links[bi, bj] == (i, j)) or
-                np.all(bwd_links[bi, bj] == (i, j))):
+        if np.all(fwd_links[bi, bj] == (i, j)) or np.all(bwd_links[bi, bj] == (i, j)):
             pass
         else:
             bwd_links[i, j] = (-1, -1)
@@ -680,9 +681,9 @@ def link_points(peaks, normals, is_max):
 
             # We use the same recursive function for searching both
             # directions, so need to reverse the backward one.
-            contour = np.vstack([
-                x for x in fwd_contour + [(i, j)] + bwd_contour[::-1]
-            ]) - np.array([pad, pad])
+            contour = np.vstack(
+                [x for x in fwd_contour + [(i, j)] + bwd_contour[::-1]]
+            ) - np.array([pad, pad])
 
             contours.append(contour)
 
@@ -690,7 +691,7 @@ def link_points(peaks, normals, is_max):
 
 
 def subpixel_loc(dist, normals, idx):
-    merge_thresh = np.sqrt(2.) / 4.
+    merge_thresh = np.sqrt(2.0) / 4.0
     thetas = np.rad2deg(np.arctan2(normals[:, :, 0], normals[:, :, 1])) % 360
 
     subpixel = np.zeros((dist.shape[0], dist.shape[1], 2), dtype=np.float32)
@@ -698,12 +699,12 @@ def subpixel_loc(dist, normals, idx):
     idx = shuffle(idx)
     for pt_idx, (i, j) in enumerate(idx):
         n = normals[i, j]  # normal vector as (i, j)
-        t = thetas[i, j]   # theta in degrees [0, 360)
+        t = thetas[i, j]  # theta in degrees [0, 360)
         if 0 <= t < 45:
             m = n[0] / n[1]  # slope of the line
             c = i - m * j  # intercept
             i0, i1 = m * (j - 1) + c, m * (j + 1) + c
-            d = np.linalg.norm((i - i0, 1.))
+            d = np.linalg.norm((i - i0, 1.0))
 
             p0 = (i - i0) * dist[i, j - 1] + (i0 - i + 1) * dist[i - 1, j - 1]
             p1 = (i1 - i) * dist[i + 1, j + 1] + (i + 1 - i1) * dist[i, j + 1]
@@ -711,19 +712,19 @@ def subpixel_loc(dist, normals, idx):
             m = n[0] / n[1]  # slope of the line
             c = i - m * j  # intercept
             j0, j1 = (i - 1 - c) / m, (i + 1 - c) / m
-            d = np.linalg.norm((1., j - j0))
+            d = np.linalg.norm((1.0, j - j0))
 
             p0 = (j - j0) * dist[i - 1, j - 1] + (j0 - j + 1) * dist[i - 1, j]
             p1 = (j1 - j) * dist[i + 1, j + 1] + (j + 1 - j1) * dist[i + 1, j]
         elif 90 <= t < 135:
             # Need to be careful of vertical lines!
-            if np.allclose(n[1], 0.):
+            if np.allclose(n[1], 0.0):
                 j0, j1 = j, j
             else:
                 m = n[0] / n[1]  # slope of the line
                 c = i - m * j  # intercept
                 j0, j1 = (i - 1 - c) / m, (i + 1 - c) / m
-            d = np.linalg.norm((1., j - j0))
+            d = np.linalg.norm((1.0, j - j0))
 
             p0 = (j0 - j) * dist[i - 1, j + 1] + (j + 1 - j0) * dist[i - 1, j]
             p1 = (j - j1) * dist[i + 1, j - 1] + (j1 - j + 1) * dist[i + 1, j]
@@ -731,7 +732,7 @@ def subpixel_loc(dist, normals, idx):
             m = n[0] / n[1]  # slope of the line
             c = i - (n[0] / n[1]) * j  # intercept
             i0, i1 = m * (j + 1) + c, m * (j - 1) + c
-            d = np.linalg.norm((i - i0, 1.))
+            d = np.linalg.norm((i - i0, 1.0))
 
             p0 = (i - i0) * dist[i - 1, j + 1] + (i0 - i + 1) * dist[i, j + 1]
             p1 = (i1 - i) * dist[i + 1, j - 1] + (i + 1 - i1) * dist[i, j - 1]
@@ -739,7 +740,7 @@ def subpixel_loc(dist, normals, idx):
             m = n[0] / n[1]  # slope of the line
             c = i - m * j  # intercept
             i0, i1 = m * (j + 1) + c, m * (j - 1) + c
-            d = np.linalg.norm((i0 - i, 1.))
+            d = np.linalg.norm((i0 - i, 1.0))
 
             p0 = (i0 - i) * dist[i + 1, j + 1] + (i + 1 - i0) * dist[i, j + 1]
             p1 = (i - i1) * dist[i - 1, j - 1] + (i1 - i + 1) * dist[i, j - 1]
@@ -747,19 +748,19 @@ def subpixel_loc(dist, normals, idx):
             m = n[0] / n[1]  # slope of the line
             c = i - m * j  # intercept
             j0, j1 = (i + 1 - c) / m, (i - 1 - c) / m
-            d = np.linalg.norm((1., j0 - j))
+            d = np.linalg.norm((1.0, j0 - j))
 
             p0 = (j0 - j) * dist[i + 1, j + 1] + (j + 1 - j0) * dist[i + 1, j]
             p1 = (j - j1) * dist[i - 1, j - 1] + (j1 - j + 1) * dist[i - 1, j]
         elif 270 <= t < 315:
             # Need to be careful of vertical lines!
-            if np.allclose(n[1], 0.):
+            if np.allclose(n[1], 0.0):
                 j0, j1 = j, j
             else:
                 m = n[0] / n[1]  # slope of the line
                 c = i - m * j  # intercept
                 j0, j1 = (i + 1 - c) / m, (i - 1 - c) / m
-            d = np.linalg.norm((1., j0 - j))
+            d = np.linalg.norm((1.0, j0 - j))
 
             p0 = (j - j0) * dist[i + 1, j - 1] + (j0 - j + 1) * dist[i + 1, j]
             p1 = (j1 - j) * dist[i - 1, j + 1] + (j + 1 - j1) * dist[i - 1, j]
@@ -768,7 +769,7 @@ def subpixel_loc(dist, normals, idx):
             m = n[0] / n[1]  # slope of the line
             c = i - m * j  # intercept
             i0, i1 = m * (j - 1) + c, m * (j + 1) + c
-            d = np.linalg.norm((i0 - i, 1.))
+            d = np.linalg.norm((i0 - i, 1.0))
 
             p0 = (i0 - i) * dist[i + 1, j - 1] + (i + 1 - i0) * dist[i, j - 1]
             p1 = (i - i1) * dist[i - 1, j - 1] + (i1 - i + 1) * dist[i, j + 1]
@@ -778,45 +779,45 @@ def subpixel_loc(dist, normals, idx):
         pc = dist[i, j]  # Peak of the pixel at (i, j).
         # This peak is a maximum, need to localize it so subpixel accuracy.
         if p0 <= pc >= p1:
-            #f, ax = plt.subplots(1, 1)
-            #ax.set_axis_off()
-            #i0, j0 = 1 - np.sin(np.deg2rad(t)), 1 - np.cos(np.deg2rad(t))
-            #i1, j1 = 1 + np.sin(np.deg2rad(t)), 1 + np.cos(np.deg2rad(t))
-            #ax.scatter(1, 1, color='red', s=10)
-            #ax.scatter(j0, i0, color='red', s=10)
-            #ax.scatter(j1, i1, color='red', s=10)
-            #ax.imshow(dist[i - 1:i + 2, j - 1:j + 2], cmap=plt.cm.gray)
-            #ax.arrow(j0, i0, dx=j1 - j0, dy=i1 - i0, color='red')
-            #plt.savefig('peaks.png', bbox_inches='tight')
+            # f, ax = plt.subplots(1, 1)
+            # ax.set_axis_off()
+            # i0, j0 = 1 - np.sin(np.deg2rad(t)), 1 - np.cos(np.deg2rad(t))
+            # i1, j1 = 1 + np.sin(np.deg2rad(t)), 1 + np.cos(np.deg2rad(t))
+            # ax.scatter(1, 1, color='red', s=10)
+            # ax.scatter(j0, i0, color='red', s=10)
+            # ax.scatter(j1, i1, color='red', s=10)
+            # ax.imshow(dist[i - 1:i + 2, j - 1:j + 2], cmap=plt.cm.gray)
+            # ax.arrow(j0, i0, dx=j1 - j0, dy=i1 - i0, color='red')
+            # plt.savefig('peaks.png', bbox_inches='tight')
 
             # Parabola: f(-d) = p0, f(0) = pc, f(d) = p1.  Scale to [-1, 1].
             # We are solving the system of equations:
             # c0 + c1 * x + c2 * x^2 = p0 at x = -1
             # c0 + c1 * x + c2 * x^2 = pc at x =  0
             # c0 + c1 * x + c2 * x^2 = p1 at x =  1
-            #c0 = pc
+            # c0 = pc
             c1 = 0.5 * (p1 - p0)
             c2 = 0.5 * (p0 + p1) - pc
-            assert c2 <= 0., '2nd derivative of parabola must be negative!'
+            assert c2 <= 0.0, '2nd derivative of parabola must be negative!'
             # Peak is where first derivative is zero.
             # TODO: check local min./max.?
-            ds = -d * c1 / (2. * c2)
+            ds = -d * c1 / (2.0 * c2)
 
-            #f, ax = plt.subplots(1, 1)
-            #ax.scatter(-1, p0, color='red')
-            #ax.annotate('$p_0$', (-1, p0))
-            #ax.scatter(0, pc, color='red')
-            #ax.annotate('$p_1$', (0, pc))
-            #ax.scatter(1, p1, color='red')
-            #ax.annotate('$p_2$', (1, p1))
-            #x = np.linspace(-1, 1, 1000)
-            #y = c0 + c1 * x + c2 * x * x
-            #x0 = -c1 / (2. * c2)
-            #y0 = c0 + x0 * c1 + c2 * x0 * x0
-            #ax.scatter(x0, y0, color='black')
-            #ax.plot(x, y, color='blue')
-            #plt.savefig('para.png', bbox_inches='tight')
-            #exit(0)
+            # f, ax = plt.subplots(1, 1)
+            # ax.scatter(-1, p0, color='red')
+            # ax.annotate('$p_0$', (-1, p0))
+            # ax.scatter(0, pc, color='red')
+            # ax.annotate('$p_1$', (0, pc))
+            # ax.scatter(1, p1, color='red')
+            # ax.annotate('$p_2$', (1, p1))
+            # x = np.linspace(-1, 1, 1000)
+            # y = c0 + c1 * x + c2 * x * x
+            # x0 = -c1 / (2. * c2)
+            # y0 = c0 + x0 * c1 + c2 * x0 * x0
+            # ax.scatter(x0, y0, color='black')
+            # ax.plot(x, y, color='blue')
+            # plt.savefig('para.png', bbox_inches='tight')
+            # exit(0)
 
             # Shift the peak by ds along the normal direction.
             subpixel[i, j] = np.array([i, j]) + n * ds
@@ -844,7 +845,7 @@ def subpixel_loc(dist, normals, idx):
         dists = np.linalg.norm(subpixel[i, j] - nbr_peaks, axis=1)
         if dists.size:
             too_close = dists < merge_thresh
-            #assert too_close.sum() <= 1  # Sanity check...
+            # assert too_close.sum() <= 1  # Sanity check...
             # For each point, we store the (i, j) location of the peak taht is
             # too close.  There is no need to store the reverse too.
             for ix in nbr_index[too_close]:
@@ -855,15 +856,21 @@ def subpixel_loc(dist, normals, idx):
     for (i, j) in to_merge:
         nbrs_ij = to_merge[i, j]
         # Get the subpixel peak locations to be merged.
-        merge_peaks = np.vstack((subpixel[i, j], [
-            subpixel[ix, jx] for (ix, jx) in nbrs_ij]
-        ))
+        merge_peaks = np.vstack(
+            (subpixel[i, j], [subpixel[ix, jx] for (ix, jx) in nbrs_ij])
+        )
         # Get the normals to be merged and account for the sign ambiguity.
-        merge_normals = np.vstack((normals[i, j], [
-            normals[ix, jx]
-            if np.dot(normals[ix, jx], normals[i, j]) >= 0.
-            else -1. * normals[ix, jx] for (ix, jx) in nbrs_ij
-        ]))
+        merge_normals = np.vstack(
+            (
+                normals[i, j],
+                [
+                    normals[ix, jx]
+                    if np.dot(normals[ix, jx], normals[i, j]) >= 0.0
+                    else -1.0 * normals[ix, jx]
+                    for (ix, jx) in nbrs_ij
+                ],
+            )
+        )
 
         new_peak = merge_peaks.mean(axis=0)
         new_normal = merge_normals.mean(axis=0)
@@ -881,24 +888,16 @@ def subpixel_loc(dist, normals, idx):
 
 def normals_from_hessian(x, idx):
     # Kernels for the first and second derivatives in x and y.
-    Sx = np.array([[ 0.,  0., 0.],
-                   [-0.5, 0,  0.5],
-                   [ 0.,  0., 0.]], dtype=np.float32)
-    Sy = np.array([[0., -0.5, 0.],
-                   [0.,  0,   0.],
-                   [0.,  0.5, 0.]], dtype=np.float32)
-    Sxx = np.array([[0. , 0.,  0.],
-                    [1., -2.,  1.],
-                    [0. , 0.,  0.]], dtype=np.float32)
-    Syy = np.array([[0.,  1., 0.],
-                    [0., -2., 0.],
-                    [0.,  1., 0.]], dtype=np.float32)
-    Sxy = np.array([[0.25 , 0., -0.25],
-                    [0.   , 0.,  0.  ],
-                    [-0.25, 0.,  0.25]], dtype=np.float32)
+    Sx = np.array([[0.0, 0.0, 0.0], [-0.5, 0, 0.5], [0.0, 0.0, 0.0]], dtype=np.float32)
+    Sy = np.array([[0.0, -0.5, 0.0], [0.0, 0, 0.0], [0.0, 0.5, 0.0]], dtype=np.float32)
+    Sxx = np.array([[0.0, 0.0, 0.0], [1.0, -2.0, 1.0], [0.0, 0.0, 0.0]], dtype=np.float32)
+    Syy = np.array([[0.0, 1.0, 0.0], [0.0, -2.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32)
+    Sxy = np.array(
+        [[0.25, 0.0, -0.25], [0.0, 0.0, 0.0], [-0.25, 0.0, 0.25]], dtype=np.float32
+    )
 
-    dx  = cv2.filter2D(x, cv2.CV_32F, Sx)
-    dy  = cv2.filter2D(x, cv2.CV_32F, Sy)
+    dx = cv2.filter2D(x, cv2.CV_32F, Sx)
+    dy = cv2.filter2D(x, cv2.CV_32F, Sy)
     dxx = cv2.filter2D(x, cv2.CV_32F, Sxx)
     dyy = cv2.filter2D(x, cv2.CV_32F, Syy)
     dxy = cv2.filter2D(x, cv2.CV_32F, Sxy)
@@ -906,14 +905,13 @@ def normals_from_hessian(x, idx):
     normals = np.zeros((x.shape[0], x.shape[1], 2), dtype=np.float32)
     hess = np.zeros((x.shape[0], x.shape[1], 2), dtype=np.float32)
     grad = np.zeros((x.shape[0], x.shape[1], 2), dtype=np.float32)
-    #f, ax = plt.subplots(1, 1)
-    #ax.set_axis_off()
-    #ax.imshow(x, interpolation=None,
+    # f, ax = plt.subplots(1, 1)
+    # ax.set_axis_off()
+    # ax.imshow(x, interpolation=None,
     #          cmap=plt.cm.gray)
     for (i, j) in idx:
         # Hessian matrix at the point (i,j).
-        H = np.array([[dxx[i, j], dxy[i, j]],
-                      [dxy[i, j], dyy[i, j]]])
+        H = np.array([[dxx[i, j], dxy[i, j]], [dxy[i, j], dyy[i, j]]])
         # Derivative vector at the point (i, j).
         D = np.array([dx[i, j], dy[i, j]])
 
@@ -924,13 +922,13 @@ def normals_from_hessian(x, idx):
         dv = D[::-1]
 
         # Account for the sign ambiguity.
-        if np.dot(dv, hv) < 0.:
-            dv = -1. * dv
+        if np.dot(dv, hv) < 0.0:
+            dv = -1.0 * dv
 
-        #temp = np.linalg.norm(H) * hv
-        #ax.arrow(j, i, dx=temp[1] / 4, dy=temp[0] / 4, color='red',
+        # temp = np.linalg.norm(H) * hv
+        # ax.arrow(j, i, dx=temp[1] / 4, dy=temp[0] / 4, color='red',
         #         linewidth=2, head_width=0.05)
-        #ax.arrow(j, i, dx=dv[1] / 4, dy=dv[0] / 4, color='red',
+        # ax.arrow(j, i, dx=dv[1] / 4, dy=dv[0] / 4, color='red',
         #         linewidth=2, head_width=0.05)
 
         # Approx. the normal vector at a point as the weighted combination of
@@ -938,24 +936,28 @@ def normals_from_hessian(x, idx):
         nv = dv + np.linalg.norm(H) * hv
         normals[i, j] = nv / np.linalg.norm(nv)
 
-        temp = normals[i, j]
-        #ax.arrow(j, i, dx=temp[1] / 4, dy=temp[0] / 4, color='red',
+        # temp = normals[i, j]
+        # ax.arrow(j, i, dx=temp[1] / 4, dy=temp[0] / 4, color='red',
         #         linewidth=2, head_width=0.05)
         hess[i, j] = hv
         grad[i, j] = dv
 
-    #plt.show()
+    # plt.show()
 
     return normals, hess, grad
 
 
 if __name__ == '__main__':
-    x = np.array([
-        [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
-        [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
-        [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
-        [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0]
-    ], dtype=np.float32)
-    idx = np.mgrid[1:x.shape[1] - 1:1, 1:x.shape[0] - 1:1].reshape(
-        2, -1).T[:, ::-1]
+    x = np.array(
+        [
+            [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
+            [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
+            [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
+            [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0],
+        ],
+        dtype=np.float32,
+    )
+    idx = (
+        np.mgrid[1 : x.shape[1] - 1 : 1, 1 : x.shape[0] - 1 : 1].reshape(2, -1).T[:, ::-1]
+    )
     normals_from_hessian(x, idx)
