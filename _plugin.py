@@ -397,6 +397,8 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     else:
         raise RuntimeError
 
+    return fine_probs
+
 
 @register_ibs_method
 def wbia_plugin_curvrank_v2_anchor_points(
@@ -612,6 +614,7 @@ def wbia_plugin_curvrank_v2_contours(
     trim_list = [trim] * len(cropped_images)
     width_fine_list = [width_fine] * len(cropped_images)
     cost_func_list = [cost_func] * len(cropped_images)
+
     zipped = zip(
         cropped_images,
         coarse_probabilities,
@@ -972,17 +975,17 @@ def wbia_plugin_curvrank_v2_pipeline_compute(ibs, aid_list, config={}):
         cropped_images, **config
     )
 
-    endpoints = ibs.wbia_plugin_curvrank_v2_anchor_points(cropped_images, **config)
+    anchor_points = ibs.wbia_plugin_curvrank_v2_anchor_points(cropped_images, **config)
 
     fine_probabilities = ibs.wbia_plugin_curvrank_v2_fine_probabilities(
         images, cropped_images, cropped_bboxes, coarse_probabilities, **config
     )
 
     contours = ibs.wbia_plugin_curvrank_v2_contours(
-        cropped_images, coarse_probabilities, fine_probabilities, endpoints, **config
+        cropped_images, coarse_probabilities, fine_probabilities, anchor_points, **config
     )
 
-    curvatures = ibs.contour_from_anchorpoints(contours, **config)
+    curvatures = ibs.wbia_plugin_curvrank_v2_curvatures(contours, **config)
 
     values = ibs.wbia_plugin_curvrank_v2_descriptors(contours, curvatures, **config)
     success_list, descriptors = values

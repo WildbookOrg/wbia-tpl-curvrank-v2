@@ -100,7 +100,7 @@ def control_points(coarse):
 
 
 def contour_from_anchorpoints(
-    part_img, coarse, fine, anchor_points, trim, width_fine, cost_func
+    part_img, coarse, fine, anchor_points, trim=0, width_fine=1152, cost_func='exp', **kwargs
 ):
     ratio = width_fine / part_img.shape[1]
     coarse_height, coarse_width = coarse.shape[0:2]
