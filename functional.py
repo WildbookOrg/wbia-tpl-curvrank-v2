@@ -65,13 +65,17 @@ def refine_by_network(
         images, cropped_images, control_points, cropped_bboxes
     ):
         contours = cp['contours']
-        all_contour_pts_xy = np.vstack(contours)[:, ::-1]
-        # Map the points onto the part image.
-        height_ratio = 1.0 * cropped_img.shape[0] / height_coarse
-        width_ratio = 1.0 * cropped_img.shape[1] / width_coarse
-        M = np.array([[width_ratio, 0.0], [0.0, height_ratio]])
-        pts_xy = cv2.transform(np.array([all_contour_pts_xy]), M)[0]
-        pts_xy += np.array([bbox[0], bbox[1]])
+
+        if len(contours) == 0:
+            pts_xy = np.array([[0.0, 0.0]], dtype=np.float64)
+        else:
+            all_contour_pts_xy = np.vstack(contours)[:, ::-1]
+            # Map the points onto the part image.
+            height_ratio = 1.0 * cropped_img.shape[0] / height_coarse
+            width_ratio = 1.0 * cropped_img.shape[1] / width_coarse
+            M = np.array([[width_ratio, 0.0], [0.0, height_ratio]])
+            pts_xy = cv2.transform(np.array([all_contour_pts_xy]), M)[0]
+            pts_xy += np.array([bbox[0], bbox[1]])
 
         # Map the patch size onto the image dimensions.
         patch_dims = (
@@ -85,6 +89,7 @@ def refine_by_network(
         refined = cv2.normalize(
             refined, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX
         )
+
         fine_probs.append(refined)
 
     return fine_probs
