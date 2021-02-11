@@ -19,6 +19,7 @@ import torch
 import wbia_curvrank_v2._plugin_depc  # NOQA
 from wbia_curvrank_v2._plugin_depc import (
     DEFAULT_SCALES,
+    DEFAULT_WIDTH_FINE,
     INDEX_NUM_TREES,
     INDEX_SEARCH_K,
     INDEX_LNBNN_K,
@@ -990,7 +991,115 @@ def wbia_plugin_curvrank_v2_pipeline_compute(ibs, aid_list, config={}):
     values = ibs.wbia_plugin_curvrank_v2_descriptors(contours, curvatures, **config)
     success_list, descriptors = values
 
+    chip_dict = dict(zip(aid_list, cropped_images))
+    trailing_edge_dict = dict(zip(aid_list, contours))
+    ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(
+        aid_list,
+        config,
+        overlay=True,
+        chip_dict=chip_dict,
+        trailing_edge_dict=trailing_edge_dict
+    )
+
     return success_list, descriptors
+
+
+def wbia_plugin_curvrank_v2_overlay_trailing_edge(
+    chip, width_fine, output_path, trailing_edge=None, edge_color=(0, 255, 255)
+):
+    try:
+        ratio = width_fine / chip.shape[1]
+        chip = cv2.resize(
+            chip, (0, 0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA
+        )
+        h, w = chip.shape[:2]
+
+        # Speed-up Hack
+        if 'overlay_True' in output_path:
+            output_path_ = output_path.replace('overlay_True', 'overlay_False')
+            cv2.imwrite(output_path_, chip)
+
+        if trailing_edge is not None:
+            for y, x in trailing_edge:
+                if x < 0 or w < x or y < 0 or h < y:
+                    continue
+                cv2.circle(chip, (x, y), 2, edge_color, thickness=-1)
+
+        cv2.imwrite(output_path, chip)
+    except:
+        pass
+    return exists(output_path)
+
+    # return chip_
+
+
+@register_ibs_method
+def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, config, overlay=True, chip_dict={}, trailing_edge_dict={}):
+
+    cache_path = join(ibs.cachedir, 'curvrank_v2_chips')
+    ut.ensuredir(cache_path)
+
+    cache_filepaths = []
+    flag_list = []
+    for aid in aid_list:
+        cache_filename = 'curvrank_v2_aid_%d_config_latest_overlay_%s.jpg' % (aid, overlay, )
+        cache_filepath = join(cache_path, cache_filename)
+        flag_list.append(not exists(cache_filepath))
+        cache_filepaths.append(cache_filepath)
+
+    missing_aid_list = ut.compress(aid_list, flag_list)
+    missing_cache_filepaths = ut.compress(cache_filepaths, flag_list)
+
+    if len(missing_aid_list) > 0:
+        depc = ibs.depc_annot
+
+        if isinstance(config, dict):
+            width_fine = config.get('width_fine', DEFAULT_WIDTH_FINE['fluke'])
+        else:
+            width_fine = config.curvrank_width_fine
+
+        flags = []
+        for missing_aid in missing_aid_list:
+            flag = missing_aid not in chip_dict
+            flags.append(flag)
+        dirty_aid_list = ut.compress(missing_aid_list, flags)
+        chips = depc.get('preprocess_two', dirty_aid_list, 'cropped_img', config=config)
+        for dirty_aid, chip in zip(dirty_aid_list, chips):
+            chip_dict[dirty_aid] = chip
+
+        flags = []
+        for missing_aid in missing_aid_list:
+            flag = overlay and missing_aid not in trailing_edge_dict
+            flags.append(flag)
+        dirty_aid_list = ut.compress(missing_aid_list, flags)
+        trailing_edges = depc.get('contour_two', dirty_aid_list, 'contour', config=config)
+        for dirty_aid, trailing_edge in zip(dirty_aid_list, trailing_edges):
+            trailing_edge_dict[dirty_aid] = trailing_edge
+
+        arg_iter = []
+        for missing_aid, mising_cache_filepath in zip(missing_aid_list, missing_cache_filepaths):
+            chip = chip_dict[missing_aid]
+            trailing_edge = trailing_edge_dict.get(missing_aid, None)
+            arg = chip, width_fine, mising_cache_filepath, trailing_edge
+            arg_iter.append(arg)
+
+        nTasks = len(arg_iter)
+        result_list = ut.util_parallel.generate2(
+            wbia_plugin_curvrank_v2_overlay_trailing_edge,
+            arg_iter,
+            nTasks=nTasks,
+            force_serial=ibs.force_serial,
+            futures_threaded=True,
+        )
+        result_list = list(result_list)
+        assert np.all(result_list)
+
+    overlay_chips = []
+    for cache_filepath in cache_filepaths:
+        overlay_chip = cv2.imread(cache_filepath)
+        overlay_chips.append(overlay_chip)
+
+    return overlay_chips
 
 
 @register_ibs_method

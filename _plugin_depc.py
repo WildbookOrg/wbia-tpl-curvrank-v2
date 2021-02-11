@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 from wbia.control import controller_inject  # NOQA
-import cv2
 import numpy as np
 import utool as ut
 import vtool as vt
@@ -1172,47 +1171,11 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
 class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
-    def overlay_trailing_edge(
-        request, chip, outline, trailing_edge, edge_color=(0, 255, 255)
-    ):
-        chip_ = np.copy(chip)
-        ratio = request.config.curvrank_width_fine / chip_.shape[1]
-        chip_ = cv2.resize(
-            chip_, (0, 0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA
-        )
-        h, w = chip_.shape[:2]
-
-        if outline is not None:
-            for y, x in outline:
-                if x < 0 or w < x or y < 0 or h < y:
-                    continue
-                cv2.circle(chip_, (x, y), 5, (255, 0, 0), thickness=-1)
-
-        if trailing_edge is not None:
-            for y, x in trailing_edge:
-                if x < 0 or w < x or y < 0 or h < y:
-                    continue
-                cv2.circle(chip_, (x, y), 2, edge_color, thickness=-1)
-
-        return chip_
-
     @ut.accepts_scalar_input
     def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
         depc = request.depc
-
-        chips = depc.get('preprocess_two', aid_list, 'cropped_img', config=request.config)
-        outlines = [None] * len(chips)
-        trailing_edges = [None] * len(chips)
-
-        if overlay:
-            trailing_edges = depc.get(
-                'contour_two', aid_list, 'contour', config=request.config
-            )
-
-        overlay_chips = [
-            request.overlay_trailing_edge(chip, outline, trailing_edge)
-            for chip, outline, trailing_edge in zip(chips, outlines, trailing_edges)
-        ]
+        ibs = depc.controller
+        overlay_chips = ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(aid_list, request.config, overlay=overlay)
         return overlay_chips
 
     def render_single_result(request, cm, aid, **kwargs):
@@ -1319,7 +1282,6 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         >>> am.ishow_analysis(request)
         >>> ut.show_if_requested()
     """
-
     ibs = depc.controller
 
     label = 'CurvRankTwoDorsal'
