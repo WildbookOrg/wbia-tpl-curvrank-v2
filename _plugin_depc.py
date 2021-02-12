@@ -1175,7 +1175,8 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     def get_fmatch_overlayed_chip(request, aid_list, overlay=True, config=None):
         depc = request.depc
         ibs = depc.controller
-        overlay_chips = ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(aid_list, request.config, overlay=overlay)
+        depc_config = request.config.asdict()
+        overlay_chips = ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(aid_list, depc_config, overlay=overlay)
         return overlay_chips
 
     def render_single_result(request, cm, aid, **kwargs):

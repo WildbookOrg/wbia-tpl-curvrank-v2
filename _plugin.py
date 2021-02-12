@@ -993,9 +993,10 @@ def wbia_plugin_curvrank_v2_pipeline_compute(ibs, aid_list, config={}):
 
     chip_dict = dict(zip(aid_list, cropped_images))
     trailing_edge_dict = dict(zip(aid_list, contours))
+    depc_config = _convert_kwargs_config_to_depc_config(config)
     ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(
         aid_list,
-        config,
+        depc_config,
         overlay=True,
         chip_dict=chip_dict,
         trailing_edge_dict=trailing_edge_dict
@@ -1034,7 +1035,7 @@ def wbia_plugin_curvrank_v2_overlay_trailing_edge(
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, config, overlay=True, chip_dict={}, trailing_edge_dict={}):
+def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, depc_config, overlay=True, chip_dict={}, trailing_edge_dict={}):
 
     cache_path = join(ibs.cachedir, 'curvrank_v2_chips')
     ut.ensuredir(cache_path)
@@ -1053,17 +1054,15 @@ def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, config, ove
     if len(missing_aid_list) > 0:
         depc = ibs.depc_annot
 
-        if isinstance(config, dict):
-            width_fine = config.get('width_fine', DEFAULT_WIDTH_FINE['fluke'])
-        else:
-            width_fine = config.curvrank_width_fine
+        assert isinstance(depc_config, dict)
+        width_fine = depc_config.get('curvrank_width_fine', DEFAULT_WIDTH_FINE['fluke'])
 
         flags = []
         for missing_aid in missing_aid_list:
             flag = missing_aid not in chip_dict
             flags.append(flag)
         dirty_aid_list = ut.compress(missing_aid_list, flags)
-        chips = depc.get('preprocess_two', dirty_aid_list, 'cropped_img', config=config)
+        chips = depc.get('preprocess_two', dirty_aid_list, 'cropped_img', config=depc_config)
         for dirty_aid, chip in zip(dirty_aid_list, chips):
             chip_dict[dirty_aid] = chip
 
@@ -1072,7 +1071,7 @@ def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, config, ove
             flag = overlay and missing_aid not in trailing_edge_dict
             flags.append(flag)
         dirty_aid_list = ut.compress(missing_aid_list, flags)
-        trailing_edges = depc.get('contour_two', dirty_aid_list, 'contour', config=config)
+        trailing_edges = depc.get('contour_two', dirty_aid_list, 'contour', config=depc_config)
         for dirty_aid, trailing_edge in zip(dirty_aid_list, trailing_edges):
             trailing_edge_dict[dirty_aid] = trailing_edge
 
