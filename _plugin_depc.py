@@ -211,7 +211,7 @@ class PreprocessConfig(dtool.Config):
 )
 def wbia_plugin_curvrank_v2_preprocessing_depc(depc, aid_list, config=None):
     r"""
-    Pre-process images for CurvRank with Dependency Cache (depc)
+    Pre-process images for CurvRank V2 with Dependency Cache (depc)
 
     Args:
         depc      (Dependency Cache): IBEIS dependency cache object
@@ -303,7 +303,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities_depc(
     depc, preprocess_rowid_list, config=None
 ):
     r"""
-    Extract coarse probabilities for CurvRank with Dependency Cache (depc)
+    Extract coarse probabilities for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_coarse_probabilities_depc
@@ -401,7 +401,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities_depc(
     depc, preprocess_rowid_list, coarse_rowid_list, config=None
 ):
     r"""
-    Extract fine probabilities for CurvRank with Dependency Cache (depc)
+    Extract fine probabilities for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_fine_probabilities_depc
@@ -510,7 +510,7 @@ def wbia_plugin_curvrank_v2_anchor_points_depc(
     config=None,
 ):
     r"""
-    Anchor Points for CurvRank with Dependency Cache (depc)
+    Anchor Points for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_anchor_points_depc
@@ -613,7 +613,7 @@ def wbia_plugin_curvrank_v2_contours_depc(
     config=None,
 ):
     r"""
-    Contours for CurvRank with Dependency Cache (depc)
+    Contours for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_contours_depc
@@ -712,7 +712,7 @@ def wbia_plugin_curvrank_v2_curvatures_depc(
     config=None,
 ):
     r"""
-    Curvatures for CurvRank with Dependency Cache (depc)
+    Curvatures for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_curvatures_depc
@@ -802,7 +802,7 @@ def wbia_plugin_curvrank_v2_descriptors_depc(
     depc, contour_rowid_list, curvature_rowid_list, config=None
 ):
     r"""
-    Curvature Descriptors for CurvRank with Dependency Cache (depc)
+    Curvature Descriptors for CurvRank V2 with Dependency Cache (depc)
 
     CommandLine:
         python -m wbia_curvrank_v2._plugin_depc --test-wbia_plugin_curvrank_v2_descriptors_depc
@@ -1034,7 +1034,7 @@ def ibeis_plugin_curvrank_descriptors_optimized_depc(depc, aid_list, config=None
 @register_ibs_method
 def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs):
     r"""
-    CurvRank Example
+    CurvRank V2 Example
 
     Args:
         ibs           (IBEISController): IBEIS controller object
@@ -1168,7 +1168,7 @@ def get_match_results(depc, qaid_list, daid_list, score_list, config):
         yield match_result
 
 
-class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
+class CurvRankTwoRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
     _symmetric = False
 
     @ut.accepts_scalar_input
@@ -1190,35 +1190,36 @@ class CurvRankRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         out_img = vt.stack_image_list(chips)
         return out_img
 
-    def postprocess_execute(request, parent_rowids, result_list):
+    def postprocess_execute(request, table, parent_rowids, rowids, result_list):
         qaid_list, daid_list = list(zip(*parent_rowids))
         score_list = ut.take_column(result_list, 0)
         depc = request.depc
         config = request.config
         cm_list = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
+        table.delete_rows(rowids)
         return cm_list
 
     def execute(request, *args, **kwargs):
-        kwargs['use_cache'] = False
-        result_list = super(CurvRankRequest, request).execute(*args, **kwargs)
+        # kwargs['use_cache'] = False
+        result_list = super(CurvRankTwoRequest, request).execute(*args, **kwargs)
         qaids = kwargs.pop('qaids', None)
         if qaids is not None:
             result_list = [result for result in result_list if result.qaid in qaids]
         return result_list
 
 
-class CurvRankDorsalConfig(dtool.Config):  # NOQA
+class CurvRankTwoDorsalConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankDorsalConfig
+        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankTwoDorsalConfig
 
     Example:
         >>> # ENABLE_DOCTEST
         >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> config = CurvRankDorsalConfig()
+        >>> config = CurvRankTwoDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+        CurvRankTwoDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
     """
 
     def get_param_info_list(self):
@@ -1234,7 +1235,7 @@ class CurvRankDorsalConfig(dtool.Config):  # NOQA
         return param_list
 
 
-class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
+class CurvRankTwoDorsalRequest(CurvRankTwoRequest):  # NOQA
     _tablename = 'CurvRankTwoDorsal'
 
 
@@ -1243,8 +1244,8 @@ class CurvRankDorsalRequest(CurvRankRequest):  # NOQA
     parents=[ROOT, ROOT],
     colnames=['score'],
     coltypes=[float],
-    configclass=CurvRankDorsalConfig,
-    requestclass=CurvRankDorsalRequest,
+    configclass=CurvRankTwoDorsalConfig,
+    requestclass=CurvRankTwoDorsalRequest,
     fname='curvrank_v2_scores_dorsal',
     rm_extern_on_delete=True,
     chunksize=None,
@@ -1267,9 +1268,9 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
-        >>> config = CurvRankDorsalConfig()
+        >>> config = CurvRankTwoDorsalConfig()
         >>> # Call function via request
-        >>> request = CurvRankDorsalRequest.new(depc, aid_list, aid_list)
+        >>> request = CurvRankTwoDorsalRequest.new(depc, aid_list, aid_list)
         >>> am_list1 = request.execute()
         >>> # Call function via depcache
         >>> prop_list = depc.get('CurvRankTwoDorsal', root_rowids)
@@ -1291,18 +1292,18 @@ def wbia_plugin_curvrank_v2_dorsal(depc, qaid_list, daid_list, config):
         yield value
 
 
-class CurvRankFlukeConfig(dtool.Config):  # NOQA
+class CurvRankTwoFlukeConfig(dtool.Config):  # NOQA
     """
     CommandLine:
-        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankFlukeConfig
+        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankTwoFlukeConfig
 
     Example:
         >>> # ENABLE_DOCTEST
         >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
-        >>> config = CurvRankFlukeConfig()
+        >>> config = CurvRankTwoFlukeConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvature_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
+        CurvRankTwoFluke(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.02 0.04 0.06 0.08],curvature_transpose_dims=True,curvrank_cache_recompute=False,curvrank_cost_func=exp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=192,curvrank_height_fine=576,curvrank_model_type=fluke,curvrank_pad=0.1,curvrank_patch_size=128,curvrank_scale=3,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=384,curvrank_width_fine=1152,outline_allow_diagonal=True)
     """
 
     def get_param_info_list(self):
@@ -1318,7 +1319,7 @@ class CurvRankFlukeConfig(dtool.Config):  # NOQA
         return param_list
 
 
-class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
+class CurvRankTwoFlukeRequest(CurvRankTwoRequest):  # NOQA
     _tablename = 'CurvRankTwoFluke'
 
 
@@ -1327,8 +1328,8 @@ class CurvRankFlukeRequest(CurvRankRequest):  # NOQA
     parents=[ROOT, ROOT],
     colnames=['score'],
     coltypes=[float],
-    configclass=CurvRankFlukeConfig,
-    requestclass=CurvRankFlukeRequest,
+    configclass=CurvRankTwoFlukeConfig,
+    requestclass=CurvRankTwoFlukeRequest,
     fname='curvrank_v2_scores_fluke',
     rm_extern_on_delete=True,
     chunksize=None,
@@ -1351,9 +1352,9 @@ def wbia_plugin_curvrank_v2_fluke(depc, qaid_list, daid_list, config):
         >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
-        >>> config = CurvRankFlukeConfig()
+        >>> config = CurvRankTwoFlukeConfig()
         >>> # Call function via request
-        >>> request = CurvRankFlukeRequest.new(depc, aid_list, aid_list)
+        >>> request = CurvRankTwoFlukeRequest.new(depc, aid_list, aid_list)
         >>> am_list1 = request.execute()
         >>> # Call function via depcache
         >>> prop_list = depc.get('CurvRankTwoFluke', root_rowids)
@@ -1381,9 +1382,9 @@ def wbia_plugin_curvrank_v2_fluke(depc, qaid_list, daid_list, config):
         >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
-        >>> config = CurvRankFlukeConfig()
+        >>> config = CurvRankTwoFlukeConfig()
         >>> # Call function via request
-        >>> request = CurvRankFlukeRequest.new(depc, aid_list, aid_list)
+        >>> request = CurvRankTwoFlukeRequest.new(depc, aid_list, aid_list)
         >>> am_list1 = request.execute()
         >>> ut.quit_if_noshow()
         >>> am_list2 = [am for am in am_list1 if am.qaid == 23]

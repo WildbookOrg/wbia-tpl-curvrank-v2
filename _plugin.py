@@ -73,7 +73,7 @@ def get_device():
 @register_ibs_method
 def wbia_plugin_curvrank_v2_preprocessing(ibs, aid_list, pad=0.1, **kwargs):
     r"""
-    Pre-process images for CurvRank
+    Pre-process images for CurvRank V2
 
     Args:
         ibs       (IBEISController): IBEIS controller object
@@ -165,7 +165,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
     ibs, cropped_images, width_coarse=384, height_coarse=192, model_type='fluke', **kwargs
 ):
     r"""
-    Extract coarse probabilities for CurvRank
+    Extract coarse probabilities for CurvRank V2
 
     Args:
         ibs             (IBEISController): IBEIS controller object
@@ -272,7 +272,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     **kwargs
 ):
     """
-    Extract fine probabilities for CurvRank
+    Extract fine probabilities for CurvRank V2
 
     Args:
         ibs             (IBEISController): IBEIS controller object
@@ -412,7 +412,7 @@ def wbia_plugin_curvrank_v2_anchor_points(
     **kwargs
 ):
     r"""
-    Extract anchor points for CurvRank
+    Extract anchor points for CurvRank V2
 
     Args:
         ibs             (IBEISController): IBEIS controller object
@@ -540,7 +540,7 @@ def wbia_plugin_curvrank_v2_contours(
     **kwargs
 ):
     r"""
-    Extract contours for CurvRank
+    Extract contours for CurvRank V2
 
     Args:
         ibs                   (IBEISController): IBEIS controller object
@@ -654,7 +654,7 @@ def wbia_plugin_curvrank_v2_curvatures(
     **kwargs
 ):
     r"""
-    Extract curvatures for CurvRank
+    Extract curvatures for CurvRank V2
 
     Args:
         ibs                   (IBEISController): IBEIS controller object
@@ -764,7 +764,7 @@ def wbia_plugin_curvrank_v2_descriptors(
     **kwargs
 ):
     r"""
-    Extract descriptors for CurvRank
+    Extract descriptors for CurvRank V2
 
     Args:
         ibs            (IBEISController): IBEIS controller object
@@ -1328,7 +1328,7 @@ def wbia_plugin_curvrank_v2_scores(
     use_depc_optimized=USE_DEPC_OPTIMIZED,
 ):
     r"""
-    Compute CurvRank scores
+    Compute CurvRank V2 scores
 
     Args:
         ibs                 (IBEISController): IBEIS controller object
@@ -1838,7 +1838,7 @@ def wbia_plugin_curvrank_v2_scores(
 @register_ibs_method
 def wbia_plugin_curvrank_v2(ibs, label, qaid_list, daid_list, config):
     r"""
-    Compute CurvRank scores
+    Compute CurvRank V2 scores
 
     Args:
         ibs        (IBEISController): IBEIS controller object
@@ -1866,7 +1866,7 @@ def wbia_plugin_curvrank_v2(ibs, label, qaid_list, daid_list, config):
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
         >>> # Call function normally
-        >>> config = CurvRankFlukeConfig()
+        >>> config = CurvRankTwoFlukeConfig()
         >>> score_list = list(ibs.wbia_plugin_curvrank_v2('CurvRankTest', qaid_list, daid_list, config))
         >>> score_list = [round(score[0], 5) for score in score_list]
         >>> result = score_list[:10]
@@ -1887,7 +1887,7 @@ def wbia_plugin_curvrank_v2(ibs, label, qaid_list, daid_list, config):
         >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
         >>> qaid_list, daid_list = root_rowids
         >>> # Call function normally
-        >>> config = CurvRankDorsalConfig()
+        >>> config = CurvRankTwoDorsalConfig()
         >>> score_list = list(ibs.wbia_plugin_curvrank_v2('CurvRankTest', qaid_list, daid_list, config))
         >>> score_list = [round(score[0], 5) for score in score_list]
         >>> result = score_list[:10]
