@@ -36,7 +36,10 @@ DEFAULT_HEIGHT_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
 }
-DEFAULT_PATCH_SIZE = {'fluke': 128, 'dorsal': None}
+DEFAULT_PATCH_SIZE = {
+    'fluke': 128,
+    'dorsal': 128
+}
 DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
@@ -67,7 +70,8 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'curvrank_daily_cache': True,
     'curvrank_daily_tag': 'global',
     'curvrank_cache_recompute': False,
-    'curvrank_model_type': 'dorsal',
+    'curvrank_model_type': 'dorsal.new',
+    # 'curvrank_fine_model_type': 'dorsal.new',
     'curvrank_pad': 0.1,
     'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['dorsal'],
     'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['dorsal'],
@@ -97,6 +101,7 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvrank_daily_tag': 'global',
     'curvrank_cache_recompute': False,
     'curvrank_model_type': 'fluke',
+    # 'curvrank_fine_model_type': 'fluke',
     'curvrank_pad': 0.1,
     'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['fluke'],
     'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['fluke'],
@@ -126,6 +131,7 @@ DEFAULT_DEPC_KEY_MAPPING = {
     'curvrank_daily_tag': 'daily_cache_tag',
     'curvrank_cache_recompute': 'force_cache_recompute',
     'curvrank_model_type': 'model_type',
+    'curvrank_fine_model_type': 'fine_model_type',
     'curvrank_pad': 'pad',
     'curvrank_width_coarse': 'width_coarse',
     'curvrank_height_coarse': 'height_coarse',
@@ -373,6 +379,7 @@ class FineProbabilitiesConfig(dtool.Config):
             ut.ParamInfo('curvrank_height_fine', DEFAULT_HEIGHT_FINE['fluke']),
             ut.ParamInfo('curvrank_patch_site', DEFAULT_PATCH_SIZE['fluke']),
             ut.ParamInfo('curvrank_model_type', 'fluke'),
+            ut.ParamInfo('curvrank_fine_model_type', None, hideif=None),
             ut.ParamInfo('ext', '.npy', hideif='.npy'),
         ]
 
@@ -907,6 +914,7 @@ class CurvatureDescriptorOptimizedConfig(dtool.Config):
 
         param_list = [
             ut.ParamInfo('curvrank_model_type', 'fluke'),
+            ut.ParamInfo('curvrank_fine_model_type', None, hideif=None),
             ut.ParamInfo('curvrank_pad', 0.1),
             ut.ParamInfo('curvrank_width_coarse', DEFAULT_WIDTH_COARSE['fluke']),
             ut.ParamInfo('curvrank_height_coarse', DEFAULT_HEIGHT_COARSE['fluke']),
@@ -1219,7 +1227,7 @@ class CurvRankTwoDorsalConfig(dtool.Config):  # NOQA
         >>> config = CurvRankTwoDorsalConfig()
         >>> result = config.get_cfgstr()
         >>> print(result)
-        CurvRankTwoDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+        CurvRankTwoDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal.new,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
     """
 
     def get_param_info_list(self):

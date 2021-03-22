@@ -53,13 +53,18 @@ RIGHT_FLIP_LIST = [  # CASE IN-SENSITIVE
 
 
 MODEL_URL_DICT = {
-    'anchor.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.params',
+    'anchor.dorsal.old': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.params',
+    'anchor.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.new.params',
+    'anchor.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.new.params',
     'anchor.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.elephant.ear.params',
     'anchor.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.humpback.fluke.params',
-    'coarse.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.params',
+    'coarse.dorsal.old': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.params',
+    'coarse.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
+    'coarse.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
     'coarse.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.elephant.ear.params',
     'coarse.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.humpback.fluke.params',
-    'fine.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
+    'fine.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
+    'fine.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
     'fine.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
     'fine.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.humpback.fluke.params.chkpt',
     'fine.fcnn': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
@@ -269,6 +274,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     height_fine=576,
     patch_size=128,
     model_type='fluke',
+    fine_model_type=None,
     **kwargs
 ):
     """
@@ -349,7 +355,10 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         'progkw': {'freq': 10},
     }
 
-    if model_type == 'fluke':
+    if fine_model_type is not None:
+        model_type = fine_model_type
+
+    if model_type in ['fluke', 'dorsal', 'dorsal.new']:
         generator = ut.generate2(
             F.control_points,
             zip(coarse_probabilities),
@@ -384,8 +393,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
             patch_params,
             device,
         )
-
-    elif model_type == 'dorsal':
+    elif model_type in ['gradient']:
         generator = ut.generate2(
             F.refine_by_gradient,
             zip(cropped_images),
