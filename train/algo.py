@@ -10,8 +10,6 @@ import torch.utils.data as data
 
 # import matplotlib.patches as mpl_patches
 
-# import pystitch
-from stitch import stitch
 from collections import defaultdict
 
 # from scipy.spatial.distance import directed_hausdorff
@@ -23,6 +21,12 @@ from torch.utils.data import DataLoader
 # from tqdm import tqdm
 
 import logging
+
+# to import pystitch, which is a .pyx (cython) file, we must first do this
+import pyximport
+pyximport.install()
+from .stitch import stitch
+
 
 log = logging.getLogger('sciluigi-interface')
 

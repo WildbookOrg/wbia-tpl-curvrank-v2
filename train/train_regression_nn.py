@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader
 @click.option('--checkpoint-every', default=10)
 @click.option('--num-workers', default=4)
 @click.option('--model-name', default='anchor')
-def train_regression(
+def train_regression_cmd(
     datafile,
     batch_size,
     max_epochs,
@@ -38,6 +38,23 @@ def train_regression(
     num_workers,
     model_name,
 ):
+    train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, sample_every, num_workers, model_name)
+
+
+def train_regression(
+    datafile = 'data/train.csv',
+    batch_size = 8,
+    max_epochs = 20,
+    pad = 0.1,
+    height = 224,
+    width = 224,
+    lr = 0.001,
+    sample_every = 10,
+    checkpoint_every = 10,
+    num_workers = 4,
+    model_name = 'anchor',
+):
+
     gpu_id = None
     use_cuda = True
 
@@ -156,4 +173,4 @@ def train_regression(
 
 
 if __name__ == '__main__':
-    train_regression()
+    train_regression_cmd()

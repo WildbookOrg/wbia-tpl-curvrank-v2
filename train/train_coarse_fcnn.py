@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader
 @click.option('--checkpoint-every', default=10)
 @click.option('--num-workers', default=4)
 @click.option('--model-name', default='coarse')
-def train_fcnn(
+def train_fcnn_cmd(
     datafile,
     batch_size,
     max_epochs,
@@ -38,6 +38,24 @@ def train_fcnn(
     num_workers,
     model_name,
 ):
+    train_fcnn(datafile, batch_size, max_epochs, pad, height, width, lr,
+        sample_every, checkpoint_every, num_workers, model_name)
+
+
+def train_fcnn(
+    datafile='data/train.csv',
+    batch_size=8,
+    max_epochs=20,
+    pad=0.1,
+    height=256,
+    width=256,
+    lr=0.01,
+    sample_every=10,
+    checkpoint_every=10,
+    num_workers=4,
+    model_name='coarse',
+):
+
     gpu_id = None
     use_cuda = True
 
@@ -132,4 +150,4 @@ def train_fcnn(
 
 
 if __name__ == '__main__':
-    train_fcnn()
+    train_fcnn_cmd()

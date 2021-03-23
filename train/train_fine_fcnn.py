@@ -31,7 +31,7 @@ from os.path import join
 @click.option('--num-samples', default=24)  # Max. number of pos./neg. patches per image.
 @click.option('--num_fixed', default=32)
 @click.option('--patch_size', default=128)
-def train_pcnn(
+def train_pcnn_cmd(
     datafile,
     batch_size,
     max_epochs,
@@ -49,6 +49,45 @@ def train_pcnn(
     num_fixed,
     patch_size,
 ):
+    train_pcnn(
+        datafile,
+        batch_size,
+        max_epochs,
+        height1,
+        width1,
+        height2,
+        width2,
+        lr,
+        sample_every,
+        checkpoint_every,
+        num_workers,
+        model_name,
+        pretrain_fpath,
+        num_samples,
+        num_fixed,
+        patch_size,
+    )
+
+
+def train_pcnn(
+        datafile = 'data/train.csv',
+        batch_size = 2,
+        max_epochs = 20,
+        height1 = 256,
+        width1 = 256,
+        height2 = 1024,
+        width2 = 1024,
+        lr = 0.00001,
+        sample_every = 10,
+        checkpoint_every = 10,
+        num_workers = 4,
+        model_name = 'fine',
+        pretrain_fpath='results/coarse/weights.params',
+        num_samples = 24,
+        num_fixed = 32,
+        patch_size = 128,
+    ):
+
     gpu_id = None
     use_cuda = True
 
@@ -188,4 +227,4 @@ def train_pcnn(
 
 
 if __name__ == '__main__':
-    train_pcnn()
+    train_pcnn_cmd()
