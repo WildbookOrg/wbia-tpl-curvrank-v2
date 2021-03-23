@@ -10,6 +10,7 @@ import pickle
 import torch
 import torch.utils.data as data
 import utils
+import utool as ut
 
 from matplotlib.transforms import Affine2D
 from os.path import basename, isfile, join, splitext
@@ -78,6 +79,11 @@ class CoarseDataset(data.Dataset):
         # Width/height of the box does not change under a similarity trans.
         width = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x1, y0]))))
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
+        # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
+        # width = max(width, 1)
+        # height = max(height, 1)
+        print('CoarseDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
+
 
         # Approximately the center of the contour bounding box.
         center = (x0 + (x1 - x0) / 2.0, y0 + (y1 - y0) / 2.0)
@@ -481,6 +487,12 @@ class RegressionDataset(data.Dataset):
         # Width/height of the box does not change under a similarity trans.
         width = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x1, y0]))))
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
+        # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
+        width = max(width, 1)
+        height = max(height, 1)
+
+
+
         # Approximately the center of the contour bounding box.
         center = (x0 + (x1 - x0) / 2.0, y0 + (y1 - y0) / 2.0)
         crop = utils.sub_image(
