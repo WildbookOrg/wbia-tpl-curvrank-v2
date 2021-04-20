@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import click
-import datasets
-import fcnn
+import wbia_curvrank_v2.train.datasets as datasets
+import wbia_curvrank_v2.train.plot as plot
+import wbia_curvrank_v2.train.fcnn as fcnn
 import numpy as np
-import plot
 import torch
 import torch.nn as nn
 import torch.optim as optim

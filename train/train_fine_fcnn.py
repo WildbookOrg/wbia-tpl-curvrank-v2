@@ -2,9 +2,9 @@
 import click
 import torch
 import torch.nn as nn
-import fcnn
-import datasets
-import plot
+import wbia_curvrank_v2.train.datasets as datasets
+import wbia_curvrank_v2.train.plot as plot
+import wbia_curvrank_v2.train.fcnn as fcnn
 import numpy as np
 import torch.optim as optim
 from torch.utils.data import DataLoader
