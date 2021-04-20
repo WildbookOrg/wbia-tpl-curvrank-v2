@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import algo
+import wbia_curvrank_v2.algo as algo
+import wbia_curvrank_v2.utils as utils
 import cv2
 import h5py
 import matplotlib.patches as mpl_patches
@@ -9,7 +10,6 @@ import pandas as pd
 import pickle
 import torch
 import torch.utils.data as data
-import utils
 import utool as ut
 
 from matplotlib.transforms import Affine2D
@@ -82,7 +82,7 @@ class CoarseDataset(data.Dataset):
         # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
         # width = max(width, 1)
         # height = max(height, 1)
-        print('CoarseDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
+        # print('CoarseDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
 
 
         # Approximately the center of the contour bounding box.
