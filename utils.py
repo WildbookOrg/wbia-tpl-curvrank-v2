@@ -76,10 +76,10 @@ def points_to_mask(pts, radii, occluded, size):
 def crop_with_padding(image, x, y, w, h, pad):
     img_height, img_width = image.shape[0:2]
     if x >= 0 or y >= 0 or w >= 0 or h >= 0:
-        x0 = max(0, x - int(pad * w))
-        x1 = min(img_width, x + w + int(pad * w))
-        y0 = max(0, y - int(pad * h))
-        y1 = min(img_height, y + h + int(pad * h))
+        x0 = int(max(0, x - int(pad * w)))
+        x1 = int(min(img_width, x + w + int(pad * w)))
+        y0 = int(max(0, y - int(pad * h)))
+        y1 = int(min(img_height, y + h + int(pad * h)))
         crop = image[y0:y1, x0:x1]
     else:
         crop = image
