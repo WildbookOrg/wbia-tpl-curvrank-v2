@@ -15,46 +15,57 @@ register_preproc_annot = controller_inject.register_preprocs['annot']
 DEFAULT_WIDTH_COARSE = {
     'fluke': 384,
     'dorsal': 256,
+    'ridge': 256,
 }
 DEFAULT_HEIGHT_COARSE = {
     'fluke': 192,
     'dorsal': 256,
+    'ridge': 256,
 }
 DEFAULT_WIDTH_FINE = {
     'fluke': 1152,
     'dorsal': 1024,
+    'ridge': 1024,
 }
 DEFAULT_HEIGHT_FINE = {
     'fluke': 576,
     'dorsal': 1024,
+    'ridge': 1024,
 }
 DEFAULT_WIDTH_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
+    'ridge': 224,
 }
 DEFAULT_HEIGHT_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
+    'ridge': 224,
 }
 DEFAULT_PATCH_SIZE = {
     'fluke': 128,
-    'dorsal': 128
+    'dorsal': 128,
+    'ridge': 128
 }
 DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
+    'ridge': 4,
 }
 DEFAULT_SCALES = {
     'fluke': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
     'dorsal': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
+    'ridge': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
 }
 DEFAULT_ALLOW_DIAGONAL = {
     'fluke': True,
     'dorsal': False,
+    'ridge': False,
 }
 DEFAULT_TRANSPOSE_DIMS = {
     'fluke': True,
     'dorsal': False,
+    'ridge': False,
 }
 
 
@@ -94,6 +105,9 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'index_search_k': INDEX_SEARCH_K,
     'index_lnbnn_k': INDEX_LNBNN_K,
 }
+
+DEFAULT_RIDGE_TEST_CONFIG = DEFAULT_DORSAL_TEST_CONFIG.copy()
+DEFAULT_RIDGE_TEST_CONFIG['curvrank_model_type'] = 'ridge'
 
 
 DEFAULT_FLUKE_TEST_CONFIG = {
@@ -1406,6 +1420,91 @@ def wbia_plugin_curvrank_v2_fluke(depc, qaid_list, daid_list, config):
     value_iter = ibs.wbia_plugin_curvrank_v2(label, qaid_list, daid_list, config)
     for value in value_iter:
         yield value
+
+
+class CurvRankTwoRidgeConfig(dtool.Config):  # NOQA
+    """
+    CommandLine:
+        python -m wbia_curvrank_v2._plugin_depc --test-CurvRankTwoDorsalConfig
+
+    Example:
+        >>> # ENABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> config = CurvRankTwoDorsalConfig()
+        >>> result = config.get_cfgstr()
+        >>> print(result)
+        CurvRankTwoDorsal(curvature_descriptor_curv_length=1024,curvature_descriptor_feat_dim=32,curvature_descriptor_num_keypoints=32,curvature_descriptor_uniform=False,curvature_scales=[0.04 0.06 0.08 0.1 ],curvature_transpose_dims=False,curvrank_cache_recompute=False,curvrank_cost_func=hyp,curvrank_daily_cache=True,curvrank_daily_tag=global,curvrank_height_anchor=224,curvrank_height_coarse=256,curvrank_height_fine=1024,curvrank_model_type=dorsal,curvrank_pad=0.1,curvrank_patch_size=None,curvrank_scale=4,curvrank_trim=0,curvrank_width_anchor=224,curvrank_width_coarse=256,curvrank_width_fine=1024,outline_allow_diagonal=False)
+    """
+
+    def get_param_info_list(self):
+        param_list = []
+        key_list = DEFAULT_RIDGE_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            value = DEFAULT_RIDGE_TEST_CONFIG[key]
+            if key.startswith('trailing_edge_finfindr_') or key.startswith('index_'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
+        return param_list
+
+
+class CurvRankTwoRidgeRequest(CurvRankTwoRequest):  # NOQA
+    _tablename = 'CurvRankTwoRidge'
+
+
+@register_preproc_annot(
+    tablename='CurvRankTwoRidge',
+    parents=[ROOT, ROOT],
+    colnames=['score'],
+    coltypes=[float],
+    configclass=CurvRankTwoRidgeConfig,
+    requestclass=CurvRankTwoRidgeRequest,
+    fname='curvrank_v2_scores_ridge',
+    rm_extern_on_delete=True,
+    chunksize=None,
+)
+def wbia_plugin_curvrank_v2_ridge(depc, qaid_list, daid_list, config):
+    r"""
+    CommandLine:
+        python -m wbia_curvrank_v2._plugin_depc --exec-wbia_plugin_curvrank_v2_dorsal --show
+
+    Example:
+        >>> # DISABLE_DOCTEST
+        >>> from wbia_curvrank_v2._plugin_depc import *  # NOQA
+        >>> import wbia
+        >>> import itertools as it
+        >>> from wbia.init import sysres
+        >>> dbdir = sysres.ensure_testdb_curvrank()
+        >>> ibs = wbia.opendb(dbdir=dbdir)
+        >>> depc = ibs.depc_annot
+        >>> imageset_rowid_list = ibs.get_imageset_imgsetids_from_text(['Dorsal Database', 'Dorsal Query'])
+        >>> aid_list = list(set(ut.flatten(ibs.get_imageset_aids(imageset_rowid_list))))
+        >>> root_rowids = tuple(zip(*it.product(aid_list, aid_list)))
+        >>> qaid_list, daid_list = root_rowids
+        >>> config = CurvRankTwoRidgeConfig()
+        >>> # Call function via request
+        >>> request = CurvRankTwoRidgeRequest.new(depc, aid_list, aid_list)
+        >>> am_list1 = request.execute()
+        >>> # Call function via depcache
+        >>> prop_list = depc.get('CurvRankTwoDorsal', root_rowids)
+        >>> # Call function normally
+        >>> score_list = list(wbia_plugin_curvrank_v2_ridge(depc, qaid_list, daid_list, config))
+        >>> am_list2 = list(get_match_results(depc, qaid_list, daid_list, score_list, config))
+        >>> assert score_list == prop_list, 'error in cache'
+        >>> assert np.all(am_list1[0].score_list == am_list2[0].score_list)
+        >>> ut.quit_if_noshow()
+        >>> am = am_list2[0]
+        >>> am.ishow_analysis(request)
+        >>> ut.show_if_requested()
+    """
+    ibs = depc.controller
+
+    label = 'CurvRankTwoRidge'
+    value_iter = ibs.wbia_plugin_curvrank_v2(label, qaid_list, daid_list, config)
+    for value in value_iter:
+        yield value
+
 
 
 if __name__ == '__main__':

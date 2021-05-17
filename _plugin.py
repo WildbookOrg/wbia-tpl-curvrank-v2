@@ -68,6 +68,7 @@ MODEL_URL_DICT = {
     'fine.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
     'fine.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.humpback.fluke.params.chkpt',
     'fine.fcnn': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
+    'fine.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.greywhale.r1.params',
 }
 
 
@@ -157,6 +158,7 @@ def wbia_plugin_curvrank_v2_preprocessing(ibs, aid_list, pad=0.1, **kwargs):
     images = []
     cropped_images = []
     cropped_bboxes = []
+
     for img, cropped_image, cropped_bbox in generator:
         images.append(img)
         cropped_images.append(cropped_image)
@@ -403,6 +405,19 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
         fine_probs = []
         for fine_prob in generator:
             fine_probs.append(fine_prob)
+
+    # TODO: Do we want to actually follow Fluke logic here instead of current dorsal?
+    elif model_type == 'ridge':
+        generator = ut.generate2(
+            F.refine_by_gradient,
+            zip(cropped_images),
+            nTasks=len(cropped_images),
+            **config_
+        )
+        fine_probs = []
+        for fine_prob in generator:
+            fine_probs.append(fine_prob)
+
     else:
         raise RuntimeError
 
@@ -869,6 +884,7 @@ def wbia_plugin_curvrank_v2_descriptors(
         >>> ]
         >>> assert success == True
         >>> assert ut.hash_data(hash_list) in ['mqxafinoctvyuhljodhqqvsdmfzssuqo']
+
     """
     scales_list = [scales] * len(contours)
     curv_length_list = [curv_length] * len(contours)
@@ -1291,6 +1307,7 @@ def wbia_plugin_curvrank_v2_pipeline(
         >>>     for scale in sorted(list(lnbnn_dict.keys()))
         >>> ]
         >>> assert ut.hash_data(hash_list) in ['fntntwjwjdgepbnhwqtftxxztdpkqfck']
+
     """
     if aid_list is None:
         aid_list = ibs.get_imageset_aids(imageset_rowid)
@@ -1956,6 +1973,8 @@ def wbia_plugin_curvrank_v2_delete_cache_optimized(ibs, aid_list, tablename):
     assert tablename in [
         'CurvRankTwoDorsal',
         'CurvRankTwoFluke',
+        'CurvRankTwoRidge',
+
     ]
 
     tablename_list = [
