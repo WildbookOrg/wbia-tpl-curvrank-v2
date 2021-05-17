@@ -58,11 +58,13 @@ MODEL_URL_DICT = {
     'anchor.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.new.params',
     'anchor.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.elephant.ear.params',
     'anchor.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.humpback.fluke.params',
+    'anchor.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.greywhale.r1.params',
     'coarse.dorsal.old': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.params',
     'coarse.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
     'coarse.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
     'coarse.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.elephant.ear.params',
     'coarse.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.humpback.fluke.params',
+    'coarse.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.greywhale.r1.params',
     'fine.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
     'fine.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
     'fine.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
@@ -239,6 +241,7 @@ def wbia_plugin_curvrank_v2_coarse_probabilities(
             archive_url, appname='curvrank_v2', check_hash=True
         )
     else:
+        print('no model url found for tag %s' % model_tag)
         raise RuntimeError
 
     unet = fcnn.UNet()
