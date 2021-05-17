@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 import click
-import wbia_curvrank_v2.train.datasets as datasets
-import wbia_curvrank_v2.train.plot as plot
-import wbia_curvrank_v2.train.fcnn as fcnn
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,6 +9,7 @@ from os import makedirs
 from os.path import join
 from torch.utils.data import DataLoader
 
+from wbia_curvrank_v2.train import datasets, plot, fcnn
 
 @click.command()
 @click.option('--datafile', default='data/train.csv')

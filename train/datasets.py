@@ -59,7 +59,6 @@ class CoarseDataset(data.Dataset):
         y1 = (pts_xy_int[:, 1] + radii_int).max() + 1
 
         # Pad to ensure we still get the whole contour after rotation.
-        x0 = x0 - self.pad * (x1 - x0)
         x1 = x1 + self.pad * (x1 - x0)
         y0 = y0 - self.pad * (y1 - y0)
         y1 = y1 + self.pad * (y1 - y0)
@@ -80,9 +79,8 @@ class CoarseDataset(data.Dataset):
         width = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x1, y0]))))
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
         # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
-        # width = max(width, 1)
-        # height = max(height, 1)
-        # print('CoarseDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
+        if (width == 0 or height == 0):
+            print('CoarseDataset found zero dims!! get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
 
 
         # Approximately the center of the contour bounding box.
@@ -219,9 +217,21 @@ class FineDataset(data.Dataset):
             # working_part_img = cv2.resize(part_img, working_size,
             #                              interpolation=cv2.INTER_AREA)
             # Computes points at 256x256 but upsamples to 1024x1024.
-            resized_probs = cv2.resize(
-                part_probs, (self.width1, self.height1), interpolation=cv2.INTER_AREA
-            )
+
+            # TODO this is related to bad images I think, but on diff images than the other steps?
+            _width1 = max(1, self.width1)
+            _height1 = max(1, self.height1)
+
+            try:
+                resized_probs = cv2.resize(
+                    part_probs, (_width1, _height1), interpolation=cv2.INTER_AREA
+                )
+            except:
+                print('exception occurred on FineDataset.get(%s), impath = %s , width, height, (%s, %s)' % (index, image_fpath, _width1, _height1))
+                resized_probs = cv2.resize(
+                    part_probs, (_width1, _height1), interpolation=cv2.INTER_AREA
+                )
+
             peaks_ij, normals, is_max = algo.control_points(resized_probs)
             pts_xy = peaks_ij[is_max][:, ::-1]
             pts_normal_xy = normals[is_max][:, ::-1]
@@ -232,8 +242,10 @@ class FineDataset(data.Dataset):
                     [0.0, 1.0 * part_img.shape[0] / self.height1],
                 ]
             )
+
             pts_xy = cv2.transform(np.array([pts_xy]), M)[0]
             pts_xy += np.array([x0, y0])
+
             pts_normal_xy[:, 0] *= M[0, 0]
             pts_normal_xy[:, 1] *= M[1, 1]
             pts_normal_xy /= np.linalg.norm(pts_normal_xy, axis=1)[:, None]
@@ -249,7 +261,11 @@ class FineDataset(data.Dataset):
                 h5f.create_dataset('pts_normal_xy', data=pts_normal_xy)
 
         # Use replace=True, might not have enough samples.
-        sample_idx = np.random.choice(np.arange(pts_xy.shape[0]), size=self.num_samples)
+        try:
+            sample_idx = np.random.choice(np.arange(pts_xy.shape[0]), size=self.num_samples)
+        except:
+            print('FineDataset hit exception!! get(%s): impath = %s' % (index, image_fpath))
+            sample_idx = np.random.choice(np.arange(pts_xy.shape[0]), size=self.num_samples)
 
         pts_xy = pts_xy[sample_idx]
         pts_normal_xy = pts_normal_xy[sample_idx]
@@ -488,8 +504,8 @@ class RegressionDataset(data.Dataset):
         width = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x1, y0]))))
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
         # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
-        width = max(width, 1)
-        height = max(height, 1)
+        if width == 0 or height == 0:
+            print('WARNING! RegressionDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
 
 
 
