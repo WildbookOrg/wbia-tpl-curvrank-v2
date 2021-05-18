@@ -106,8 +106,34 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'index_lnbnn_k': INDEX_LNBNN_K,
 }
 
-DEFAULT_RIDGE_TEST_CONFIG = DEFAULT_DORSAL_TEST_CONFIG.copy()
-DEFAULT_RIDGE_TEST_CONFIG['curvrank_model_type'] = 'ridge'
+DEFAULT_RIDGE_TEST_CONFIG = {
+    'curvrank_daily_cache': True,
+    'curvrank_daily_tag': 'global',
+    'curvrank_cache_recompute': False,
+    'curvrank_model_type': 'ridge',
+    # 'curvrank_fine_model_type': 'dorsal.new',
+    'curvrank_pad': 0.1,
+    'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['ridge'],
+    'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['ridge'],
+    'curvrank_width_fine': DEFAULT_WIDTH_FINE['ridge'],
+    'curvrank_height_fine': DEFAULT_HEIGHT_FINE['ridge'],
+    'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['ridge'],
+    'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['ridge'],
+    'curvrank_patch_size': DEFAULT_PATCH_SIZE['ridge'],
+    'curvrank_trim': 0,
+    'curvrank_cost_func': 'hyp',
+    'curvrank_scale': DEFAULT_SCALE['ridge'],
+    'curvature_scales': DEFAULT_SCALES['ridge'],
+    'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['ridge'],
+    'curvature_transpose_dims': DEFAULT_TRANSPOSE_DIMS['ridge'],
+    'curvature_descriptor_curv_length': 1024,
+    'curvature_descriptor_num_keypoints': 32,
+    'curvature_descriptor_uniform': False,
+    'curvature_descriptor_feat_dim': 32,
+    'index_trees': INDEX_NUM_TREES,
+    'index_search_k': INDEX_SEARCH_K,
+    'index_lnbnn_k': INDEX_LNBNN_K,
+}
 
 
 DEFAULT_FLUKE_TEST_CONFIG = {
