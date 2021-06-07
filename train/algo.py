@@ -238,7 +238,7 @@ def refine_contour(img, bounding_box, contour, patch_dims, patch_size, patchnet,
 
     # start = np.round(contour[0, ::-1]).astype(np.int32)
     # end = np.round(contour[-1, ::-1]).astype(np.int32)
-    # path = pyastar.astar_path(1. + cost, start, end, allow_diagonal=True)
+    # path = pyastar2d.astar_path(1. + cost, start, end, allow_diagonal=True)
     # fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
     # ax1.imshow(part_img[:, :, ::-1], interpolation='none')
     # ax1.scatter(contour[:, 0], contour[:, 1], s=5, color='red')
