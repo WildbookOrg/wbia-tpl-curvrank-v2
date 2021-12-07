@@ -58,25 +58,25 @@ DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
     'ridge': 4,
-    'elephant.ear': 4,
+    'elephant.ear': 3,
 }
 DEFAULT_SCALES = {
     'fluke': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
     'dorsal': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
     'ridge': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
-    'elephant.ear': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
+    'elephant.ear': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
 }
 DEFAULT_ALLOW_DIAGONAL = {
     'fluke': True,
     'dorsal': False,
     'ridge': False,
-    'elephant.ear': False,
+    'elephant.ear': True,
 }
 DEFAULT_TRANSPOSE_DIMS = {
     'fluke': True,
     'dorsal': False,
     'ridge': False,
-    'elephant.ear': False,
+    'elephant.ear': True,
 }
 
 
@@ -191,7 +191,7 @@ DEFAULT_ELEPHANT_EAR_TEST_CONFIG = {
     'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['elephant.ear'],
     'curvrank_patch_size': DEFAULT_PATCH_SIZE['elephant.ear'],
     'curvrank_trim': 0,
-    'curvrank_cost_func': 'hyp',
+    'curvrank_cost_func': 'exp',
     'curvrank_scale': DEFAULT_SCALE['elephant.ear'],
     'curvature_scales': DEFAULT_SCALES['elephant.ear'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['elephant.ear'],
