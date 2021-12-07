@@ -363,7 +363,7 @@ def wbia_plugin_curvrank_v2_fine_probabilities(
     if fine_model_type is not None:
         model_type = fine_model_type
 
-    if model_type in ['fluke', 'dorsal', 'dorsal.new']:
+    if model_type in ['fluke', 'dorsal', 'dorsal.new', 'elephant.ear']:
         generator = ut.generate2(
             F.control_points,
             zip(coarse_probabilities),
