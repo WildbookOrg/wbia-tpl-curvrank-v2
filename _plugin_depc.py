@@ -58,7 +58,7 @@ DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
     'ridge': 4,
-    'elephant.ear': 3,
+    'elephant.ear': 4,
 }
 DEFAULT_SCALES = {
     'fluke': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
@@ -70,7 +70,7 @@ DEFAULT_ALLOW_DIAGONAL = {
     'fluke': True,
     'dorsal': False,
     'ridge': False,
-    'elephant.ear': True,
+    'elephant.ear': False,
 }
 DEFAULT_TRANSPOSE_DIMS = {
     'fluke': True,
