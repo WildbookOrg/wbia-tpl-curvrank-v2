@@ -10,7 +10,6 @@ import pandas as pd
 import pickle
 import torch
 import torch.utils.data as data
-import utool as ut
 
 from matplotlib.transforms import Affine2D
 from os.path import basename, isfile, join, splitext
@@ -79,9 +78,11 @@ class CoarseDataset(data.Dataset):
         width = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x1, y0]))))
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
         # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
-        if (width == 0 or height == 0):
-            print('CoarseDataset found zero dims!! get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
-
+        if width == 0 or height == 0:
+            print(
+                'CoarseDataset found zero dims!! get(%s) = width, height, impath = (%s, %s, %s)'
+                % (index, width, height, image_fpath)
+            )
 
         # Approximately the center of the contour bounding box.
         center = (x0 + (x1 - x0) / 2.0, y0 + (y1 - y0) / 2.0)
@@ -226,8 +227,11 @@ class FineDataset(data.Dataset):
                 resized_probs = cv2.resize(
                     part_probs, (_width1, _height1), interpolation=cv2.INTER_AREA
                 )
-            except:
-                print('exception occurred on FineDataset.get(%s), impath = %s , width, height, (%s, %s)' % (index, image_fpath, _width1, _height1))
+            except Exception:
+                print(
+                    'exception occurred on FineDataset.get(%s), impath = %s , width, height, (%s, %s)'
+                    % (index, image_fpath, _width1, _height1)
+                )
                 resized_probs = cv2.resize(
                     part_probs, (_width1, _height1), interpolation=cv2.INTER_AREA
                 )
@@ -262,10 +266,16 @@ class FineDataset(data.Dataset):
 
         # Use replace=True, might not have enough samples.
         try:
-            sample_idx = np.random.choice(np.arange(pts_xy.shape[0]), size=self.num_samples)
-        except:
-            print('FineDataset hit exception!! get(%s): impath = %s' % (index, image_fpath))
-            sample_idx = np.random.choice(np.arange(pts_xy.shape[0]), size=self.num_samples)
+            sample_idx = np.random.choice(
+                np.arange(pts_xy.shape[0]), size=self.num_samples
+            )
+        except Exception:
+            print(
+                'FineDataset hit exception!! get(%s): impath = %s' % (index, image_fpath)
+            )
+            sample_idx = np.random.choice(
+                np.arange(pts_xy.shape[0]), size=self.num_samples
+            )
 
         pts_xy = pts_xy[sample_idx]
         pts_normal_xy = pts_normal_xy[sample_idx]
@@ -505,9 +515,10 @@ class RegressionDataset(data.Dataset):
         height = int(np.round(np.linalg.norm(np.array([x0, y0]) - np.array([x0, y1]))))
         # TODO: figure out why I'm occasionally seeing a zero-width here causing a divide by zero later.
         if width == 0 or height == 0:
-            print('WARNING! RegressionDataset.get(%s) = width, height, impath = (%s, %s, %s)' % (index, width, height, image_fpath))
-
-
+            print(
+                'WARNING! RegressionDataset.get(%s) = width, height, impath = (%s, %s, %s)'
+                % (index, width, height, image_fpath)
+            )
 
         # Approximately the center of the contour bounding box.
         center = (x0 + (x1 - x0) / 2.0, y0 + (y1 - y0) / 2.0)

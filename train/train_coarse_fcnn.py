@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 
 from wbia_curvrank_v2.train import datasets, plot, fcnn
 
+
 @click.command()
 @click.option('--datafile', default='data/train.csv')
 @click.option('--batch-size', default=8)
@@ -36,8 +37,19 @@ def train_fcnn_cmd(
     num_workers,
     model_name,
 ):
-    train_fcnn(datafile, batch_size, max_epochs, pad, height, width, lr,
-        sample_every, checkpoint_every, num_workers, model_name)
+    train_fcnn(
+        datafile,
+        batch_size,
+        max_epochs,
+        pad,
+        height,
+        width,
+        lr,
+        sample_every,
+        checkpoint_every,
+        num_workers,
+        model_name,
+    )
 
 
 def train_fcnn(

@@ -24,8 +24,9 @@ import logging
 
 # to import pystitch, which is a .pyx (cython) file, we must first do this
 import pyximport
+
 pyximport.install()
-from .stitch import stitch
+from .stitch import stitch  # NOQA
 
 
 log = logging.getLogger('sciluigi-interface')

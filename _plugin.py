@@ -56,18 +56,18 @@ MODEL_URL_DICT = {
     'anchor.dorsal.old': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.params',
     'anchor.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.new.params',
     'anchor.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.bottlenose.dorsal.new.params',
-    'anchor.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.elephant.ear.params',
+    'anchor.elephant.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.elephant.ear.params',
     'anchor.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.humpback.fluke.params',
     'anchor.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.anchor.greywhale.r1.params',
     'coarse.dorsal.old': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.params',
     'coarse.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
     'coarse.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.bottlenose.dorsal.new.params',
-    'coarse.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.elephant.ear.params',
+    'coarse.elephant.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.elephant.ear.params',
     'coarse.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.humpback.fluke.params',
     'coarse.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.coarse.greywhale.r1.params',
     'fine.dorsal.new': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
     'fine.dorsal': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.bottlenose.dorsal.new.params',
-    'fine.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
+    'fine.elephant.ear': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.elephant.ear.params',
     'fine.fluke': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.humpback.fluke.params.chkpt',
     'fine.fcnn': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.fcnn.params.chkpt',
     'fine.ridge': 'https://wildbookiarepository.azureedge.net/models/curvrank.v2.fine.greywhale.r1.params',
@@ -1026,7 +1026,7 @@ def wbia_plugin_curvrank_v2_pipeline_compute(ibs, aid_list, config={}):
         depc_config,
         overlay=True,
         chip_dict=chip_dict,
-        trailing_edge_dict=trailing_edge_dict
+        trailing_edge_dict=trailing_edge_dict,
     )
 
     return success_list, descriptors
@@ -1037,9 +1037,7 @@ def wbia_plugin_curvrank_v2_overlay_trailing_edge(
 ):
     try:
         ratio = width_fine / chip.shape[1]
-        chip = cv2.resize(
-            chip, (0, 0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA
-        )
+        chip = cv2.resize(chip, (0, 0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
         h, w = chip.shape[:2]
 
         # Speed-up Hack
@@ -1054,7 +1052,7 @@ def wbia_plugin_curvrank_v2_overlay_trailing_edge(
                 cv2.circle(chip, (x, y), 2, edge_color, thickness=-1)
 
         cv2.imwrite(output_path, chip)
-    except:
+    except Exception:
         pass
     return exists(output_path)
 
@@ -1062,7 +1060,15 @@ def wbia_plugin_curvrank_v2_overlay_trailing_edge(
 
 
 @register_ibs_method
-def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, depc_config, overlay=True, chip_dict={}, trailing_edge_dict={}, read_extern=True):
+def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(
+    ibs,
+    aid_list,
+    depc_config,
+    overlay=True,
+    chip_dict={},
+    trailing_edge_dict={},
+    read_extern=True,
+):
 
     cache_path = join(ibs.cachedir, 'curvrank_v2_chips')
     ut.ensuredir(cache_path)
@@ -1070,7 +1076,10 @@ def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, depc_config
     cache_filepaths = []
     flag_list = []
     for aid in aid_list:
-        cache_filename = 'curvrank_v2_aid_%d_config_latest_overlay_%s.jpg' % (aid, overlay, )
+        cache_filename = 'curvrank_v2_aid_%d_config_latest_overlay_%s.jpg' % (
+            aid,
+            overlay,
+        )
         cache_filepath = join(cache_path, cache_filename)
         flag_list.append(not exists(cache_filepath))
         cache_filepaths.append(cache_filepath)
@@ -1089,7 +1098,9 @@ def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, depc_config
             flag = missing_aid not in chip_dict
             flags.append(flag)
         dirty_aid_list = ut.compress(missing_aid_list, flags)
-        chips = depc.get('preprocess_two', dirty_aid_list, 'cropped_img', config=depc_config)
+        chips = depc.get(
+            'preprocess_two', dirty_aid_list, 'cropped_img', config=depc_config
+        )
         for dirty_aid, chip in zip(dirty_aid_list, chips):
             chip_dict[dirty_aid] = chip
 
@@ -1098,12 +1109,16 @@ def wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(ibs, aid_list, depc_config
             flag = overlay and missing_aid not in trailing_edge_dict
             flags.append(flag)
         dirty_aid_list = ut.compress(missing_aid_list, flags)
-        trailing_edges = depc.get('contour_two', dirty_aid_list, 'contour', config=depc_config)
+        trailing_edges = depc.get(
+            'contour_two', dirty_aid_list, 'contour', config=depc_config
+        )
         for dirty_aid, trailing_edge in zip(dirty_aid_list, trailing_edges):
             trailing_edge_dict[dirty_aid] = trailing_edge
 
         arg_iter = []
-        for missing_aid, mising_cache_filepath in zip(missing_aid_list, missing_cache_filepaths):
+        for missing_aid, mising_cache_filepath in zip(
+            missing_aid_list, missing_cache_filepaths
+        ):
             chip = chip_dict[missing_aid]
             trailing_edge = trailing_edge_dict.get(missing_aid, None)
             arg = chip, width_fine, mising_cache_filepath, trailing_edge
@@ -1977,7 +1992,6 @@ def wbia_plugin_curvrank_v2_delete_cache_optimized(ibs, aid_list, tablename):
         'CurvRankTwoDorsal',
         'CurvRankTwoFluke',
         'CurvRankTwoRidge',
-
     ]
 
     tablename_list = [

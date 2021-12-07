@@ -38,21 +38,32 @@ def train_regression_cmd(
     num_workers,
     model_name,
 ):
-    train_regression(datafile, batch_size, max_epochs, pad, height, width, lr, sample_every, num_workers, model_name)
+    train_regression(
+        datafile,
+        batch_size,
+        max_epochs,
+        pad,
+        height,
+        width,
+        lr,
+        sample_every,
+        num_workers,
+        model_name,
+    )
 
 
 def train_regression(
-    datafile = 'data/train.csv',
-    batch_size = 8,
-    max_epochs = 20,
-    pad = 0.1,
-    height = 224,
-    width = 224,
-    lr = 0.001,
-    sample_every = 10,
-    checkpoint_every = 10,
-    num_workers = 4,
-    model_name = 'anchor',
+    datafile='data/train.csv',
+    batch_size=8,
+    max_epochs=20,
+    pad=0.1,
+    height=224,
+    width=224,
+    lr=0.001,
+    sample_every=10,
+    checkpoint_every=10,
+    num_workers=4,
+    model_name='anchor',
 ):
 
     gpu_id = None

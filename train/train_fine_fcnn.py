@@ -70,23 +70,23 @@ def train_pcnn_cmd(
 
 
 def train_pcnn(
-        datafile = 'data/train.csv',
-        batch_size = 2,
-        max_epochs = 20,
-        height1 = 256,
-        width1 = 256,
-        height2 = 1024,
-        width2 = 1024,
-        lr = 0.00001,
-        sample_every = 10,
-        checkpoint_every = 10,
-        num_workers = 4,
-        model_name = 'fine',
-        pretrain_fpath='results/coarse/weights.params',
-        num_samples = 24,
-        num_fixed = 32,
-        patch_size = 128,
-    ):
+    datafile='data/train.csv',
+    batch_size=2,
+    max_epochs=20,
+    height1=256,
+    width1=256,
+    height2=1024,
+    width2=1024,
+    lr=0.00001,
+    sample_every=10,
+    checkpoint_every=10,
+    num_workers=4,
+    model_name='fine',
+    pretrain_fpath='results/coarse/weights.params',
+    num_samples=24,
+    num_fixed=32,
+    patch_size=128,
+):
 
     gpu_id = None
     use_cuda = True

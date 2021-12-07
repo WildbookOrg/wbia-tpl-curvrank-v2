@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import utool as ut
 import pandas as pd
 import pickle
 import uuid
@@ -34,7 +35,10 @@ def prepare_images_with_contours(ibs, outdir, dbdir, check_aids=True, mirror_rig
     bbox_is_valid = [bb[2] > 5 and bb[3] > 5 for bb in bboxes]
     bad_bboxes = bbox_is_valid.count(False)
     if bad_bboxes > 0:
-        print('found %s bboxes with zero width/height; removing from training data' % bad_bboxes)
+        print(
+            'found %s bboxes with zero width/height; removing from training data'
+            % bad_bboxes
+        )
         bboxes = ut.compress(bboxes, bbox_is_valid)
         pids = ut.compress(pids, bbox_is_valid)
     print('after filtering bad bboxes we have %s pids' % len(pids))
@@ -42,7 +46,11 @@ def prepare_images_with_contours(ibs, outdir, dbdir, check_aids=True, mirror_rig
     if check_aids:
         aids = ibs.get_part_annot_rowids(pids)
         annot_bboxes = ibs.get_annot_bboxes(aids)
-        pids = [pid for pid, bbox in zip(pids, annot_bboxes) if bbox is not None and bbox[2] != 0 and bbox[3] != 0]
+        pids = [
+            pid
+            for pid, bbox in zip(pids, annot_bboxes)
+            if bbox is not None and bbox[2] != 0 and bbox[3] != 0
+        ]
         bboxes = ibs.get_part_bboxes(pids)
     print('after filtering None annot bboxes we have %s pids' % len(pids))
 
@@ -187,14 +195,15 @@ def left_mirrofied_image_fpaths(ibs, gid_list, viewpoint_list, dbdir):
 
     fpaths = []
     import cv2
-    tqdm_iter = tqdm(
-        zip(gid_list, viewpoint_list, unflipped_fpaths)
-    )
+
+    tqdm_iter = tqdm(zip(gid_list, viewpoint_list, unflipped_fpaths))
     for gid, viewpoint, orig_fp in tqdm_iter:
         if viewpoint is None or 'right' not in viewpoint:
             fpaths.append(orig_fp)
         else:  # flip right image
-            flipped_fpath = path.splitext(orig_fp)[0]+'-mirrored'+path.splitext(orig_fp)[1]
+            flipped_fpath = (
+                path.splitext(orig_fp)[0] + '-mirrored' + path.splitext(orig_fp)[1]
+            )
             if not path.exists(flipped_fpath):
                 # flip and save image to disk if it isn't there already
                 image_arr = ibs.get_images(gid)
@@ -236,15 +245,11 @@ def l_to_r_contour(contour_dict):
     end_idx = contour['end']
     start_x = segment[begin_idx]['x']
     end_x = segment[end_idx]['x']
-    if (start_x > end_x):
+    if start_x > end_x:
         new_segment = segment[::-1]
         new_start_idx = len(segment) - end_idx - 1
         new_end_idx = len(segment) - begin_idx - 1
-        contour = {
-            'begin': new_start_idx,
-            'end': new_end_idx,
-            'segment': new_segment
-        }
+        contour = {'begin': new_start_idx, 'end': new_end_idx, 'segment': new_segment}
         contour_dict = {'contour': contour}
     return contour_dict
 
@@ -252,8 +257,9 @@ def l_to_r_contour(contour_dict):
 def mirror_contours(contour):
     ctour = contour['contour']
     segment = ctour['segment']
-    mirrored_seg = [{'x': 1-p['x'], 'y': p['y'], 'r': p['r'], 'flag': p['flag']}
-                    for p in segment]
+    mirrored_seg = [
+        {'x': 1 - p['x'], 'y': p['y'], 'r': p['r'], 'flag': p['flag']} for p in segment
+    ]
     new_contour = {
         'begin': ctour['begin'],
         'end': ctour['end'],

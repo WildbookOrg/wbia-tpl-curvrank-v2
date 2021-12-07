@@ -16,56 +16,67 @@ DEFAULT_WIDTH_COARSE = {
     'fluke': 384,
     'dorsal': 256,
     'ridge': 256,
+    'elephant.ear': 256,
 }
 DEFAULT_HEIGHT_COARSE = {
     'fluke': 192,
     'dorsal': 256,
     'ridge': 256,
+    'elephant.ear': 256,
 }
 DEFAULT_WIDTH_FINE = {
     'fluke': 1152,
     'dorsal': 1024,
     'ridge': 1024,
+    'elephant.ear': 1024,
 }
 DEFAULT_HEIGHT_FINE = {
     'fluke': 576,
     'dorsal': 1024,
     'ridge': 1024,
+    'elephant.ear': 1024,
 }
 DEFAULT_WIDTH_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
     'ridge': 224,
+    'elephant.ear': 224,
 }
 DEFAULT_HEIGHT_ANCHOR = {
     'fluke': 224,
     'dorsal': 224,
     'ridge': 224,
+    'elephant.ear': 224,
 }
 DEFAULT_PATCH_SIZE = {
     'fluke': 128,
     'dorsal': 128,
-    'ridge': 128
+    'ridge': 128,
+    'elephant.ear': 128,
 }
 DEFAULT_SCALE = {
     'fluke': 3,
     'dorsal': 4,
     'ridge': 4,
+    'elephant.ear': 4,
 }
 DEFAULT_SCALES = {
     'fluke': np.array([0.02, 0.04, 0.06, 0.08], dtype=np.float32),
     'dorsal': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
     'ridge': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
+    'elephant.ear': np.array([0.04, 0.06, 0.08, 0.10], dtype=np.float32),
 }
 DEFAULT_ALLOW_DIAGONAL = {
     'fluke': True,
     'dorsal': False,
     'ridge': False,
+    'elephant.ear': False,
 }
 DEFAULT_TRANSPOSE_DIMS = {
     'fluke': True,
     'dorsal': False,
     'ridge': False,
+    'elephant.ear': False,
 }
 
 
@@ -106,12 +117,12 @@ DEFAULT_DORSAL_TEST_CONFIG = {
     'index_lnbnn_k': INDEX_LNBNN_K,
 }
 
+
 DEFAULT_RIDGE_TEST_CONFIG = {
     'curvrank_daily_cache': True,
     'curvrank_daily_tag': 'global',
     'curvrank_cache_recompute': False,
     'curvrank_model_type': 'ridge',
-    # 'curvrank_fine_model_type': 'dorsal.new',
     'curvrank_pad': 0.1,
     'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['ridge'],
     'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['ridge'],
@@ -156,6 +167,35 @@ DEFAULT_FLUKE_TEST_CONFIG = {
     'curvature_scales': DEFAULT_SCALES['fluke'],
     'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['fluke'],
     'curvature_transpose_dims': DEFAULT_TRANSPOSE_DIMS['fluke'],
+    'curvature_descriptor_curv_length': 1024,
+    'curvature_descriptor_num_keypoints': 32,
+    'curvature_descriptor_uniform': False,
+    'curvature_descriptor_feat_dim': 32,
+    'index_trees': INDEX_NUM_TREES,
+    'index_search_k': INDEX_SEARCH_K,
+    'index_lnbnn_k': INDEX_LNBNN_K,
+}
+
+
+DEFAULT_ELEPHANT_EAR_TEST_CONFIG = {
+    'curvrank_daily_cache': True,
+    'curvrank_daily_tag': 'global',
+    'curvrank_cache_recompute': False,
+    'curvrank_model_type': 'elephant.ear',
+    'curvrank_pad': 0.1,
+    'curvrank_width_coarse': DEFAULT_WIDTH_COARSE['elephant.ear'],
+    'curvrank_height_coarse': DEFAULT_HEIGHT_COARSE['elephant.ear'],
+    'curvrank_width_fine': DEFAULT_WIDTH_FINE['elephant.ear'],
+    'curvrank_height_fine': DEFAULT_HEIGHT_FINE['elephant.ear'],
+    'curvrank_width_anchor': DEFAULT_WIDTH_ANCHOR['elephant.ear'],
+    'curvrank_height_anchor': DEFAULT_HEIGHT_ANCHOR['elephant.ear'],
+    'curvrank_patch_size': DEFAULT_PATCH_SIZE['elephant.ear'],
+    'curvrank_trim': 0,
+    'curvrank_cost_func': 'hyp',
+    'curvrank_scale': DEFAULT_SCALE['elephant.ear'],
+    'curvature_scales': DEFAULT_SCALES['elephant.ear'],
+    'outline_allow_diagonal': DEFAULT_ALLOW_DIAGONAL['elephant.ear'],
+    'curvature_transpose_dims': DEFAULT_TRANSPOSE_DIMS['elephant.ear'],
     'curvature_descriptor_curv_length': 1024,
     'curvature_descriptor_num_keypoints': 32,
     'curvature_descriptor_uniform': False,
@@ -1173,7 +1213,7 @@ def wbia_plugin_curvrank_v2_scores_depc(ibs, db_aid_list, qr_aid_list, **kwargs)
 
 
 def get_match_results(depc, qaid_list, daid_list, score_list, config):
-    """ converts table results into format for ipython notebook """
+    """converts table results into format for ipython notebook"""
     # qaid_list, daid_list = request.get_parent_rowids()
     # score_list = request.score_list
     # config = request.config
@@ -1224,7 +1264,9 @@ class CurvRankTwoRequest(dtool.base.VsOneSimilarityRequest):  # NOQA
         depc = request.depc
         ibs = depc.controller
         depc_config = request.config.asdict()
-        overlay_chips = ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(aid_list, depc_config, overlay=overlay)
+        overlay_chips = ibs.wbia_plugin_curvrank_v2_get_fmatch_overlayed_chip(
+            aid_list, depc_config, overlay=overlay
+        )
         return overlay_chips
 
     def render_single_result(request, cm, aid, **kwargs):
@@ -1531,6 +1573,43 @@ def wbia_plugin_curvrank_v2_ridge(depc, qaid_list, daid_list, config):
     for value in value_iter:
         yield value
 
+
+class CurvRankTwoElephantEarConfig(dtool.Config):  # NOQA
+    def get_param_info_list(self):
+        param_list = []
+        key_list = DEFAULT_ELEPHANT_EAR_TEST_CONFIG.keys()
+        for key in sorted(key_list):
+            value = DEFAULT_ELEPHANT_EAR_TEST_CONFIG[key]
+            if key.startswith('trailing_edge_finfindr_') or key.startswith('index_'):
+                param = ut.ParamInfo(key, value, hideif=value)
+            else:
+                param = ut.ParamInfo(key, value)
+            param_list.append(param)
+        return param_list
+
+
+class CurvRankTwoElephantEarRequest(CurvRankTwoRequest):  # NOQA
+    _tablename = 'CurvRankTwoElephantEar'
+
+
+@register_preproc_annot(
+    tablename='CurvRankTwoElephantEar',
+    parents=[ROOT, ROOT],
+    colnames=['score'],
+    coltypes=[float],
+    configclass=CurvRankTwoElephantEarConfig,
+    requestclass=CurvRankTwoElephantEarRequest,
+    fname='curvrank_v2_scores_elephant_ear',
+    rm_extern_on_delete=True,
+    chunksize=None,
+)
+def wbia_plugin_curvrank_v2_elephant_ear(depc, qaid_list, daid_list, config):
+    ibs = depc.controller
+
+    label = 'CurvRankTwoElephantEar'
+    value_iter = ibs.wbia_plugin_curvrank_v2(label, qaid_list, daid_list, config)
+    for value in value_iter:
+        yield value
 
 
 if __name__ == '__main__':
