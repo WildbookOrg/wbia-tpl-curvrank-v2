@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 from wbia_curvrank_v2 import algo, fcnn
-from wbia_curvrank_v2 import curv, pyastar, utils
+from wbia_curvrank_v2 import curv, utils
 from wbia_curvrank_v2.costs import exp_cost_func, hyp_cost_func
 import annoy
 import cv2
@@ -10,6 +10,7 @@ import torch
 from itertools import combinations
 from scipy.signal import argrelextrema
 from scipy.ndimage import gaussian_filter1d
+import pyastar2d
 import tqdm
 import time
 
@@ -142,7 +143,7 @@ def contour_from_anchorpoints(
     end_ij = tuple(end_xy[::-1].astype(np.int32))
     # A* expects start and endpoints in matrix coordinates.
     # TODO: set this based on the config
-    path_ij = pyastar.astar_path(W, start_ij, end_ij, allow_diagonal=True)
+    path_ij = pyastar2d.astar_path(W, start_ij, end_ij, allow_diagonal=True)
     if trim > 0 and path_ij.shape[0] > 2 * trim:
         path_ij = path_ij[trim:-trim]
     contour = path_ij if path_ij.size > 0 else None
