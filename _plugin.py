@@ -655,7 +655,7 @@ def wbia_plugin_curvrank_v2_contours(
     config_ = {
         'ordered': True,
         'chunksize': CHUNKSIZE,
-        'force_serial': False,
+        'force_serial': True,
         'progkw': {'freq': 10},
     }
     generator = ut.generate2(
