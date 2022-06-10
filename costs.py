@@ -14,4 +14,4 @@ def hyp_cost_func(fine, coarse):
     cost = coarse * fine
     cost = cv2.normalize(cost, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
 
-    return 1.0 / np.clip(cost, 1e-5, 1.0)
+    return 1.0 / np.clip(cost, 1e-4, 1.0)
