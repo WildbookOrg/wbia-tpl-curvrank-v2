@@ -6,7 +6,7 @@ import utool as ut
 import vtool as vt
 from wbia import dtool
 import wbia
-
+from wbia import constants as const
 
 _, register_ibs_method = controller_inject.make_ibs_register_decorator(__name__)
 
@@ -236,7 +236,7 @@ DEFAULT_DEPC_KEY_MAPPING = {
 }
 
 
-ROOT = wbia.const.ANNOTATION_TABLE
+ROOT = const.ANNOTATION_TABLE
 
 
 def zip_coords(ys, xs):
